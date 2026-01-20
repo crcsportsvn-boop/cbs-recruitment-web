@@ -7,7 +7,7 @@ const FOLDER_ID_INPUT = process.env.GOOGLE_DRIVE_INPUT_FOLDER_ID || "1P60dhESnbs
 const SPREADSHEET_ID = "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
 const SHEET_NAME = "Vị trí tuyển dụng";
 const SCOPES = [
-  "https://www.googleapis.com/auth/drive.file",
+  "https://www.googleapis.com/auth/drive",
   "https://www.googleapis.com/auth/spreadsheets"
 ];
 
@@ -38,17 +38,24 @@ export async function POST(req: NextRequest) {
     stream.push(buffer);
     stream.push(null);
 
-    // 3. Upload to Drive (with supportsAllDrives to fix quota issue)
+    // 3. Upload to Drive (to Service Account root first)
     const driveResponse = await drive.files.create({
       requestBody: {
         name: filename,
-        parents: [FOLDER_ID_INPUT],
+        // Don't set parents - upload to root first
       },
       media: {
         mimeType: file.type,
         body: stream,
       },
       fields: "id, name, webViewLink",
+    });
+
+    // 3.5. Move file to target folder
+    await drive.files.update({
+      fileId: driveResponse.data.id!,
+      addParents: FOLDER_ID_INPUT,
+      fields: "id, parents",
       supportsAllDrives: true,
     });
 
