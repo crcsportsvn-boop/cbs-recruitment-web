@@ -69,9 +69,21 @@ export async function GET(req: NextRequest) {
                 };
             }
         }
-    } catch (sheetError) {
+    } catch (sheetError: any) {
         console.error("Error reading User_view sheet:", sheetError);
-        // Fallback or ignore if sheet doesn't exist yet
+        // Return error details to help user debug permissions
+        return NextResponse.json({
+            authenticated: true,
+            user: {
+                email,
+                id: googleId,
+                name: userInfo.data.name,
+                picture: userInfo.data.picture,
+                role: "Guest",
+                config: {},
+                debugError: sheetError.message // Return error message to UI
+            }
+        });
     }
 
     return NextResponse.json({

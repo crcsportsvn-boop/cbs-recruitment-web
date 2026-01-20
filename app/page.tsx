@@ -166,6 +166,11 @@ function HomeContent() {
                </code>
             </div>
             <p className="text-sm">Vui lòng liên hệ Admin và cung cấp ID trên để được kích hoạt.</p>
+            {user.debugError && (
+                <div className="mt-4 p-2 bg-red-100 border border-red-300 rounded text-xs text-red-800 break-words font-mono">
+                    <strong>System Error (Debug):</strong> {user.debugError}
+                </div>
+            )}
          </div>
       )}
 
