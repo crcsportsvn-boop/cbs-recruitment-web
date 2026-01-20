@@ -15,8 +15,10 @@ export default function Home() {
             </div>
             <h1 className="text-xl font-bold tracking-tight">Recruitment Portal</h1>
           </div>
-          <div className="text-sm opacity-80">
-            Admin Dashboard
+          <div className="text-sm">
+            <a href="/dashboard" className="bg-white text-cbs-black px-4 py-2 rounded font-bold hover:bg-gray-100 transition-colors">
+              Truy cập Dashboard
+            </a>
           </div>
         </div>
       </header>
