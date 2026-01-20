@@ -25,6 +25,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2, CheckCircle, Upload } from "lucide-react";
 
+import { dictionary, LangType } from "@/lib/dictionary";
+
+// ... previous imports ...
+
 // Form Schema Validation - Updated for Flexibility
 const formSchema = z.object({
   jobTitle: z.string().min(1, "Vui lòng nhập vị trí ứng tuyển"),
@@ -35,7 +39,12 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export default function CandidateInputForm() {
+interface CandidateInputFormProps {
+  lang?: LangType;
+}
+
+export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormProps) {
+  const t = dictionary[lang].form;
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
