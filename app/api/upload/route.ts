@@ -4,7 +4,8 @@ import { google } from "googleapis";
 import { Readable } from "stream";
 
 // Configuration
-const FOLDER_ID_INPUT = process.env.GOOGLE_DRIVE_INPUT_FOLDER_ID || "1L23vAO-hvrXPxE-VFTAzGzA0_kyb_wGN";
+// Hardcode the correct folder ID to override any env var issues
+const FOLDER_ID_INPUT = "1L23vAO-hvrXPxE-VFTAzGzA0_kyb_wGN"; 
 const SPREADSHEET_ID = "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
 const SHEET_NAME = "Vị trí tuyển dụng";
 const SCOPES = [
@@ -75,8 +76,8 @@ export async function POST(req: NextRequest) {
     // 4. Write to Google Sheets (Vị trí tuyển dụng)
     const currentDate = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
     
-    // Combine Job Title and Requirements for Column B
-    const jobInfo = requirements ? `${jobTitle}\n\n${requirements}` : jobTitle;
+    // Combine Job Title and Requirements for Column B (Inline format)
+    const jobInfo = requirements ? `${jobTitle} - ${requirements}` : jobTitle;
 
     const sheetRow = [
       currentDate,      // Column A: Date
