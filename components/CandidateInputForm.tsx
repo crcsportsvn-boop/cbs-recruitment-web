@@ -27,11 +27,10 @@ import { Loader2, CheckCircle, Upload } from "lucide-react";
 
 // Form Schema Validation - Updated for Flexibility
 const formSchema = z.object({
-  fullName: z.string().min(2, "Vui lòng nhập họ tên"),
   jobTitle: z.string().min(1, "Vui lòng nhập vị trí ứng tuyển"),
   requirements: z.string().optional(),
   source: z.string().min(1, "Vui lòng chọn nguồn"),
-  file: z.any().refine((files) => files?.length === 1, "Vui lòng upload 1 file CV"),
+  file: z.any().refine((files) => files?.length >= 1, "Vui lòng upload ít nhất 1 file CV"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -56,44 +55,47 @@ export default function CandidateInputForm() {
   const onSubmit = async (data: FormValues) => {
     setLoading(true);
     try {
-      const file = data.file[0];
+      const files = Array.from(data.file);
       
-      // Try to match job title to existing ID for cleaner file naming, else use "OTHER"
+      // Try to match job title to existing ID for cleaner file naming
       const matchedJob = ACTIVE_JOBS.find(
         (j) => j.name.toLowerCase() === data.jobTitle.toLowerCase()
       );
       const jobCode = matchedJob ? matchedJob.id : "OTHER";
       const positionId = matchedJob ? matchedJob.positionId : "N/A";
 
-      // 1. Rename Logic: YYYY-MM-DD - JobCode - PositionName - CandidateName.pdf
-      const dateStr = new Date().toISOString().split("T")[0];
-      const extension = file.name.split(".").pop();
-      // Sanitize inputs for filename
-      const safeJobName = data.jobTitle.replace(/[^a-zA-Z0-9\s-]/g, "").trim();
-      const safeUserName = data.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").trim();
-      
-      const newFileName = `${dateStr} - ${jobCode} - ${safeJobName} - ${safeUserName}.${extension}`;
+      // Upload each file
+      const uploadPromises = files.map(async (file: any, index: number) => {
+        // 1. Rename Logic: YYYY-MM-DD - JobCode - PositionID - Index.ext
+        const dateStr = new Date().toISOString().split("T")[0];
+        const extension = file.name.split(".").pop();
+        const newFileName = `${dateStr} - ${jobCode} - ${positionId} - ${index + 1}.${extension}`;
 
-      // 2. Prepare FormData
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("filename", newFileName);
-      formData.append("jobTitle", data.jobTitle);
-      formData.append("source", data.source);
-      formData.append("jobId", jobCode);
-      formData.append("positionId", positionId);
-      formData.append("requirements", data.requirements || "");
+        // 2. Prepare FormData
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("filename", newFileName);
+        formData.append("jobTitle", data.jobTitle);
+        formData.append("source", data.source);
+        formData.append("jobId", jobCode);
+        formData.append("positionId", positionId);
+        formData.append("requirements", data.requirements || "");
 
-      // 3. Call API to Upload to Drive
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+        // 3. Call API to Upload to Drive
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const resData = await response.json();
+          throw new Error(resData.details || "Upload failed");
+        }
+
+        return response.json();
       });
 
-      if (!response.ok) {
-        const resData = await response.json();
-        throw new Error(resData.details || "Upload failed");
-      }
+      await Promise.all(uploadPromises);
 
       setSuccess(true);
       reset();
@@ -109,7 +111,7 @@ export default function CandidateInputForm() {
   const handleQuickJobSelect = (value: string) => {
     const job = ACTIVE_JOBS.find((j) => j.id === value);
     if (job) {
-      setValue("jobTitle", job.name);
+      setValue("jobTitle", `${job.name} (${job.id}_${job.positionId})`);
       setValue("requirements", job.requirements.join("\n"));
     }
   };
