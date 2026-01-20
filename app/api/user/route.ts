@@ -7,10 +7,17 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const cookieStore = cookies();
-    const accessToken = cookieStore.get("access_token")?.value;
+    const tokensCookie = cookieStore.get("google_tokens")?.value;
+
+    if (!tokensCookie) {
+      return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
+    }
+
+    const tokens = JSON.parse(tokensCookie);
+    const accessToken = tokens.access_token;
 
     if (!accessToken) {
-      return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
+       return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
     }
 
     const oauth2Client = new google.auth.OAuth2();
