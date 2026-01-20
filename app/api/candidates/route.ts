@@ -27,10 +27,10 @@ export async function GET(req: NextRequest) {
     const sheets = google.sheets({ version: "v4", auth: oauth2Client });
 
     // 3. Read Data from Datapool Sheet
-    // Giả định đọc từ A2:AD (A1 là header)
+    // Read from A2 to AE (assuming AE is enough for new columns)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:AD`, // Đọc rộng ra để lấy hết các cột
+      range: `${SHEET_NAME}!A2:AE`, 
     });
 
     const rows = response.data.values;
@@ -40,10 +40,11 @@ export async function GET(req: NextRequest) {
     }
 
     // 4. Map Data to Object
-    const candidates = rows.map((row) => ({
+    const candidates = rows.map((row, index) => ({
+      id: index + 2, // Row Index (1-based, starts at 2)
       matchScore: row[0],
       timestamp: row[1],
-      positionRaw: row[2], // Vị trí ứng tuyển (có thể cần clean)
+      positionRaw: row[2],
       source: row[3],
       fullName: row[6],
       yob: row[7],
@@ -51,10 +52,14 @@ export async function GET(req: NextRequest) {
       phone: row[9],
       email: row[10],
       location: row[11],
-      summary: row[21], // Tóm tắt
-      matchReason: row[22], // Sự phù hợp
+      summary: row[21],
+      matchReason: row[22],
       cvLink: row[23],
-      isPotential: row[26] === "TRUE" // CV Tiềm năng
+      notes: row[25], // Ghi chú
+      isPotential: row[26] === "TRUE",
+      status: row[28] || "New", // Column AC: Status
+      interviewDate: row[29] || "", // Column AD: Interview Date
+      interviewer: row[30] || "" // Column AE: Interviewer
     }));
 
     // Reverse to show latest first
