@@ -44,7 +44,8 @@ export async function GET(req: NextRequest) {
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    // Use env var specific for HO Recruiter view
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID_HO || process.env.GOOGLE_SHEET_ID || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
 
     let role = "Guest";
     let config = {};

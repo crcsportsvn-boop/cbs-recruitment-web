@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 
-const SPREADSHEET_ID = "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w"; // Cùng spreadsheet với upload
+const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w"; // Datapool ID
 const SHEET_NAME = "Datapool"; // Sheet chứa kết quả N8N
 
 export async function GET(req: NextRequest) {
