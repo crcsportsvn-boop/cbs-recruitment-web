@@ -23,6 +23,7 @@ interface Candidate {
   matchReason: string;
   jobCode?: string;
   positionId?: string;
+  timestamp?: string;
 }
 
 interface KanbanBoardProps {
@@ -37,6 +38,8 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [scoreFilter, setScoreFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
 
   // Modal State
   const [isInterviewModalOpen, setIsInterviewModalOpen] = useState(false);
@@ -227,7 +230,37 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
        if (scoreFilter === "low") matchesScore = score < 5;
     }
 
-    return matchesSearch && matchesScore;
+    // 4. Date Filter
+    let matchesDate = true;
+    if (dateFrom || dateTo) {
+      if (!c.timestamp) {
+        matchesDate = false;
+      } else {
+        // Parse "dd/mm/yyyy hh:mm:ss"
+        const parts = c.timestamp.split(" ")[0].split("/");
+        // Assumes dd/mm/yyyy format from Sheet
+        if (parts.length === 3) {
+          const cDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          
+          if (dateFrom) {
+            const dStart = new Date(dateFrom); // yyyy-mm-dd
+            // Compare timestamps (ignoring time for start date? strictly >=)
+            // Reset hours for comparison to be inclusive
+            dStart.setHours(0,0,0,0);
+            cDate.setHours(0,0,0,0);
+            if (cDate < dStart) matchesDate = false;
+          }
+          
+          if (dateTo && matchesDate) {
+             const dEnd = new Date(dateTo);
+             dEnd.setHours(0,0,0,0);
+             if (cDate > dEnd) matchesDate = false;
+          }
+        }
+      }
+    }
+
+    return matchesSearch && matchesScore && matchesDate;
   });
 
   if (loading) return <div>Loading...</div>;
@@ -241,124 +274,164 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
           <Input 
             placeholder={t.searchPlaceholder} 
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-white"
-          />
-        </div>
-        <div className="w-[180px]">
-          <Select value={scoreFilter} onValueChange={setScoreFilter}>
-            <SelectTrigger className="bg-white">
-              <SelectValue placeholder={t.filterScore} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t.filterAll}</SelectItem>
-              <SelectItem value="high">High Match ({">"}= 8)</SelectItem>
-              <SelectItem value="medium">Medium (5-7)</SelectItem>
-              <SelectItem value="low">Low (&lt; 5)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Board */}
-      <div className="flex-1 flex gap-4 overflow-x-auto min-h-[600px] pb-4">
-        {COLUMNS.map((col) => (
-          <div key={col.id} className={`flex-shrink-0 w-80 rounded-lg p-3 ${col.color} border border-gray-200 flex flex-col`}>
-             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-sm text-gray-700">{col.title}</h3>
-              <Badge variant="secondary" className="bg-white">
-                {filteredCandidates.filter(c => (c.status || "New") === col.id).length}
-              </Badge>
-            </div>
-
-            <div className="space-y-3">
-              {filteredCandidates
-                .filter(c => (c.status || "New") === col.id)
-                .map((c) => (
-                  <Card key={c.id} className="hover:shadow-md transition-shadow relative group">
-                    <CardContent className="p-3 space-y-2">
-                       <div className="absolute top-2 right-2">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-6 w-6 p-0 hover:bg-gray-100 rounded-full">
-                                <MoreHorizontal className="h-4 w-4 text-gray-500" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => window.open(c.cvLink, "_blank")}>
-                                {t.actionDetail} (CV)
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              
-                              {col.id === "New" && (
-                                <DropdownMenuItem onClick={() => moveStatus(c, "Screening")}>
-                                  Pass Screening
-                                </DropdownMenuItem>
-                              )}
-                              
-                              {col.id === "Screening" && (
-                                <DropdownMenuItem onClick={() => moveStatus(c, "Interview", 1)}>
-                                  Schedule Interview V1
-                                </DropdownMenuItem>
-                              )}
-
-                              {col.id === "Interview" && (
-                                <>
-                                  <DropdownMenuItem onClick={() => moveStatus(c, "Interview2", 2)}>
-                                    Schedule Interview V2
-                                  </DropdownMenuItem>
-                                   <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
-                                    Make Offer
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-
-                              {col.id === "Interview2" && (
-                                <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
-                                  Make Offer
-                                </DropdownMenuItem>
-                              )}
-                              
-                              {col.id !== "New" && (
-                                 <>
-                                   <DropdownMenuSeparator />
-                                   <DropdownMenuItem onClick={() => handleWithdraw(c)}>
-                                     {t.actionWithdraw}
-                                   </DropdownMenuItem>
-                                 </>
-                              )}
-
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeclineClick(c)}>
-                                {t.actionDecline}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                       </div>
-
-                      <div>
-                        <h4 className="font-semibold text-sm pr-6 text-[#EE2E24]">{c.fullName}</h4>
-                        <p className="text-xs text-muted-foreground">{c.jobCode} - {c.positionId}</p>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                         <span className="text-xs bg-gray-100 px-2 py-1 rounded truncate max-w-[120px]" title={c.positionRaw}>
-                           {c.positionRaw}
-                         </span>
-                         <Badge className={
-                            parseInt(c.matchScore) >= 8 ? "bg-green-500" : 
-                            parseInt(c.matchScore) >= 5 ? "bg-yellow-500" : "bg-gray-500"
-                          }>
-                            {c.matchScore}
-                          </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
+      {/* Board Layout with Sticky Header */}
+      <div className="flex-1 flex flex-col overflow-hidden relative border rounded-lg bg-gray-50 h-[calc(100vh-250px)]">
+        
+        {/* Sticky Filter Bar */}
+        <div className="sticky top-0 z-20 bg-white p-2 border-b flex flex-wrap gap-2 items-center shadow-sm">
+          {/* Search */}
+          <div className="flex items-center gap-2 flex-1 min-w-[150px]">
+            <Search className="w-4 h-4 text-gray-500" />
+            <Input 
+              placeholder={t.searchPlaceholder} 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-white h-8 text-sm"
+            />
           </div>
-        ))}
+          
+          {/* Score Filter */}
+          <div className="w-[140px]">
+            <Select value={scoreFilter} onValueChange={setScoreFilter}>
+              <SelectTrigger className="bg-white h-8 text-sm">
+                <SelectValue placeholder={t.filterScore} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t.filterAll}</SelectItem>
+                <SelectItem value="high">High Match ({">"}= 8)</SelectItem>
+                <SelectItem value="medium">Medium (5-7)</SelectItem>
+                <SelectItem value="low">Low (&lt; 5)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Date Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">From:</span>
+            <Input 
+              type="date" 
+              className="h-8 w-[130px] text-sm"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
+            <span className="text-xs text-gray-500">To:</span>
+            <Input 
+              type="date" 
+              className="h-8 w-[130px] text-sm"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Board Columns - Horizontal Scroll if needed, but compacted */}
+        <div className="flex-1 overflow-x-auto overflow-y-hidden p-2">
+           <div className="flex gap-2 h-full min-w-full">
+            {COLUMNS.map((col) => (
+              <div key={col.id} className={`flex-1 min-w-[200px] flex flex-col rounded-lg border border-gray-200 ${col.color}`}>
+                {/* Column Header */}
+                <div className="flex justify-between items-center p-2 border-b bg-white/50 rounded-t-lg">
+                  <h3 className="font-bold text-xs text-gray-700 truncate" title={col.title}>{col.title}</h3>
+                  <Badge variant="secondary" className="bg-white h-5 text-[10px] px-1">
+                    {filteredCandidates.filter(c => (c.status || "New") === col.id).length}
+                  </Badge>
+                </div>
+
+                {/* Cards Container */}
+                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                  {filteredCandidates
+                    .filter(c => (c.status || "New") === col.id)
+                    .map((c) => (
+                      <Card key={c.id} className="hover:shadow-md transition-shadow relative group bg-white">
+                        <CardContent className="p-2 space-y-1">
+                           <div className="absolute top-1 right-1">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-5 w-5 p-0 hover:bg-gray-100 rounded-full">
+                                    <MoreHorizontal className="h-3 w-3 text-gray-500" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={() => window.open(c.cvLink, "_blank")}>
+                                    {t.actionDetail} (CV)
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  
+                                  {col.id === "New" && (
+                                    <DropdownMenuItem onClick={() => moveStatus(c, "Screening")}>
+                                      Pass Screening
+                                    </DropdownMenuItem>
+                                  )}
+                                  
+                                  {col.id === "Screening" && (
+                                    <DropdownMenuItem onClick={() => moveStatus(c, "Interview", 1)}>
+                                      Schedule Interview V1
+                                    </DropdownMenuItem>
+                                  )}
+
+                                  {col.id === "Interview" && (
+                                    <>
+                                      <DropdownMenuItem onClick={() => moveStatus(c, "Interview2", 2)}>
+                                        Schedule Interview V2
+                                      </DropdownMenuItem>
+                                       <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
+                                        Make Offer
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+
+                                  {col.id === "Interview2" && (
+                                    <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
+                                      Make Offer
+                                    </DropdownMenuItem>
+                                  )}
+                                  
+                                  {col.id !== "New" && (
+                                     <>
+                                       <DropdownMenuSeparator />
+                                       <DropdownMenuItem onClick={() => handleWithdraw(c)}>
+                                         {t.actionWithdraw}
+                                       </DropdownMenuItem>
+                                     </>
+                                  )}
+
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeclineClick(c)}>
+                                    {t.actionDecline}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                           </div>
+
+                          <div className="pr-5">
+                            <h4 className="font-semibold text-xs text-[#EE2E24] truncate" title={c.fullName}>{c.fullName}</h4>
+                            <p className="text-[10px] text-muted-foreground truncate">{c.jobCode}</p>
+                          </div>
+                          
+                          <div className="flex items-center justify-between mt-1">
+                             <span className="text-[10px] bg-gray-100 px-1 rounded truncate max-w-[80px]" title={c.positionRaw}>
+                               {c.positionRaw}
+                             </span>
+                             <Badge className={`h-4 text-[10px] px-1 ${
+                                parseInt(c.matchScore) >= 8 ? "bg-green-500" : 
+                                parseInt(c.matchScore) >= 5 ? "bg-yellow-500" : "bg-gray-500"
+                              }`}>
+                                {c.matchScore}
+                              </Badge>
+                          </div>
+                          {/* Timestamp Display */}
+                          <div className="text-[9px] text-gray-400 text-right">
+                            {c.timestamp ? c.timestamp.split(" ")[0] : ""}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                </div>
+              </div>
+            ))}
+           </div>
+        </div>
       </div>
 
       {/* Decline Modal */}
