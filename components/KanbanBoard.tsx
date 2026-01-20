@@ -75,11 +75,11 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
 
   const COLUMNS = [
     { id: "New", title: t.colNew, color: "bg-gray-50" },
-    { id: "Screening", title: t.colScreening, color: "bg-red-50" },
+    { id: "Screening", title: t.colScreening, color: "bg-[#FFF0F0]" },
     { id: "Interview", title: t.colInterview, color: "bg-gray-50" },
-    { id: "Interview2", title: t.colInterview2, color: "bg-red-50" },
+    { id: "Interview2", title: t.colInterview2, color: "bg-[#FFF0F0]" },
     { id: "Offer", title: t.colOffer, color: "bg-gray-50" },
-    ...(showRejected ? [{ id: "Rejected", title: t.colRejected, color: "bg-red-50" }] : [])
+    ...(showRejected ? [{ id: "Rejected", title: t.colRejected, color: "bg-[#FFF0F0]" }] : [])
   ];
 
   useEffect(() => {
