@@ -72,7 +72,16 @@ function HomeContent() {
                  priority
                />
             </div>
-            <h1 className="text-xl font-bold tracking-tight">{t[lang].title}</h1>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">{t[lang].title}</h1>
+              {user && (
+                <div className="text-xs text-red-100 flex gap-2 items-center mt-1">
+                   <span>{user.email}</span>
+                   <span className="bg-white/20 px-1 rounded font-mono" title="Role">{user.role}</span>
+                   {user.id && <span className="bg-black/20 px-1 rounded text-[10px] opacity-70" title="User ID (Record this)">ID: {user.id}</span>}
+                </div>
+              )}
+            </div>
           </div>
           
           <div className="flex items-center gap-4">
@@ -89,6 +98,18 @@ function HomeContent() {
           </div>
         </div>
       </header>
+
+      {user?.role === 'Guest' && (
+         <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 container mx-auto mt-4 mb-4" role="alert">
+            <p className="font-bold">Chưa phân quyền (Guest Mode)</p>
+            <p className="text-sm">Tài khoản này chưa được cấu hình trong hệ thống.</p>
+            <p className="text-sm mt-1">Vui lòng quay lại sheet <b>User_view</b> và thêm dòng:</p>
+            <code className="block bg-yellow-200 p-2 mt-1 rounded text-xs select-all">
+              {user.email} | HO_Recruiter | | 
+            </code>
+            <p className="text-xs mt-1 text-yellow-600">ID hệ thống: {user.id}</p>
+         </div>
+      )}
 
       {/* Main Content */}
       <div className="container mx-auto py-10 px-4 flex-1">
