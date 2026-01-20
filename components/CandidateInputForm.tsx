@@ -78,9 +78,10 @@ export default function CandidateInputForm() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("filename", newFileName);
+      formData.append("jobTitle", data.jobTitle);
+      formData.append("source", data.source);
       formData.append("jobId", jobCode);
       formData.append("positionId", positionId);
-      formData.append("source", data.source);
       formData.append("requirements", data.requirements || "");
 
       // 3. Call API to Upload to Drive
@@ -211,24 +212,49 @@ export default function CandidateInputForm() {
             {/* File Upload */}
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="file">File CV (PDF/Word/Image) <span className="text-red-500">*</span></Label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative">
-                <input
-                  type="file"
-                  id="file"
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  {...register("file")}
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                />
-                <div className="space-y-2">
-                  <Upload className="mx-auto h-8 w-8 text-gray-400" />
-                  <p className="text-sm text-gray-600">
-                    Kéo thả file vào đây hoặc click để chọn
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    Hỗ trợ PDF, DOCX, JPG (Max 10MB)
-                  </p>
+              
+              {!watch("file")?.[0] ? (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative">
+                  <input
+                    type="file"
+                    id="file"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    {...register("file")}
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  />
+                  <div className="space-y-2">
+                    <Upload className="mx-auto h-8 w-8 text-gray-400" />
+                    <p className="text-sm text-gray-600">
+                      Kéo thả file vào đây hoặc click để chọn
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Hỗ trợ PDF, DOCX, JPG (Max 10MB)
+                    </p>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="border-2 border-green-300 bg-green-50 rounded-lg p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="h-6 w-6 text-green-600" />
+                    <div>
+                      <p className="font-medium text-green-900">{watch("file")[0].name}</p>
+                      <p className="text-xs text-green-700">
+                        {(watch("file")[0].size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setValue("file", null)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-100"
+                  >
+                    Xóa
+                  </Button>
+                </div>
+              )}
+              
                {errors.file && (
                 <p className="text-red-500 text-sm">{errors.file.message as string}</p>
               )}
