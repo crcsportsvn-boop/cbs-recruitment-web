@@ -52,9 +52,19 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error("Upload Error:", error);
+    console.error("Upload Error Details:", {
+      message: error.message,
+      stack: error.stack,
+      credentials_exist: !!process.env.GOOGLE_SERVICE_ACCOUNT_JSON,
+      folder_id: process.env.GOOGLE_DRIVE_INPUT_FOLDER_ID
+    });
+    
     return NextResponse.json(
-      { error: "Internal Server Error", details: error.message },
+      { 
+        error: "Upload failed", 
+        details: error.message,
+        hint: "Check server logs for credential issues." 
+      },
       { status: 500 }
     );
   }

@@ -10,7 +10,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -22,14 +21,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 import { Loader2, CheckCircle, Upload } from "lucide-react";
 
-// Form Schema Validation
+// Form Schema Validation - Updated for Flexibility
 const formSchema = z.object({
   fullName: z.string().min(2, "Vui lòng nhập họ tên"),
-  jobId: z.string().min(1, "Vui lòng chọn vị trí"),
+  jobTitle: z.string().min(1, "Vui lòng nhập vị trí ứng tuyển"),
+  requirements: z.string().optional(),
   source: z.string().min(1, "Vui lòng chọn nguồn"),
   file: z.any().refine((files) => files?.length === 1, "Vui lòng upload 1 file CV"),
 });
@@ -39,7 +39,6 @@ type FormValues = z.infer<typeof formSchema>;
 export default function CandidateInputForm() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [selectedJob, setSelectedJob] = useState(ACTIVE_JOBS[0]);
 
   const {
     register,
@@ -48,27 +47,41 @@ export default function CandidateInputForm() {
     watch,
     reset,
     formState: { errors },
-  } = useForm<FormValues>();
+  } = useForm<FormValues>({
+    defaultValues: {
+      requirements: "",
+    }
+  });
 
   const onSubmit = async (data: FormValues) => {
     setLoading(true);
     try {
       const file = data.file[0];
-      const job = ACTIVE_JOBS.find((j) => j.id === data.jobId);
-      if (!job) throw new Error("Job not found");
+      
+      // Try to match job title to existing ID for cleaner file naming, else use "OTHER"
+      const matchedJob = ACTIVE_JOBS.find(
+        (j) => j.name.toLowerCase() === data.jobTitle.toLowerCase()
+      );
+      const jobCode = matchedJob ? matchedJob.id : "OTHER";
+      const positionId = matchedJob ? matchedJob.positionId : "N/A";
 
       // 1. Rename Logic: YYYY-MM-DD - JobCode - PositionName - CandidateName.pdf
       const dateStr = new Date().toISOString().split("T")[0];
       const extension = file.name.split(".").pop();
-      const newFileName = `${dateStr} - ${job.id} - ${job.name} - ${data.fullName}.${extension}`;
+      // Sanitize inputs for filename
+      const safeJobName = data.jobTitle.replace(/[^a-zA-Z0-9\s-]/g, "").trim();
+      const safeUserName = data.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").trim();
+      
+      const newFileName = `${dateStr} - ${jobCode} - ${safeJobName} - ${safeUserName}.${extension}`;
 
       // 2. Prepare FormData
       const formData = new FormData();
       formData.append("file", file);
       formData.append("filename", newFileName);
-      formData.append("jobId", job.id);
-      formData.append("positionId", job.positionId);
+      formData.append("jobId", jobCode);
+      formData.append("positionId", positionId);
       formData.append("source", data.source);
+      formData.append("requirements", data.requirements || "");
 
       // 3. Call API to Upload to Drive
       const response = await fetch("/api/upload", {
@@ -76,23 +89,28 @@ export default function CandidateInputForm() {
         body: formData,
       });
 
-      if (!response.ok) throw new Error("Upload failed");
+      if (!response.ok) {
+        const resData = await response.json();
+        throw new Error(resData.details || "Upload failed");
+      }
 
       setSuccess(true);
       reset();
       setTimeout(() => setSuccess(false), 3000);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Có lỗi xảy ra khi upload CV!");
+      alert(`Lỗi upload: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleJobChange = (value: string) => {
-    setValue("jobId", value);
+  const handleQuickJobSelect = (value: string) => {
     const job = ACTIVE_JOBS.find((j) => j.id === value);
-    if (job) setSelectedJob(job);
+    if (job) {
+      setValue("jobTitle", job.name);
+      setValue("requirements", job.requirements.join("\n"));
+    }
   };
 
   const handleSourceChange = (value: string) => {
@@ -151,36 +169,43 @@ export default function CandidateInputForm() {
               )}
             </div>
 
-            {/* Job Position */}
+            {/* Job Position - Hybrid Input */}
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="jobId">Vị Trí Ứng Tuyển <span className="text-red-500">*</span></Label>
-              <Select onValueChange={handleJobChange} defaultValue={ACTIVE_JOBS[0].id}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn vị trí" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ACTIVE_JOBS.map((job) => (
-                    <SelectItem key={job.id} value={job.id}>
-                      {job.name} ({job.id})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.jobId && (
-                <p className="text-red-500 text-sm">{errors.jobId.message}</p>
+              <div className="flex justify-between items-center">
+                 <Label htmlFor="jobTitle">Vị Trí Ứng Tuyển <span className="text-red-500">*</span></Label>
+                 <Select onValueChange={handleQuickJobSelect}>
+                    <SelectTrigger className="w-[180px] h-8 text-xs">
+                      <SelectValue placeholder="Chọn nhanh..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ACTIVE_JOBS.map((job) => (
+                        <SelectItem key={job.id} value={job.id}>
+                          {job.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+              </div>
+              
+              <Input
+                id="jobTitle"
+                placeholder="Nhập tên vị trí (VD: Kế toán trưởng)..."
+                {...register("jobTitle")}
+              />
+              {errors.jobTitle && (
+                <p className="text-red-500 text-sm">{errors.jobTitle.message}</p>
               )}
             </div>
 
-            {/* Auto-filled Requirements (ReadOnly) */}
+            {/* Application Requirements (Editable) */}
             <div className="space-y-2 md:col-span-2">
-              <Label className="text-muted-foreground">Yêu cầu công việc (Tham khảo)</Label>
-              <div className="bg-muted p-3 rounded-md text-sm text-muted-foreground">
-                <ul className="list-disc pl-5 space-y-1">
-                  {selectedJob?.requirements.map((req, idx) => (
-                    <li key={idx}>{req}</li>
-                  ))}
-                </ul>
-              </div>
+              <Label htmlFor="requirements">Yêu cầu công việc (Ghi chú)</Label>
+              <Textarea
+                id="requirements"
+                placeholder="- Yêu cầu 1..."
+                className="h-32"
+                {...register("requirements")}
+              />
             </div>
 
             {/* File Upload */}
@@ -215,7 +240,7 @@ export default function CandidateInputForm() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Đang upload và xử lý...
+                  Đang xử lý...
                 </>
               ) : (
                 "Xác nhận & Upload"
