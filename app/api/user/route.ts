@@ -35,17 +35,41 @@ export async function GET(req: NextRequest) {
 
     // 2. Check Permissions in Google Sheet 'User_view'
     // Range: User_view!A:D -> Email, Role, Upload_Config, View_Config
+
+    // Support both Full JSON and Individual Env Vars
+    let credentials;
+    if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+        try {
+            credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+        } catch (e) {
+            console.error("Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON", e);
+        }
+    }
+    
+    // Fallback to individual vars if JSON not present or failed
+    if (!credentials) {
+        credentials = {
+            client_email: process.env.GOOGLE_CLIENT_EMAIL,
+            private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        };
+    }
+
     const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      },
+      credentials,
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
+    
     // Use env var specific for HO Recruiter view
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID_HO || process.env.GOOGLE_SHEET_ID || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
+    const spreadsheetIdHO = process.env.GOOGLE_SHEET_ID_HO || process.env.GOOGLE_SHEET_ID || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
+    
+    // Placeholder declarations for Store (ST) view as requested
+    // const spreadsheetIdST = process.env.GOOGLE_SHEET_ID_ST; 
+    // const folderIdInputST = process.env.GOOGLE_DRIVE_INPUT_FOLDER_ID_ST;
+
+    // Default to HO for user checking
+    const spreadsheetId = spreadsheetIdHO;
 
     let role = "Guest";
     let config = {};
