@@ -192,7 +192,7 @@ export default function CandidateInputForm() {
               
               <Input
                 id="jobTitle"
-                placeholder="Nhập tên vị trí (VD: Kế toán trưởng)..."
+                placeholder="Nhập tên vị trí (VD: Marketing Executive (HO - 000173_NYS-DYS-HO-135-310))..."
                 {...register("jobTitle")}
               />
               {errors.jobTitle && (
