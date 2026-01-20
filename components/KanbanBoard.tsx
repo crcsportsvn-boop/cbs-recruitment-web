@@ -199,7 +199,7 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
               <SelectItem value="all">{t.filterAll}</SelectItem>
               <SelectItem value="high">High Match ({">"}= 8)</SelectItem>
               <SelectItem value="medium">Medium (5-7)</SelectItem>
-              <SelectItem value="low">Low ({htmlLc"{"} 5)</SelectItem>
+              <SelectItem value="low">Low (&lt; 5)</SelectItem>
             </SelectContent>
           </Select>
         </div>
