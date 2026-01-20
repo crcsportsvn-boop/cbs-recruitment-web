@@ -171,6 +171,16 @@ function HomeContent() {
                     <strong>System Error (Debug):</strong> {user.debugError}
                 </div>
             )}
+            
+            <div className="mt-6 border-t pt-4">
+                 <Button 
+                   variant="outline" 
+                   onClick={() => window.location.href = "/api/auth/logout"}
+                   className="text-gray-600 hover:text-red-600 hover:bg-red-50 border-gray-300"
+                 >
+                   Đăng xuất (Logout)
+                 </Button>
+            </div>
          </div>
       )}
 
