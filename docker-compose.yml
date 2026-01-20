@@ -1,0 +1,20 @@
+version: "3"
+
+services:
+  web:
+    build: .
+    container_name: cbs_web_app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # IMPORTANT: User must populate this!
+      - GOOGLE_DRIVE_INPUT_FOLDER_ID=1P60dhESnbsmEOEqBP_hl6f_xWn1cgl_8
+      - GOOGLE_SERVICE_ACCOUNT_JSON=${GOOGLE_SERVICE_ACCOUNT_JSON}
+    networks:
+      - cbs_network
+
+networks:
+  cbs_network:
+    driver: bridge
