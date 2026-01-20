@@ -25,6 +25,12 @@ interface Candidate {
   positionId?: string;
   timestamp?: string;
   log?: string; 
+  // Dates for recovery logic
+  offerDate?: string;
+  interviewDate1?: string;
+  interviewDate2?: string;
+  testResult?: string;
+  failureReason?: string;
 }
 
 interface KanbanBoardProps {
@@ -68,11 +74,11 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
   const [declineReasonText, setDeclineReasonText] = useState("");
 
   const COLUMNS = [
-    { id: "New", title: t.colNew, color: "bg-blue-50" },
-    { id: "Screening", title: t.colScreening, color: "bg-yellow-50" },
-    { id: "Interview", title: t.colInterview, color: "bg-purple-50" },
-    { id: "Interview2", title: t.colInterview2, color: "bg-purple-100" },
-    { id: "Offer", title: t.colOffer, color: "bg-green-50" },
+    { id: "New", title: t.colNew, color: "bg-gray-50" },
+    { id: "Screening", title: t.colScreening, color: "bg-red-50" },
+    { id: "Interview", title: t.colInterview, color: "bg-gray-50" },
+    { id: "Interview2", title: t.colInterview2, color: "bg-red-50" },
+    { id: "Offer", title: t.colOffer, color: "bg-gray-50" },
     ...(showRejected ? [{ id: "Rejected", title: t.colRejected, color: "bg-red-50" }] : [])
   ];
 
@@ -126,29 +132,39 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
      const status = candidate.status;
      let prev = "New";
      
-     // Defines logic for "Going back one step"
-     if (status === "Screening") prev = "New";
-     else if (status === "Interview") prev = "Screening";
-     else if (status === "Interview2") prev = "Interview";
-     else if (status === "Offer") prev = "Interview2";
-     else if (status === "Rejected") prev = "New"; // Recover from rejected
+     if (status === "Rejected") {
+        // Smart Recovery Strategy: Find the latest completed stage
+        if (candidate.offerDate) prev = "Offer";
+        else if (candidate.interviewDate2) prev = "Interview2";
+        else if (candidate.interviewDate1) prev = "Interview";
+        else if (candidate.testResult) prev = "Screening";
+        else prev = "New";
+     } else {
+        // Standard Step Back
+        if (status === "Screening") prev = "New";
+        else if (status === "Interview") prev = "Screening";
+        else if (status === "Interview2") prev = "Interview";
+        else if (status === "Offer") prev = "Interview2";
+     }
 
      // Log logic
-     const logMsg = `[Withdrawn] from ${status} on ${new Date().toLocaleDateString('en-GB')}.`;
-     
+     const logMsg = `[Withdraw/Recover] from ${status} to ${prev} on ${new Date().toLocaleDateString('en-GB')}.`;
      const newLog = candidate.log ? candidate.log + "\n" + logMsg : logMsg;
      
-     // Clear data logic (Send empty string to clear)
      const updates: any = { 
        status: prev,
        log: newLog 
      };
 
-     // Clear dates if backing out
-     if (status === "Offer") updates.offerDate = "";
-     if (status === "Interview") updates.interviewDate1 = ""; 
-     if (status === "Interview2") updates.interviewDate2 = ""; 
-     if (status === "Screening") updates.testResult = ""; // Clear screening result?
+     if (status === "Rejected") {
+        updates.failureReason = ""; // Clear failure reason on recovery
+     } else {
+        // Clear dates ONLY if backing out from a valid stage (not recovering)
+        if (status === "Offer") updates.offerDate = "";
+        if (status === "Interview") updates.interviewDate1 = ""; 
+        if (status === "Interview2") updates.interviewDate2 = ""; 
+        if (status === "Screening") updates.testResult = ""; 
+     }
 
      await updateCandidateAPI(candidate.id, updates);
   };
@@ -439,9 +455,11 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
                                   )}
 
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeclineClick(c)}>
-                                    {t.actionDecline}
-                                  </DropdownMenuItem>
+                                  {col.id !== "Rejected" && (
+                                    <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeclineClick(c)}>
+                                      {t.actionDecline}
+                                    </DropdownMenuItem>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                            </div>
