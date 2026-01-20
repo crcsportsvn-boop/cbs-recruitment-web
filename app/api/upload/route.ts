@@ -23,14 +23,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing file or filename" }, { status: 400 });
     }
 
-    // 1. Authenticate with Google (Drive + Sheets)
-    const auth = new google.auth.GoogleAuth({
-      credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || "{}"),
-      scopes: SCOPES,
-    });
+    // 1. Get OAuth tokens from cookie
+    const tokensCookie = req.cookies.get("google_tokens");
+    if (!tokensCookie) {
+      return NextResponse.json(
+        { error: "Not authenticated", redirect: "/api/auth/login" },
+        { status: 401 }
+      );
+    }
 
-    const drive = google.drive({ version: "v3", auth });
-    const sheets = google.sheets({ version: "v4", auth });
+    const tokens = JSON.parse(tokensCookie.value);
+
+    // 2. Authenticate with Google using OAuth tokens
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}/api/auth/callback`
+        : "http://localhost:3000/api/auth/callback"
+    );
+    
+    oauth2Client.setCredentials(tokens);
+
+    const drive = google.drive({ version: "v3", auth: oauth2Client });
+    const sheets = google.sheets({ version: "v4", auth: oauth2Client });
 
     // 2. Prepare File Stream
     const buffer = Buffer.from(await file.arrayBuffer());
