@@ -139,19 +139,6 @@ export default function CandidateInputForm() {
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Full Name */}
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Họ và Tên Ứng Viên <span className="text-red-500">*</span></Label>
-              <Input
-                id="fullName"
-                placeholder="Nguyễn Văn A"
-                {...register("fullName")}
-              />
-              {errors.fullName && (
-                <p className="text-red-500 text-sm">{errors.fullName.message}</p>
-              )}
-            </div>
-
             {/* Source */}
             <div className="space-y-2">
               <Label htmlFor="source">Nguồn Ứng Tuyển <span className="text-red-500">*</span></Label>
