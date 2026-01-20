@@ -38,11 +38,11 @@ export async function POST(req: NextRequest) {
     stream.push(buffer);
     stream.push(null);
 
-    // 3. Upload to Drive (to Service Account root first)
+    // 3. Upload to Service Account Drive (no folder needed)
     const driveResponse = await drive.files.create({
       requestBody: {
         name: filename,
-        // Don't set parents - upload to root first
+        // Upload to Service Account's Drive root
       },
       media: {
         mimeType: file.type,
@@ -51,25 +51,30 @@ export async function POST(req: NextRequest) {
       fields: "id, name, webViewLink",
     });
 
-    // 3.5. Move file to target folder
-    await drive.files.update({
+    // 4. Set file permission to "Anyone with link can view"
+    await drive.permissions.create({
       fileId: driveResponse.data.id!,
-      addParents: FOLDER_ID_INPUT,
-      fields: "id, parents",
-      supportsAllDrives: true,
+      requestBody: {
+        role: "reader",
+        type: "anyone",
+      },
     });
 
-    // 4. Write to Google Sheets
+    // 5. Get shareable link
+    const fileLink = `https://drive.google.com/file/d/${driveResponse.data.id}/view`;
+
+    // 6. Write to Google Sheets (with CV link)
     const currentDate = new Date().toLocaleDateString('en-GB');
     const sheetRow = [
       currentDate,
       jobTitle || "N/A",
-      source || "Web App"
+      source || "Web App",
+      fileLink  // Add CV link column
     ];
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:C`,
+      range: `${SHEET_NAME}!A:D`,  // Changed to A:D to include link column
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [sheetRow],
