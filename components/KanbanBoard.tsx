@@ -266,15 +266,7 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
   if (loading) return <div>Loading...</div>;
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Filter Bar */}
-      <div className="flex flex-wrap gap-4 mb-4 p-2 bg-gray-50 rounded-md border">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-          <Search className="w-4 h-4 text-gray-500" />
-          <Input 
-            placeholder={t.searchPlaceholder} 
-            value={searchTerm}
-      {/* Board Layout with Sticky Header */}
+    <div className="h-full flex flex-col relative w-full">
       <div className="flex-1 flex flex-col overflow-hidden relative border rounded-lg bg-gray-50 h-[calc(100vh-250px)]">
         
         {/* Sticky Filter Bar */}
