@@ -38,6 +38,8 @@ type FormValues = z.infer<typeof formSchema>;
 export default function CandidateInputForm() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+
 
   const {
     register,
@@ -54,8 +56,10 @@ export default function CandidateInputForm() {
 
   const onSubmit = async (data: FormValues) => {
     setLoading(true);
+    setSuccess(false);
     try {
       const files = Array.from(data.file);
+      setUploadProgress({ current: 0, total: files.length });
       
       // Try to match job title to existing ID for cleaner file naming
       const matchedJob = ACTIVE_JOBS.find(
@@ -64,24 +68,18 @@ export default function CandidateInputForm() {
       const jobCode = matchedJob ? matchedJob.id : "OTHER";
       const positionId = matchedJob ? matchedJob.positionId : "N/A";
 
-      // Upload each file
-      const uploadPromises = files.map(async (file: any, index: number) => {
-        // 1. Rename Logic: YYYY-MM-DD - JobCode - PositionID - Index.ext
-        const dateStr = new Date().toISOString().split("T")[0];
-        const extension = file.name.split(".").pop();
-        const newFileName = `${dateStr} - ${jobCode} - ${positionId} - ${index + 1}.${extension}`;
-
-        // 2. Prepare FormData
+      // Upload each file with progress tracking
+      let completed = 0;
+      const uploadPromises = files.map(async (file: any) => {
+        // Prepare FormData (use original filename)
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("filename", newFileName);
+        formData.append("filename", file.name); // Use original filename
         formData.append("jobTitle", data.jobTitle);
         formData.append("source", data.source);
-        formData.append("jobId", jobCode);
-        formData.append("positionId", positionId);
         formData.append("requirements", data.requirements || "");
 
-        // 3. Call API to Upload to Drive
+        // Call API to Upload to Drive
         const response = await fetch("/api/upload", {
           method: "POST",
           body: formData,
@@ -99,6 +97,8 @@ export default function CandidateInputForm() {
           throw new Error(resData.details || "Upload failed");
         }
 
+        completed++;
+        setUploadProgress({ current: completed, total: files.length });
         return response.json();
       });
 
@@ -106,10 +106,12 @@ export default function CandidateInputForm() {
 
       setSuccess(true);
       reset();
-      setTimeout(() => setSuccess(false), 3000);
+      setUploadProgress({ current: 0, total: 0 });
+      setTimeout(() => setSuccess(false), 5000);
     } catch (error: any) {
       console.error(error);
       alert(`Lỗi upload: ${error.message}`);
+      setUploadProgress({ current: 0, total: 0 });
     } finally {
       setLoading(false);
     }
@@ -257,7 +259,20 @@ export default function CandidateInputForm() {
             </div>
           </div>
 
-          <div className="pt-4">
+          <div className="pt-4 space-y-4">
+            {/* Upload Progress Bar */}
+            {loading && uploadProgress.total > 0 && (
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div 
+                  className="bg-primary h-2.5 rounded-full transition-all duration-300" 
+                  style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                ></div>
+                <p className="text-xs text-center mt-1 text-gray-500">
+                  Đang tải lên {uploadProgress.current}/{uploadProgress.total} file...
+                </p>
+              </div>
+            )}
+
              <Button type="submit" className="w-full h-12 text-lg" disabled={loading}>
               {loading ? (
                 <>

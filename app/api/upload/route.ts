@@ -1,9 +1,10 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { Readable } from "stream";
 
 // Configuration
-const FOLDER_ID_INPUT = process.env.GOOGLE_DRIVE_INPUT_FOLDER_ID || "1P60dhESnbsmEOEqBP_hl6f_xWn1cgl_8";
+const FOLDER_ID_INPUT = process.env.GOOGLE_DRIVE_INPUT_FOLDER_ID || "1L23vAO-hvrXPxE-VFTAzGzA0_kyb_wGN";
 const SPREADSHEET_ID = "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
 const SHEET_NAME = "Vị trí tuyển dụng";
 const SCOPES = [
@@ -17,7 +18,11 @@ export async function POST(req: NextRequest) {
     const file = formData.get("file") as File | null;
     const filename = formData.get("filename") as string;
     const jobTitle = formData.get("jobTitle") as string;
-    const source = formData.get("source") as string;
+    let source = formData.get("source") as string;
+    const requirements = formData.get("requirements") as string;
+
+    // Fix "undefined" string issue from frontend
+    if (source === "undefined" || !source) source = "Web App";
 
     if (!file || !filename) {
       return NextResponse.json({ error: "Missing file or filename" }, { status: 400 });
@@ -68,11 +73,15 @@ export async function POST(req: NextRequest) {
     });
 
     // 4. Write to Google Sheets (Vị trí tuyển dụng)
-    const currentDate = new Date().toLocaleDateString('en-GB');
+    const currentDate = new Date().toLocaleDateString('en-GB'); // DD/MM/YYYY
+    
+    // Combine Job Title and Requirements for Column B
+    const jobInfo = requirements ? `${jobTitle}\n\n${requirements}` : jobTitle;
+
     const sheetRow = [
-      currentDate,
-      jobTitle || "N/A",
-      source || "Web App"
+      currentDate,      // Column A: Date
+      jobInfo || "N/A", // Column B: Job Title + Requirements
+      source            // Column C: Source
     ];
 
     await sheets.spreadsheets.values.append({
