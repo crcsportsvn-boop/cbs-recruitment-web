@@ -4,15 +4,28 @@ import { google } from "googleapis";
 const SPREADSHEET_ID = "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
 const SHEET_NAME = "Datapool";
 
+// Column Mapping (0-indexed based on A=0, but API uses A1 notation)
+// A=0, Z=25, AA=26, AB=27...
+const COLUMN_MAP: Record<string, string> = {
+  status: "AB",
+  failureReason: "AC",
+  testResult: "AD",
+  interviewDate1: "AE",
+  interviewDate2: "AF",
+  offerDate: "AG",
+  startDate: "AH",
+  officialDate: "AI"
+};
+
 export async function POST(req: NextRequest) {
   try {
-    const { id, status, interviewDate, interviewer } = await req.json();
+    const { id, updates } = await req.json();
 
-    if (!id || !status) {
+    if (!id || !updates) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // 1. Auth (Same as other routes)
+    // 1. Auth 
     const tokensCookie = req.cookies.get("google_tokens");
     if (!tokensCookie) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -25,53 +38,36 @@ export async function POST(req: NextRequest) {
     oauth2Client.setCredentials(tokens);
     const sheets = google.sheets({ version: "v4", auth: oauth2Client });
 
-    // 2. Update Status (Column AC - Index 28)
-    // Range: Sheet1!AC{id}
-    const updates = [];
+    // 2. Prepare Updates
+    const data = [];
     
-    // Status (AC)
-    updates.push({
-      range: `${SHEET_NAME}!AC${id}`,
-      values: [[status]]
-    });
-
-    // Interview Date (AD) - Optional
-    if (interviewDate !== undefined) {
-      updates.push({
-        range: `${SHEET_NAME}!AD${id}`,
-        values: [[interviewDate]]
-      });
+    for (const [key, value] of Object.entries(updates)) {
+      if (COLUMN_MAP[key]) {
+        data.push({
+          range: `${SHEET_NAME}!${COLUMN_MAP[key]}${id}`,
+          values: [[value]]
+        });
+      }
     }
 
-    // Interviewer (AE) - Optional
-    if (interviewer !== undefined) {
-      updates.push({
-        range: `${SHEET_NAME}!AE${id}`,
-        values: [[interviewer]]
-      });
-    }
-    
-    // TA Duyệt Content? User mentioned "TA Screening (User click tick chọn, update cột TA duyệt nội dung = TRUE)"
-    // Looking at GET route: "TA duyệt nội dung" is a column.
-    // In Datapool example: "TA duyệt nội dung" is column Y (Index 24)?
-    // Let's check GET route again: row[24] is undefined in my map, but row[23] is Link Ho So.
-    // Based on User provided list: ... Link Hồ sơ | TA duyệt nội dung | Ghi chú | CV Tiềm năng
-    // Link = 23 (X) -> TA Duyệt = 24 (Y) -> Note = 25 (Z) -> Potential = 26 (AA).
-    // So if Status is 'Screening', I should also set 'TA duyệt nội dung' (Col Y / 24) to TRUE.
-    
-    if (status === "Screening") {
-       updates.push({
+    // Special Logic: If Status is "Screening", update TA Duyệt (Y - 24)
+    if (updates.status === "Screening") {
+       data.push({
         range: `${SHEET_NAME}!Y${id}`,
         values: [["TRUE"]]
       });
     }
 
-    // Execute Batch Update
+    if (data.length === 0) {
+        return NextResponse.json({ success: true, message: "No mappable updates found" });
+    }
+
+    // 3. Execute Batch Update
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
       requestBody: {
         valueInputOption: "USER_ENTERED",
-        data: updates
+        data: data
       }
     });
 

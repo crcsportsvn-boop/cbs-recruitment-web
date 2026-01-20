@@ -88,12 +88,12 @@ export default function Home() {
           </div>
 
           <TabsContent value="input" className="flex justify-center animate-in fade-in zoom-in duration-300">
-            <CandidateInputForm />
+            <CandidateInputForm lang={lang} />
           </TabsContent>
 
           <TabsContent value="kanban" className="w-full h-full min-h-[600px] animate-in fade-in slide-in-from-right-10 duration-300">
             <div className="bg-white p-4 rounded-lg shadow min-h-[700px]">
-               <KanbanBoard />
+               <KanbanBoard lang={lang} />
             </div>
           </TabsContent>
 

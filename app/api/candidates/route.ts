@@ -27,10 +27,10 @@ export async function GET(req: NextRequest) {
     const sheets = google.sheets({ version: "v4", auth: oauth2Client });
 
     // 3. Read Data from Datapool Sheet
-    // Read from A2 to AE (assuming AE is enough for new columns)
+    // Read from A2 to AI (Column 34)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:AE`, 
+      range: `${SHEET_NAME}!A2:AI`, 
     });
 
     const rows = response.data.values;
@@ -41,11 +41,13 @@ export async function GET(req: NextRequest) {
 
     // 4. Map Data to Object
     const candidates = rows.map((row, index) => ({
-      id: index + 2, // Row Index (1-based, starts at 2)
+      id: index + 2, // Row Index
       matchScore: row[0],
       timestamp: row[1],
       positionRaw: row[2],
       source: row[3],
+      jobCode: row[4],
+      positionId: row[5],
       fullName: row[6],
       yob: row[7],
       gender: row[8],
@@ -55,11 +57,16 @@ export async function GET(req: NextRequest) {
       summary: row[21],
       matchReason: row[22],
       cvLink: row[23],
-      notes: row[25], // Ghi chú
-      isPotential: row[26] === "TRUE",
-      status: row[28] || "New", // Column AC: Status
-      interviewDate: row[29] || "", // Column AD: Interview Date
-      interviewer: row[30] || "" // Column AE: Interviewer
+      notes: row[25], // Z
+      isPotential: row[26] === "TRUE", // AA
+      status: row[27] || "New", // AB: Kết quả (Status)
+      failureReason: row[28], // AC
+      testResult: row[29], // AD
+      interviewDate1: row[30], // AE
+      interviewDate2: row[31], // AF
+      offerDate: row[32], // AG
+      startDate: row[33], // AH
+      officialDate: row[34] // AI
     }));
 
     // Reverse to show latest first
