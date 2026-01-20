@@ -38,11 +38,11 @@ export async function POST(req: NextRequest) {
     stream.push(buffer);
     stream.push(null);
 
-    // 3. Upload to Service Account Drive (no folder needed)
+    // 3. Upload to N8N monitored folder
     const driveResponse = await drive.files.create({
       requestBody: {
         name: filename,
-        // Upload to Service Account's Drive root
+        parents: [FOLDER_ID_INPUT],  // Upload directly to N8N folder
       },
       media: {
         mimeType: file.type,
@@ -51,30 +51,17 @@ export async function POST(req: NextRequest) {
       fields: "id, name, webViewLink",
     });
 
-    // 4. Set file permission to "Anyone with link can view"
-    await drive.permissions.create({
-      fileId: driveResponse.data.id!,
-      requestBody: {
-        role: "reader",
-        type: "anyone",
-      },
-    });
-
-    // 5. Get shareable link
-    const fileLink = `https://drive.google.com/file/d/${driveResponse.data.id}/view`;
-
-    // 6. Write to Google Sheets (with CV link)
+    // 4. Write to Google Sheets (Vị trí tuyển dụng)
     const currentDate = new Date().toLocaleDateString('en-GB');
     const sheetRow = [
       currentDate,
       jobTitle || "N/A",
-      source || "Web App",
-      fileLink  // Add CV link column
+      source || "Web App"
     ];
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:D`,  // Changed to A:D to include link column
+      range: `${SHEET_NAME}!A:C`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [sheetRow],
