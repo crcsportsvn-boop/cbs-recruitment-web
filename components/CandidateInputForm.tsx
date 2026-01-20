@@ -159,10 +159,10 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Source */}
             <div className="space-y-2">
-              <Label htmlFor="source">Nguồn Ứng Tuyển <span className="text-red-500">*</span></Label>
+              <Label htmlFor="source">{t.sourceLabel} <span className="text-red-500">*</span></Label>
               <Select onValueChange={handleSourceChange}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Chọn nguồn" />
+                  <SelectValue placeholder={t.sourcePlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
                   {RECRUITMENT_SOURCES.map((src) => (
@@ -180,10 +180,10 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
             {/* Job Position - Hybrid Input */}
             <div className="space-y-2 md:col-span-2">
               <div className="flex justify-between items-center">
-                 <Label htmlFor="jobTitle">Vị Trí Ứng Tuyển <span className="text-red-500">*</span></Label>
+                 <Label htmlFor="jobTitle">{t.jobLabel} <span className="text-red-500">*</span></Label>
                  <Select onValueChange={handleQuickJobSelect}>
                     <SelectTrigger className="w-[180px] h-8 text-xs">
-                      <SelectValue placeholder="Chọn nhanh..." />
+                      <SelectValue placeholder={t.jobPlaceholder} />
                     </SelectTrigger>
                     <SelectContent>
                       {ACTIVE_JOBS.map((job) => (
@@ -197,7 +197,7 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
               
               <Input
                 id="jobTitle"
-                placeholder="Nhập tên vị trí (VD: Marketing Executive (HO - 000173_NYS-DYS-HO-135-310))..."
+                placeholder={t.jobInputPlaceholder}
                 {...register("jobTitle")}
               />
               {errors.jobTitle && (
@@ -207,10 +207,10 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
 
             {/* Application Requirements (Editable) */}
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="requirements">Yêu cầu công việc (Ghi chú)</Label>
+              <Label htmlFor="requirements">{t.reqLabel}</Label>
               <Textarea
                 id="requirements"
-                placeholder="- Yêu cầu 1..."
+                placeholder={t.reqPlaceholder}
                 className="h-32"
                 {...register("requirements")}
               />
@@ -218,7 +218,7 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
 
             {/* File Upload */}
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="file">File CV (PDF/Word/Image) <span className="text-red-500">*</span></Label>
+              <Label htmlFor="file">{t.cvLabel} <span className="text-red-500">*</span></Label>
               
               {!watch("file")?.[0] ? (
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative">
@@ -232,10 +232,10 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
                   <div className="space-y-2">
                     <Upload className="mx-auto h-8 w-8 text-gray-400" />
                     <p className="text-sm text-gray-600">
-                      Kéo thả file vào đây hoặc click để chọn
+                      {t.uploadBox}
                     </p>
                     <p className="text-xs text-gray-400">
-                      Hỗ trợ PDF, DOCX, JPG (Max 10MB)
+                      {t.uploadFormat}
                     </p>
                   </div>
                 </div>

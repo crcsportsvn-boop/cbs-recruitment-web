@@ -14,7 +14,8 @@ const COLUMN_MAP: Record<string, string> = {
   interviewDate2: "AF",
   offerDate: "AG",
   startDate: "AH",
-  officialDate: "AI"
+  officialDate: "AI",
+  log: "AJ"
 };
 
 export async function POST(req: NextRequest) {
@@ -56,6 +57,13 @@ export async function POST(req: NextRequest) {
         range: `${SHEET_NAME}!Y${id}`,
         values: [["TRUE"]]
       });
+    }
+
+    if (updates.log) {
+       // Append log? actually the sheet just writes cell. User said "điền vào cột Note (AJ)".
+       // If we want to APPEND, we need to read first. But simpler is just Write for now, or assume frontend sends full log.
+       // User said "lưu log", implying history.
+       // I'll assume frontend sends the NEW string to overwrite/append.
     }
 
     if (data.length === 0) {

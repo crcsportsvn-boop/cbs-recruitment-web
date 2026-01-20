@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Search } from "lucide-react";
+import { MoreHorizontal, Search, EyeOff, Eye } from "lucide-react";
 import { dictionary, LangType } from "@/lib/dictionary";
 
 interface Candidate {
@@ -24,11 +24,19 @@ interface Candidate {
   jobCode?: string;
   positionId?: string;
   timestamp?: string;
+  log?: string; 
 }
 
 interface KanbanBoardProps {
   lang: LangType;
 }
+
+// English Keys for Database Storage
+const REASONS_EN = {
+  screening: ["Weak Technical Skill", "Culture Mismatch", "Salary Too High", "Other"],
+  interview: ["Technical mismatch", "Cultural mismatch", "English fail", "High salary expectation", "No Show", "Other"],
+  offer: ["Declined Offer", "Accepted another job", "Salary negotiation failed", "Ghosted", "Other"]
+};
 
 export default function KanbanBoard({ lang }: KanbanBoardProps) {
   const t = dictionary[lang].kanban;
@@ -40,6 +48,7 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
   const [scoreFilter, setScoreFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
+  const [showRejected, setShowRejected] = useState(false);
 
   // Modal State
   const [isInterviewModalOpen, setIsInterviewModalOpen] = useState(false);
@@ -62,17 +71,10 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
     { id: "New", title: t.colNew, color: "bg-blue-50" },
     { id: "Screening", title: t.colScreening, color: "bg-yellow-50" },
     { id: "Interview", title: t.colInterview, color: "bg-purple-50" },
-    { id: "Interview2", title: t.colInterview2, color: "bg-purple-100" }, // New Column
+    { id: "Interview2", title: t.colInterview2, color: "bg-purple-100" },
     { id: "Offer", title: t.colOffer, color: "bg-green-50" },
+    ...(showRejected ? [{ id: "Rejected", title: t.colRejected, color: "bg-red-50" }] : [])
   ];
-
-  const REASONS_MAP: Record<string, string[]> = {
-    "New": t.reasons.screening,
-    "Screening": t.reasons.screening,
-    "Interview": t.reasons.interview,
-    "Interview2": t.reasons.interview,
-    "Offer": t.reasons.offer
-  };
 
   useEffect(() => {
     fetchCandidates();
@@ -103,25 +105,18 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
       return; 
     }
 
-    // 2. Direct Logic for Screening/Offer/Withdraw
+    // 2. Direct Logic for Screening/Offer
     let updates: any = { status: targetStatus };
     const todayStr = new Date().toLocaleDateString('en-GB'); // dd/mm/yyyy
 
     if (targetStatus === "Offer") {
        updates.offerDate = todayStr;
     }
-    // Return to previous logic (Withdraw)
-    // Map current -> previous
-    const PREV_MAP: Record<string, string> = {
-      "Screening": "New",
-      "Interview": "Screening",
-      "Interview2": "Interview",
-      "Offer": "Interview2",
-      "Rejected": "New" // Reset if withdrawn from rejected? Actually mainly for active flow.
-    };
     
-    // If it's a "Withdraw" action (special case handled by caller usually passing the specific target)
-    // Here we assume targetStatus IS the intended status.
+    // Test Result if moving New -> Screening
+    if (targetStatus === "Screening" && candidate.status === "New") {
+       updates.testResult = todayStr;
+    }
 
     await updateCandidateAPI(candidate.id, updates);
   };
@@ -130,12 +125,32 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
      // Determine previous status
      const status = candidate.status;
      let prev = "New";
-     if (status === "Screening") prev = "New";
-     if (status === "Interview") prev = "Screening";
-     if (status === "Interview2") prev = "Interview";
-     if (status === "Offer") prev = "Interview2";
      
-     await moveStatus(candidate, prev);
+     // Defines logic for "Going back one step"
+     if (status === "Screening") prev = "New";
+     else if (status === "Interview") prev = "Screening";
+     else if (status === "Interview2") prev = "Interview";
+     else if (status === "Offer") prev = "Interview2";
+     else if (status === "Rejected") prev = "New"; // Recover from rejected
+
+     // Log logic
+     const logMsg = `[Withdrawn] from ${status} on ${new Date().toLocaleDateString('en-GB')}.`;
+     
+     const newLog = candidate.log ? candidate.log + "\n" + logMsg : logMsg;
+     
+     // Clear data logic (Send empty string to clear)
+     const updates: any = { 
+       status: prev,
+       log: newLog 
+     };
+
+     // Clear dates if backing out
+     if (status === "Offer") updates.offerDate = "";
+     if (status === "Interview") updates.interviewDate1 = ""; 
+     if (status === "Interview2") updates.interviewDate2 = ""; 
+     if (status === "Screening") updates.testResult = ""; // Clear screening result?
+
+     await updateCandidateAPI(candidate.id, updates);
   };
 
   const handleDeclineClick = (candidate: Candidate) => {
@@ -152,6 +167,9 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
     let finalReason = declineReasonType;
     if (declineReasonType === "Other" || !declineReasonType) {
         finalReason = declineReasonText;
+    } else {
+       // If standard reason, ensure we are using the English value (already set by Select value)
+       // The UI logic below ensures value is EN
     }
 
     await updateCandidateAPI(selectedCandidate.id, {
@@ -172,9 +190,8 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
     window.open(mailtoLink, "_blank");
 
     // Update API
-    // Format date dd/mm/yyyy
     const dateObj = new Date(interviewDetails.date);
-    const dateStr = dateObj.toLocaleDateString('en-GB'); // Standard format
+    const dateStr = dateObj.toLocaleDateString('en-GB'); 
     const timeStr = interviewDetails.time;
     const fullDate = `${dateStr} ${timeStr}`;
 
@@ -192,7 +209,6 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
   };
 
   const updateCandidateAPI = async (id: number, updates: any) => {
-    // Optimistic Update
     setCandidates(prev => prev.map(c => 
       c.id === id ? { ...c, ...updates } : c
     ));
@@ -210,8 +226,8 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
 
   // --- FILTERING ---
   const filteredCandidates = candidates.filter(c => {
-    // 1. Hide Rejected candidates from board
-    if (c.status === "Rejected") return false;
+    // 1. Hide Rejected candidates if Toggle is OFF
+    if (!showRejected && c.status === "Rejected") return false;
 
     // 2. Search Term
     const searchLower = searchTerm.toLowerCase();
@@ -236,16 +252,12 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
       if (!c.timestamp) {
         matchesDate = false;
       } else {
-        // Parse "dd/mm/yyyy hh:mm:ss"
         const parts = c.timestamp.split(" ")[0].split("/");
-        // Assumes dd/mm/yyyy format from Sheet
         if (parts.length === 3) {
           const cDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
           
           if (dateFrom) {
-            const dStart = new Date(dateFrom); // yyyy-mm-dd
-            // Compare timestamps (ignoring time for start date? strictly >=)
-            // Reset hours for comparison to be inclusive
+            const dStart = new Date(dateFrom); 
             dStart.setHours(0,0,0,0);
             cDate.setHours(0,0,0,0);
             if (cDate < dStart) matchesDate = false;
@@ -265,12 +277,26 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
 
   if (loading) return <div>Loading...</div>;
 
+  // Determine current decline reasons
+  const currentStage = selectedCandidate?.status || "New";
+  let reasonKeys = REASONS_EN.screening;
+  let reasonLabels = t.reasons.screening;
+  
+  if (currentStage === "Interview" || currentStage === "Interview2") {
+     reasonKeys = REASONS_EN.interview;
+     reasonLabels = t.reasons.interview;
+  }
+  if (currentStage === "Offer") {
+     reasonKeys = REASONS_EN.offer;
+     reasonLabels = t.reasons.offer;
+  }
+
+
   return (
-    <div className="h-full flex flex-col relative w-full">
-      <div className="flex-1 flex flex-col overflow-hidden relative border rounded-lg bg-gray-50 h-[calc(100vh-250px)]">
+    <div className="flex flex-col h-[calc(100vh-220px)] border rounded-lg bg-gray-50 overflow-hidden relative shadow-sm">
         
         {/* Sticky Filter Bar */}
-        <div className="sticky top-0 z-20 bg-white p-2 border-b flex flex-wrap gap-2 items-center shadow-sm">
+        <div className="bg-white p-3 border-b flex flex-wrap gap-3 items-center shrink-0">
           {/* Search */}
           <div className="flex items-center gap-2 flex-1 min-w-[150px]">
             <Search className="w-4 h-4 text-gray-500" />
@@ -278,14 +304,14 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
               placeholder={t.searchPlaceholder} 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-white h-8 text-sm"
+              className="bg-white h-9 text-sm"
             />
           </div>
           
           {/* Score Filter */}
           <div className="w-[140px]">
             <Select value={scoreFilter} onValueChange={setScoreFilter}>
-              <SelectTrigger className="bg-white h-8 text-sm">
+              <SelectTrigger className="bg-white h-9 text-sm">
                 <SelectValue placeholder={t.filterScore} />
               </SelectTrigger>
               <SelectContent>
@@ -298,49 +324,62 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
           </div>
 
           {/* Date Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">From:</span>
+          <div className="flex items-center gap-2 bg-white px-2 rounded border h-9">
+            <span className="text-xs text-gray-500 font-medium whitespace-nowrap">From:</span>
             <Input 
               type="date" 
-              className="h-8 w-[130px] text-sm"
+              className="h-7 w-[110px] text-xs border-0 focus-visible:ring-0 p-1"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
             />
-            <span className="text-xs text-gray-500">To:</span>
+            <span className="text-xs text-gray-500 font-medium whitespace-nowrap">To:</span>
             <Input 
               type="date" 
-              className="h-8 w-[130px] text-sm"
+              className="h-7 w-[110px] text-xs border-0 focus-visible:ring-0 p-1"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
             />
           </div>
+
+          {/* Rejected Toggle */}
+          <Button 
+            variant={showRejected ? "destructive" : "outline"}
+            size="sm"
+            onClick={() => setShowRejected(!showRejected)}
+            className="gap-2 h-9"
+          >
+            {showRejected ? <EyeOff className="w-3 h-3"/> : <Eye className="w-3 h-3"/>}
+            {t.toggleRejected || "Rejected"}
+          </Button>
+
         </div>
 
-        {/* Board Columns - Horizontal Scroll if needed, but compacted */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden p-2">
-           <div className="flex gap-2 h-full min-w-full">
+        {/* Board Columns */}
+        <div className="flex-1 overflow-x-auto overflow-y-hidden p-3">
+           <div className="flex gap-3 h-full min-w-max">
             {COLUMNS.map((col) => (
-              <div key={col.id} className={`flex-1 min-w-[200px] flex flex-col rounded-lg border border-gray-200 ${col.color}`}>
+              <div key={col.id} className={`w-[250px] flex flex-col rounded-lg border border-gray-200/60 shadow-sm ${col.color}`}>
                 {/* Column Header */}
-                <div className="flex justify-between items-center p-2 border-b bg-white/50 rounded-t-lg">
-                  <h3 className="font-bold text-xs text-gray-700 truncate" title={col.title}>{col.title}</h3>
-                  <Badge variant="secondary" className="bg-white h-5 text-[10px] px-1">
+                <div className="flex justify-between items-center p-3 border-b bg-white/60 rounded-t-lg backdrop-blur-sm sticky top-0">
+                  <h3 className="font-bold text-sm text-gray-700 truncate" title={col.title}>{col.title}</h3>
+                  <Badge variant="secondary" className="bg-white/80 h-5 text-[10px] px-2 shadow-sm">
                     {filteredCandidates.filter(c => (c.status || "New") === col.id).length}
                   </Badge>
                 </div>
 
                 {/* Cards Container */}
-                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-gray-300">
                   {filteredCandidates
                     .filter(c => (c.status || "New") === col.id)
                     .map((c) => (
-                      <Card key={c.id} className="hover:shadow-md transition-shadow relative group bg-white">
-                        <CardContent className="p-2 space-y-1">
-                           <div className="absolute top-1 right-1">
+                      <Card key={c.id} className="hover:shadow-md transition-all duration-200 group bg-white border-l-4" style={{ borderLeftColor: parseInt(c.matchScore) >= 8 ? '#22c55e' : parseInt(c.matchScore) >= 5 ? '#eab308' : '#6b7280' }}>
+                        <CardContent className="p-3 space-y-2">
+                           <div className="flex justify-between items-start">
+                              <h4 className="font-semibold text-sm text-[#B91C1C] leading-snug" title={c.fullName}>{c.fullName}</h4>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-5 w-5 p-0 hover:bg-gray-100 rounded-full">
-                                    <MoreHorizontal className="h-3 w-3 text-gray-500" />
+                                  <Button variant="ghost" className="h-6 w-6 p-0 -mt-1 -mr-2 hover:bg-gray-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <MoreHorizontal className="h-4 w-4 text-gray-500" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
@@ -379,11 +418,22 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
                                     </DropdownMenuItem>
                                   )}
                                   
+                                  {/* Withdraw is available if not New */}
                                   {col.id !== "New" && (
                                      <>
                                        <DropdownMenuSeparator />
                                        <DropdownMenuItem onClick={() => handleWithdraw(c)}>
                                          {t.actionWithdraw}
+                                       </DropdownMenuItem>
+                                     </>
+                                  )}
+                                  
+                                  {/* Allow Re-withdraw if Rejected */}
+                                  {col.id === "Rejected" && (
+                                     <>
+                                       <DropdownMenuSeparator />
+                                       <DropdownMenuItem onClick={() => handleWithdraw(c)}>
+                                         Recover to Previous
                                        </DropdownMenuItem>
                                      </>
                                   )}
@@ -396,26 +446,28 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
                               </DropdownMenu>
                            </div>
 
-                          <div className="pr-5">
-                            <h4 className="font-semibold text-xs text-[#EE2E24] truncate" title={c.fullName}>{c.fullName}</h4>
-                            <p className="text-[10px] text-muted-foreground truncate">{c.jobCode}</p>
-                          </div>
-                          
-                          <div className="flex items-center justify-between mt-1">
-                             <span className="text-[10px] bg-gray-100 px-1 rounded truncate max-w-[80px]" title={c.positionRaw}>
+                           <div className="space-y-1">
+                               <p className="text-[11px] text-gray-600 font-medium">{c.jobCode}</p>
+                               <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 block w-fit max-w-full whitespace-normal break-words" title={c.positionRaw}>
                                {c.positionRaw}
-                             </span>
-                             <Badge className={`h-4 text-[10px] px-1 ${
-                                parseInt(c.matchScore) >= 8 ? "bg-green-500" : 
-                                parseInt(c.matchScore) >= 5 ? "bg-yellow-500" : "bg-gray-500"
-                              }`}>
-                                {c.matchScore}
-                              </Badge>
-                          </div>
-                          {/* Timestamp Display */}
-                          <div className="text-[9px] text-gray-400 text-right">
-                            {c.timestamp ? c.timestamp.split(" ")[0] : ""}
-                          </div>
+                               </span>
+                           </div>
+                           
+                           <div className="flex items-center justify-between pt-1 border-t border-gray-100 mt-1">
+                             <div className="text-[9px] text-gray-400">
+                               {c.timestamp ? c.timestamp.split(" ")[0] : ""}
+                             </div>
+                             
+                             {(col.id === "New") && (
+                               <Badge className={`h-5 text-[10px] px-1.5 ${
+                                  parseInt(c.matchScore) >= 8 ? "bg-green-500" : 
+                                  parseInt(c.matchScore) >= 5 ? "bg-yellow-500" : "bg-gray-500"
+                                }`}>
+                                  Score: {c.matchScore}
+                                </Badge>
+                             )}
+                           </div>
+
                         </CardContent>
                       </Card>
                     ))}
@@ -424,7 +476,6 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
             ))}
            </div>
         </div>
-      </div>
 
       {/* Decline Modal */}
       <Dialog open={isDeclineModalOpen} onOpenChange={setIsDeclineModalOpen}>
@@ -440,8 +491,10 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
                     <SelectValue placeholder="Chọn lý do..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {(REASONS_MAP[selectedCandidate?.status || "New"] || t.reasons.screening).map((reason) => (
-                       <SelectItem key={reason} value={reason}>{reason}</SelectItem>
+                    {reasonKeys.map((reasonEn, idx) => (
+                       <SelectItem key={reasonEn} value={reasonEn}>
+                         {reasonLabels[idx] || reasonEn}
+                       </SelectItem>
                     ))}
                     <SelectItem value="Other">Khác (Other)</SelectItem>
                   </SelectContent>
@@ -450,7 +503,7 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
              
              {(declineReasonType === "Other" || !declineReasonType) && (
                  <Input 
-                   placeholder={t.placeholderReason || "Nhập lý do chi tiết..."}
+                   placeholder={t.placeholderReason}
                    value={declineReasonText}
                    onChange={(e) => setDeclineReasonText(e.target.value)}
                  />
@@ -463,7 +516,7 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
         </DialogContent>
       </Dialog>
       
-      {/* Interview Modal (Reused) */}
+      {/* Interview Modal */}
       <Dialog open={isInterviewModalOpen} onOpenChange={setIsInterviewModalOpen}>
         <DialogContent>
           <DialogHeader>

@@ -1,8 +1,8 @@
 export const dictionary = {
-  vi: {
+    vi: {
     home: {
       title: "Cổng Thông Tin Tuyển Dụng",
-      tabInput: "Phễu Đầu Vào (Input)",
+      tabInput: "Phễu Đầu Vào",
       tabProcess: "Quy Trình Tuyển Dụng",
       tabReport: "Báo Cáo",
       tabConfig: "Cấu Hình",
@@ -13,10 +13,10 @@ export const dictionary = {
       searchPlaceholder: "Tìm kiếm ứng viên...",
       filterScore: "Lọc theo điểm",
       filterAll: "Tất cả điểm",
-      colNew: "Mới (New)",
-      colScreening: "TA Duyệt (Screening)",
-      colInterview: "Phỏng vấn V1 (Round 1)",
-      colInterview2: "Phỏng vấn V2 (Round 2)",
+      colNew: "Mới",
+      colScreening: "TA Duyệt",
+      colInterview: "Phỏng vấn V1",
+      colInterview2: "Phỏng vấn V2",
       colOffer: "Offer / Hired",
       colRejected: "Đã Loại",
       actionMove: "Chuyển trạng thái",
@@ -30,6 +30,7 @@ export const dictionary = {
       btnConfirmDecline: "Xác nhận Loại",
       btnSendInvite: "Gửi Invite & Cập Nhật",
       modalInterviewTitle: "Lên Lịch Phỏng Vấn",
+      toggleRejected: "Hiển Thị Đã Loại",
       reasons: {
         screening: ["Không phù hợp JD", "Kinh nghiệm chưa đủ", "CV trùng lặp", "Blacklist", "Other"],
         interview: ["Chuyên môn chưa đạt", "Không phù hợp văn hóa", "Fail Tiếng Anh", "Lương kỳ vọng cao", "Không tham gia PV", "Other"],
@@ -88,6 +89,7 @@ export const dictionary = {
       btnConfirmDecline: "Confirm Reject",
       btnSendInvite: "Send Invite & Update",
       modalInterviewTitle: "Schedule Interview",
+      toggleRejected: "Show Rejected",
       reasons: {
         screening: ["Not suitable", "Experience mismatch", "Duplicate", "Blacklist", "Other"],
         interview: ["Technical mismatch", "Cultural mismatch", "English fail", "High salary expectation", "No Show", "Other"],
