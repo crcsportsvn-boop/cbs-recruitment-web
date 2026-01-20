@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Search, Filter } from "lucide-react";
+import { MoreHorizontal, Search } from "lucide-react";
 import { dictionary, LangType } from "@/lib/dictionary";
 
 interface Candidate {
@@ -18,7 +18,7 @@ interface Candidate {
   email: string;
   positionRaw: string;
   matchScore: string;
-  status: string; // New, Screening, Interview, Offer, Rejected
+  status: string; // New, Screening, Interview, Interview2, Offer, Rejected
   cvLink: string;
   matchReason: string;
   jobCode?: string;
@@ -50,15 +50,26 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
     venue: "HCM Office – Eximland Building, 163 Phan Dang Luu, Ward 1, Phu Nhuan District, HCMC",
     interviewer: ""
   });
-  const [declineReason, setDeclineReason] = useState("");
+  const [interviewRound, setInterviewRound] = useState<1 | 2>(1); // 1 or 2
+
+  const [declineReasonType, setDeclineReasonType] = useState<string>("");
+  const [declineReasonText, setDeclineReasonText] = useState("");
 
   const COLUMNS = [
     { id: "New", title: t.colNew, color: "bg-blue-50" },
     { id: "Screening", title: t.colScreening, color: "bg-yellow-50" },
     { id: "Interview", title: t.colInterview, color: "bg-purple-50" },
+    { id: "Interview2", title: t.colInterview2, color: "bg-purple-100" }, // New Column
     { id: "Offer", title: t.colOffer, color: "bg-green-50" },
-    // Rejected hidden by default, or separate view
   ];
+
+  const REASONS_MAP: Record<string, string[]> = {
+    "New": t.reasons.screening,
+    "Screening": t.reasons.screening,
+    "Interview": t.reasons.interview,
+    "Interview2": t.reasons.interview,
+    "Offer": t.reasons.offer
+  };
 
   useEffect(() => {
     fetchCandidates();
@@ -80,55 +91,99 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
 
   // --- ACTIONS ---
 
-  const moveStatus = async (candidate: Candidate, targetStatus: string) => {
-    // 1. Interactive Logic
-    if (targetStatus === "Interview") {
+  const moveStatus = async (candidate: Candidate, targetStatus: string, round?: 1 | 2) => {
+    // 1. Interview Logic
+    if (targetStatus === "Interview" || targetStatus === "Interview2") {
       setSelectedCandidate(candidate);
+      setInterviewRound(round || 1);
       setIsInterviewModalOpen(true);
       return; 
     }
 
-    // 2. Direct Logic for Screening/Offer
+    // 2. Direct Logic for Screening/Offer/Withdraw
     let updates: any = { status: targetStatus };
+    const todayStr = new Date().toLocaleDateString('en-GB'); // dd/mm/yyyy
+
     if (targetStatus === "Offer") {
-       updates.offerDate = new Date().toLocaleDateString('en-GB');
+       updates.offerDate = todayStr;
     }
+    // Return to previous logic (Withdraw)
+    // Map current -> previous
+    const PREV_MAP: Record<string, string> = {
+      "Screening": "New",
+      "Interview": "Screening",
+      "Interview2": "Interview",
+      "Offer": "Interview2",
+      "Rejected": "New" // Reset if withdrawn from rejected? Actually mainly for active flow.
+    };
+    
+    // If it's a "Withdraw" action (special case handled by caller usually passing the specific target)
+    // Here we assume targetStatus IS the intended status.
 
     await updateCandidateAPI(candidate.id, updates);
   };
 
+  const handleWithdraw = async (candidate: Candidate) => {
+     // Determine previous status
+     const status = candidate.status;
+     let prev = "New";
+     if (status === "Screening") prev = "New";
+     if (status === "Interview") prev = "Screening";
+     if (status === "Interview2") prev = "Interview";
+     if (status === "Offer") prev = "Interview2";
+     
+     await moveStatus(candidate, prev);
+  };
+
   const handleDeclineClick = (candidate: Candidate) => {
     setSelectedCandidate(candidate);
+    setDeclineReasonType("");
+    setDeclineReasonText("");
     setIsDeclineModalOpen(true);
   };
 
   const confirmDecline = async () => {
     if (!selectedCandidate) return;
+    
+    // Combine Reason
+    let finalReason = declineReasonType;
+    if (declineReasonType === "Other" || !declineReasonType) {
+        finalReason = declineReasonText;
+    }
+
     await updateCandidateAPI(selectedCandidate.id, {
       status: "Rejected",
-      failureReason: declineReason
+      failureReason: finalReason
     });
     setIsDeclineModalOpen(false);
-    setDeclineReason("");
   };
 
   const confirmInterview = async () => {
     if (!selectedCandidate) return;
     
     // Outlook Logic...
-    const subject = `Interview Invitation - ${selectedCandidate.positionRaw}`;
-    const body = `Dear Mr./Ms. ${selectedCandidate.fullName},\n\nGreetings from CBS VN.\n\nThank you for your interest in a possible job opportunity with us. After exploring your qualifications, we are pleased to invite you to join an offline interview with the following details:\n\nApplied Position: ${selectedCandidate.positionRaw}\n\nDate & time: ${interviewDetails.date} at ${interviewDetails.time}\n\nVenue: ${interviewDetails.venue}\n\nMeet with: ${interviewDetails.interviewer}\n\nHR Data Analyst\n\nFriday, July 11th, 2025, at 8:00 AM\n\nHCM Office – Eximland Building, 163 Phan Dang Luu, Ward 1, Phu Nhuan District, HCMC\n\nMs. Van Le – Head of HR – CBS VN\n\n \n\nPlease confirm your attendance by replying to this email. Should you need any assistance, do not hesitate to contact me via 0906627301 (Ms. Nga).\n\n \nThanks and best regards!`; // Template shortened for brevity
+    const subject = `Interview Invitation (Round ${interviewRound}) - ${selectedCandidate.positionRaw}`;
+    const body = `Dear Mr./Ms. ${selectedCandidate.fullName},\n\nWe are pleased to invite you to Round ${interviewRound} interview.\n\nTime: ${interviewDetails.time} - ${interviewDetails.date}\nVenue: ${interviewDetails.venue}\nInterviewer: ${interviewDetails.interviewer}\n\nBest regards,\nCBS HR Team`; 
     
     const mailtoLink = `mailto:${selectedCandidate.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(mailtoLink, "_blank");
 
     // Update API
-    const fullDate = `${interviewDetails.date} ${interviewDetails.time}`;
-    await updateCandidateAPI(selectedCandidate.id, {
-      status: "Interview",
-      interviewDate1: fullDate,
+    // Format date dd/mm/yyyy
+    const dateObj = new Date(interviewDetails.date);
+    const dateStr = dateObj.toLocaleDateString('en-GB'); // Standard format
+    const timeStr = interviewDetails.time;
+    const fullDate = `${dateStr} ${timeStr}`;
+
+    const updates: any = {
+      status: interviewRound === 1 ? "Interview" : "Interview2",
       interviewer: interviewDetails.interviewer
-    });
+    };
+    
+    if (interviewRound === 1) updates.interviewDate1 = fullDate;
+    else updates.interviewDate2 = fullDate;
+
+    await updateCandidateAPI(selectedCandidate.id, updates);
 
     setIsInterviewModalOpen(false);
   };
@@ -243,15 +298,35 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
                               )}
                               
                               {col.id === "Screening" && (
-                                <DropdownMenuItem onClick={() => moveStatus(c, "Interview")}>
-                                  Schedule Interview
+                                <DropdownMenuItem onClick={() => moveStatus(c, "Interview", 1)}>
+                                  Schedule Interview V1
                                 </DropdownMenuItem>
                               )}
 
                               {col.id === "Interview" && (
+                                <>
+                                  <DropdownMenuItem onClick={() => moveStatus(c, "Interview2", 2)}>
+                                    Schedule Interview V2
+                                  </DropdownMenuItem>
+                                   <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
+                                    Make Offer
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+
+                              {col.id === "Interview2" && (
                                 <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
                                   Make Offer
                                 </DropdownMenuItem>
+                              )}
+                              
+                              {col.id !== "New" && (
+                                 <>
+                                   <DropdownMenuSeparator />
+                                   <DropdownMenuItem onClick={() => handleWithdraw(c)}>
+                                     {t.actionWithdraw}
+                                   </DropdownMenuItem>
+                                 </>
                               )}
 
                               <DropdownMenuSeparator />
@@ -292,14 +367,29 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
            <DialogHeader>
              <DialogTitle>{t.modalDeclineTitle}</DialogTitle>
            </DialogHeader>
-           <div className="py-2">
-             <Label>{t.labelForReason}</Label>
-             <Input 
-               className="mt-2"
-               placeholder="E.g. Technical mismatch, Budget constraints..."
-               value={declineReason}
-               onChange={(e) => setDeclineReason(e.target.value)}
-             />
+           <div className="py-2 space-y-4">
+             <div className="space-y-2">
+                <Label>{t.labelForReason}</Label>
+                <Select value={declineReasonType} onValueChange={setDeclineReasonType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn lý do..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(REASONS_MAP[selectedCandidate?.status || "New"] || t.reasons.screening).map((reason) => (
+                       <SelectItem key={reason} value={reason}>{reason}</SelectItem>
+                    ))}
+                    <SelectItem value="Other">Khác (Other)</SelectItem>
+                  </SelectContent>
+                </Select>
+             </div>
+             
+             {(declineReasonType === "Other" || !declineReasonType) && (
+                 <Input 
+                   placeholder={t.placeholderReason || "Nhập lý do chi tiết..."}
+                   value={declineReasonText}
+                   onChange={(e) => setDeclineReasonText(e.target.value)}
+                 />
+             )}
            </div>
            <DialogFooter>
              <Button variant="outline" onClick={() => setIsDeclineModalOpen(false)}>{t.btnCancel}</Button>
@@ -312,9 +402,8 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
       <Dialog open={isInterviewModalOpen} onOpenChange={setIsInterviewModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t.modalInterviewTitle}</DialogTitle>
+            <DialogTitle>{t.modalInterviewTitle} (V{interviewRound})</DialogTitle>
           </DialogHeader>
-           {/* ...Inputs for Date/Time/Venue (Simplified for brevity code reuse)... */} 
            <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Ngày</Label>

@@ -147,10 +147,10 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
           ) : (
             <Upload className="text-primary h-8 w-8" />
           )}
-          Thêm Ứng Viên Mới
+          {t.pageTitle || "Nhập Liệu Ứng Viên"}
         </CardTitle>
         <CardDescription>
-          Nhập thông tin và upload CV để hệ thống AI tự động xử lý.
+          {lang === 'vi' ? "Nhập thông tin và upload CV để hệ thống AI tự động xử lý." : "Enter details and upload CVs for AI processing."}
         </CardDescription>
       </CardHeader>
       
@@ -286,10 +286,10 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Đang xử lý...
+                  {t.btnLoading}
                 </>
               ) : (
-                "Xác nhận & Upload"
+                t.btnSubmit
               )}
             </Button>
           </div>
