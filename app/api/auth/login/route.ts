@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 
-const REDIRECT_URI = process.env.VERCEL_URL 
-  ? `https://${process.env.VERCEL_URL}/api/auth/callback`
+const REDIRECT_URI = process.env.NODE_ENV === "production"
+  ? "https://cbs-recruitment-web.vercel.app/api/auth/callback"
   : "http://localhost:3000/api/auth/callback";
 
 const SCOPES = [
