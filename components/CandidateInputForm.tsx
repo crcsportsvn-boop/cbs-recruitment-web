@@ -89,6 +89,13 @@ export default function CandidateInputForm() {
 
         if (!response.ok) {
           const resData = await response.json();
+          
+          // If not authenticated, redirect to OAuth login
+          if (response.status === 401 && resData.redirect) {
+            window.location.href = resData.redirect;
+            return;
+          }
+          
           throw new Error(resData.details || "Upload failed");
         }
 
