@@ -8,9 +8,30 @@ import ScrollTopButton from "@/components/ScrollTopButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Globe } from "lucide-react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { Suspense } from "react";
 
 export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+function HomeContent() {
   const [lang, setLang] = useState<'vi' | 'en'>('vi');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  
+  const activeTab = searchParams.get("tab") || "input";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   const t = {
     vi: {
@@ -65,19 +86,13 @@ export default function Home() {
               <Globe className="h-4 w-4 mr-2" />
               {lang === 'vi' ? 'EN' : 'VN'}
             </Button>
-
-            <div className="text-sm hidden sm:block">
-              <a href="/dashboard" className="bg-white text-[#EE2E24] px-4 py-2 rounded font-bold hover:bg-gray-100 transition-colors">
-                {t[lang].adminDash}
-              </a>
-            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <div className="container mx-auto py-10 px-4 flex-1">
-        <Tabs defaultValue="input" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <div className="flex justify-center mb-8 sticky top-20 z-30 bg-gray-50 pb-4">
             <TabsList className="bg-white shadow-md p-1 h-auto">
               <TabsTrigger value="input" className="px-6 py-3 data-[state=active]:bg-[#EE2E24] data-[state=active]:text-white transition-all">

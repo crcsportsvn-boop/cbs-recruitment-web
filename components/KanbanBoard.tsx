@@ -39,9 +39,9 @@ interface KanbanBoardProps {
 
 // English Keys for Database Storage
 const REASONS_EN = {
-  screening: ["Weak Technical Skill", "Culture Mismatch", "Salary Too High", "Other"],
-  interview: ["Technical mismatch", "Cultural mismatch", "English fail", "High salary expectation", "No Show", "Other"],
-  offer: ["Declined Offer", "Accepted another job", "Salary negotiation failed", "Ghosted", "Other"]
+  screening: ["Not suitable for JD", "Insufficient Experience", "Duplicate CV", "Blacklist", "Other"],
+  interview: ["Technical Mismatch", "Cultural Mismatch", "Failed English", "High Salary Expectation", "No Show", "Other"],
+  offer: ["Declined Offer", "Accepted Other Job", "Salary Negotiation Failed", "Ghosted", "Other"]
 };
 
 export default function KanbanBoard({ lang }: KanbanBoardProps) {
@@ -358,11 +358,11 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
           </div>
 
           {/* Rejected Toggle */}
+          {/* Rejected Toggle */}
           <Button 
-            variant={showRejected ? "destructive" : "outline"}
+            className="gap-2 h-9 bg-[#B91C1C] hover:bg-[#991b1b] text-white"
             size="sm"
             onClick={() => setShowRejected(!showRejected)}
-            className="gap-2 h-9"
           >
             {showRejected ? <EyeOff className="w-3 h-3"/> : <Eye className="w-3 h-3"/>}
             {t.toggleRejected || "Rejected"}
@@ -371,8 +371,8 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
         </div>
 
         {/* Board Columns */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden p-3">
-           <div className="flex gap-3 h-full min-w-max">
+        <div className="flex-1 overflow-x-auto overflow-y-hidden p-3" style={{ transform: "rotateX(180deg)" }}>
+           <div className="flex gap-3 h-full min-w-max" style={{ transform: "rotateX(180deg)" }}>
             {COLUMNS.map((col) => (
               <div key={col.id} className={`w-[250px] flex flex-col rounded-lg border border-gray-200/60 shadow-sm ${col.color}`}>
                 {/* Column Header */}
@@ -506,7 +506,7 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
                 <Label>{t.labelForReason}</Label>
                 <Select value={declineReasonType} onValueChange={setDeclineReasonType}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Chọn lý do..." />
+                    <SelectValue placeholder={t.selectReasonPlaceholder} />
                   </SelectTrigger>
                   <SelectContent>
                     {reasonKeys.map((reasonEn, idx) => (
