@@ -5,8 +5,9 @@ import { Readable } from "stream";
 
 // Configuration
 // Hardcode the correct folder ID to override any env var issues
-const FOLDER_ID_INPUT = "1L23vAO-hvrXPxE-VFTAzGzA0_kyb_wGN"; 
-const SPREADSHEET_ID = "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
+// Hardcode the correct folder ID to override any env var issues
+const FOLDER_ID_INPUT = process.env.GOOGLE_DRIVE_INPUT_FOLDER_ID_HO || "1L23vAO-hvrXPxE-VFTAzGzA0_kyb_wGN"; 
+const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
 const SHEET_NAME = "Vị trí tuyển dụng";
 const SCOPES = [
   "https://www.googleapis.com/auth/drive",
