@@ -424,17 +424,26 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
               {visibleColumns.actions && <TableHead className="text-right">{t.colActions}</TableHead>}
             </TableRow>
             
-            {/* Filter Row */}
             <TableRow className="bg-gray-50 border-b">
-               {visibleColumns.received && <TableHead className="p-1">
-                   <div className="flex flex-col gap-1">
-                        <Input type="date" className="h-6 text-[10px] w-full px-1 bg-white" 
-                             value={colFilters.dateFrom} 
-                             onChange={(e) => setColFilters({...colFilters, dateFrom: e.target.value})}
+               {visibleColumns.received && <TableHead className="p-1 min-w-[130px]">
+                   <div className="flex flex-row gap-1">
+                        <Input 
+                            type="text" 
+                            placeholder="From" 
+                            className="h-6 text-[10px] w-1/2 px-1 bg-white" 
+                            onFocus={(e) => e.target.type = 'date'}
+                            onBlur={(e) => {if(!e.target.value) e.target.type = 'text'}}
+                            value={colFilters.dateFrom} 
+                            onChange={(e) => setColFilters({...colFilters, dateFrom: e.target.value})}
                         />
-                        <Input type="date" className="h-6 text-[10px] w-full px-1 bg-white" 
-                             value={colFilters.dateTo} 
-                             onChange={(e) => setColFilters({...colFilters, dateTo: e.target.value})}
+                        <Input 
+                            type="text" 
+                            placeholder="To" 
+                            className="h-6 text-[10px] w-1/2 px-1 bg-white" 
+                            onFocus={(e) => e.target.type = 'date'}
+                            onBlur={(e) => {if(!e.target.value) e.target.type = 'text'}}
+                            value={colFilters.dateTo} 
+                            onChange={(e) => setColFilters({...colFilters, dateTo: e.target.value})}
                         />
                    </div>
                </TableHead>}
