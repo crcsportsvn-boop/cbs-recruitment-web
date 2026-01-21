@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       interviewDate2: "AF",
       offerDate: "AG",
       interviewer: "AI",
-      // rejectedRound: "AK", // Disabled temporarily to prevent "Exceeds grid limits" error (User needs to add Col AK)
+      rejectedRound: "AK", // Column 36 (Now added by User)
       log: "AJ"
     };
 

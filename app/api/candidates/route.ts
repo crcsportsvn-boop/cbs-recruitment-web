@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
       education: row[13], // Col N - School
       jobFunction: row[18], // Col S - Task
       skills: row[19], // Col T - Skills
+      certification: row[20], // Col U - Certification
       workHistory: row[17], // Col R - Employment History
       summary: row[21],
       matchReason: row[22],

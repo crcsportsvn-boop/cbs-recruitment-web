@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Search, Eye, EyeOff, Settings, Check, MoreHorizontal, User, Calendar, MapPin, GraduationCap, ChevronLeft, ChevronRight, Briefcase, FileText, Wrench } from "lucide-react";
+import { Search, Eye, EyeOff, Settings, Check, MoreHorizontal, User, Calendar, MapPin, GraduationCap, ChevronLeft, ChevronRight, Briefcase, FileText, Wrench, Award } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
@@ -38,6 +38,7 @@ interface Candidate {
   jobFunction?: string;
   workHistory?: string;
   skills?: string;
+  certification?: string;
 }
 
 interface DatapoolTableProps {
@@ -59,6 +60,19 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [scoreFilter, setScoreFilter] = useState("all");
   const [showRejected, setShowRejected] = useState(false);
+  
+  // Column Filters
+  const [colFilters, setColFilters] = useState({
+     received: "",
+     candidate: "",
+     position: "",
+     source: "",
+     status: "",
+     education: "",
+     matchReason: "",
+     rejectedRound: "",
+     summary: ""
+  });
 
   // Column Visibility
   const [visibleColumns, setVisibleColumns] = useState({
@@ -123,6 +137,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         jobFunction: c.jobFunction,
         workHistory: c.workHistory,
         skills: c.skills,
+        certification: c.certification
       }));
       setCandidates(formatted);
     } catch (err) {
@@ -151,14 +166,67 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     }
   };
 
+  // Filter Logic
+  const filteredCandidates = candidates.filter((c) => {
+    // Global Search
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = 
+      c.name?.toLowerCase().includes(searchLower) ||
+      c.position?.toLowerCase().includes(searchLower) ||
+      c.email?.toLowerCase().includes(searchLower) ||
+      c.phone?.includes(searchLower);
+
+    // Score Filter
+    const matchesScore =
+      scoreFilter === "all" ||
+      (scoreFilter === "high" && c.matchScore >= 8) ||
+      (scoreFilter === "medium" && c.matchScore >= 5 && c.matchScore < 8) ||
+      (scoreFilter === "low" && c.matchScore < 5);
+
+    // View Mode (Show/Hide Rejected)
+    const isRejected = c.status === "Rejected";
+    const isNew = c.status === "New";
+    const matchesMode = showRejected ? isRejected : isNew;
+
+    // Column Filters
+    const matchesColFilters = 
+        (colFilters.received === "" || c.timestamp?.toLowerCase().includes(colFilters.received.toLowerCase())) &&
+        (colFilters.candidate === "" || c.name.toLowerCase().includes(colFilters.candidate.toLowerCase()) || c.email.toLowerCase().includes(colFilters.candidate.toLowerCase())) &&
+        (colFilters.position === "" || c.position?.toLowerCase().includes(colFilters.position.toLowerCase())) &&
+        (colFilters.source === "" || c.source?.toLowerCase().includes(colFilters.source.toLowerCase())) &&
+        (colFilters.status === "" || c.status?.toLowerCase().includes(colFilters.status.toLowerCase())) &&
+        (colFilters.education === "" || c.education?.toLowerCase().includes(colFilters.education.toLowerCase()) || c.degree?.toLowerCase().includes(colFilters.education.toLowerCase())) &&
+        (colFilters.matchReason === "" || c.matchReason?.toLowerCase().includes(colFilters.matchReason.toLowerCase())) &&
+        (colFilters.rejectedRound === "" || c.rejectedRound?.toLowerCase().includes(colFilters.rejectedRound.toLowerCase())) &&
+        (colFilters.summary === "" || c.summary?.toLowerCase().includes(colFilters.summary.toLowerCase()));
+
+    return matchesSearch && matchesScore && matchesMode && matchesColFilters;
+  });
+
   // Actions
   const handleProceedToScreen = async (c: Candidate) => {
+     // Auto-next logic: Find next candidate locally BEFORE update changes filter results
+     const currentIndex = filteredCandidates.findIndex(cand => cand.id === c.id);
+     const nextCandidate = (currentIndex !== -1 && currentIndex < filteredCandidates.length - 1) 
+        ? filteredCandidates[currentIndex + 1] 
+        : null;
+
      const todayStr = new Date().toLocaleDateString('en-GB'); 
      await updateCandidateAPI(c.id, {
          status: "Screening",
          testResult: todayStr
      });
-     if (selectedCandidate?.id === c.id) setIsDeclineModalOpen(false); // Close modals if open
+     
+     if (isDeclineModalOpen) setIsDeclineModalOpen(false); // Should not be open here, but safe close
+
+     // Auto-Next
+     if (nextCandidate && selectedCandidate?.id === c.id) {
+         setSelectedCandidate(nextCandidate);
+     } else if (!nextCandidate && selectedCandidate?.id === c.id) {
+         // No next candidate, maybe close? Or keep showing updated state.
+         // User requested "jump to next", implies if no next, stay?
+         // staying is fine.
+     }
   };
 
   const handleWithdrawToScreen = async (c: Candidate) => {
@@ -186,6 +254,12 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
      }
 
      const rejectedRound = "Screening"; 
+     
+     // Auto-next logic
+     const currentIndex = filteredCandidates.findIndex(cand => cand.id === candidateToReject.id);
+     const nextCandidate = (currentIndex !== -1 && currentIndex < filteredCandidates.length - 1) 
+        ? filteredCandidates[currentIndex + 1] 
+        : null;
 
      await updateCandidateAPI(candidateToReject.id, {
          status: "Rejected",
@@ -193,31 +267,15 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
          isPotential: isPotentialDecline, 
          rejectedRound: rejectedRound
      });
+     
      setIsDeclineModalOpen(false);
      setCandidateToReject(null);
+
+     // If we are currently viewing the candidate we just rejected, jump to next
+     if (selectedCandidate?.id === candidateToReject.id && nextCandidate) {
+         setSelectedCandidate(nextCandidate);
+     }
   };
-
-  // Filter Logic
-  const filteredCandidates = candidates.filter((c) => {
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = 
-      c.name?.toLowerCase().includes(searchLower) ||
-      c.position?.toLowerCase().includes(searchLower) ||
-      c.email?.toLowerCase().includes(searchLower) ||
-      c.phone?.includes(searchLower);
-
-    const matchesScore =
-      scoreFilter === "all" ||
-      (scoreFilter === "high" && c.matchScore >= 8) ||
-      (scoreFilter === "medium" && c.matchScore >= 5 && c.matchScore < 8) ||
-      (scoreFilter === "low" && c.matchScore < 5);
-
-    const isRejected = c.status === "Rejected";
-    const isNew = c.status === "New";
-    const matchesMode = showRejected ? isRejected : isNew;
-
-    return matchesSearch && matchesScore && matchesMode;
-  });
 
   // Navigation Logic for Modal
   const currentIndex = selectedCandidate ? filteredCandidates.findIndex(c => c.id === selectedCandidate.id) : -1;
@@ -327,16 +385,30 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
               {visibleColumns.score && <TableHead className="text-center">{t.colScore}</TableHead>}
               {visibleColumns.source && <TableHead>{t.colSource}</TableHead>}
               {visibleColumns.status && <TableHead>{t.colStatus}</TableHead>}
-              
               {visibleColumns.education && <TableHead>{t.colEducation}</TableHead>}
               {visibleColumns.matchReason && <TableHead>{t.colMatchReason}</TableHead>}
-
               {(showRejected && visibleColumns.rejectedRound) && <TableHead>{t.colRejectedRound}</TableHead>}
               {(showRejected && visibleColumns.potential) && <TableHead className="text-center">{t.colPotential}</TableHead>}
-
               {visibleColumns.summary && <TableHead className="w-[200px]">{t.colSummary}</TableHead>}
               {visibleColumns.actions && <TableHead className="text-right">{t.colActions}</TableHead>}
             </TableRow>
+            
+            {/* Filter Row */}
+            <TableRow className="bg-gray-50 border-b">
+               {visibleColumns.received && <TableHead className="p-1"><Input placeholder="Filter..." className="h-7 text-xs bg-white" value={colFilters.received} onChange={(e)=>setColFilters({...colFilters, received: e.target.value})}/></TableHead>}
+               {visibleColumns.candidate && <TableHead className="p-1"><Input placeholder="Name/Email..." className="h-7 text-xs bg-white" value={colFilters.candidate} onChange={(e)=>setColFilters({...colFilters, candidate: e.target.value})}/></TableHead>}
+               {visibleColumns.position && <TableHead className="p-1"><Input placeholder="Position..." className="h-7 text-xs bg-white" value={colFilters.position} onChange={(e)=>setColFilters({...colFilters, position: e.target.value})}/></TableHead>}
+               {visibleColumns.score && <TableHead className="p-1 text-center font-normal text-xs text-gray-400">-</TableHead>}
+               {visibleColumns.source && <TableHead className="p-1"><Input placeholder="Source..." className="h-7 text-xs bg-white" value={colFilters.source} onChange={(e)=>setColFilters({...colFilters, source: e.target.value})}/></TableHead>}
+               {visibleColumns.status && <TableHead className="p-1"><Input placeholder="Status..." className="h-7 text-xs bg-white" value={colFilters.status} onChange={(e)=>setColFilters({...colFilters, status: e.target.value})}/></TableHead>}
+               {visibleColumns.education && <TableHead className="p-1"><Input placeholder="School/Degree..." className="h-7 text-xs bg-white" value={colFilters.education} onChange={(e)=>setColFilters({...colFilters, education: e.target.value})}/></TableHead>}
+               {visibleColumns.matchReason && <TableHead className="p-1"><Input placeholder="Reason..." className="h-7 text-xs bg-white" value={colFilters.matchReason} onChange={(e)=>setColFilters({...colFilters, matchReason: e.target.value})}/></TableHead>}
+               {(showRejected && visibleColumns.rejectedRound) && <TableHead className="p-1"><Input placeholder="Round..." className="h-7 text-xs bg-white" value={colFilters.rejectedRound} onChange={(e)=>setColFilters({...colFilters, rejectedRound: e.target.value})}/></TableHead>}
+               {(showRejected && visibleColumns.potential) && <TableHead className="p-1 font-normal text-xs text-gray-400 text-center">-</TableHead>}
+               {visibleColumns.summary && <TableHead className="p-1"><Input placeholder="Summary..." className="h-7 text-xs bg-white" value={colFilters.summary} onChange={(e)=>setColFilters({...colFilters, summary: e.target.value})}/></TableHead>}
+               {visibleColumns.actions && <TableHead></TableHead>}
+            </TableRow>
+
           </TableHeader>
           <TableBody>
             {loading ? (
@@ -351,13 +423,17 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
               </TableRow>
             ) : (
               filteredCandidates.map((c) => (
-                <TableRow key={c.id} className="hover:bg-gray-50/50 cursor-pointer" onClick={() => setSelectedCandidate(c)}>
+                <TableRow 
+                    key={c.id} 
+                    className="group hover:bg-blue-50/70 transition-all border-l-4 border-l-transparent hover:border-l-blue-500 cursor-pointer" 
+                    onClick={() => setSelectedCandidate(c)}
+                >
                   {visibleColumns.received && <TableCell className="font-medium text-xs text-gray-500">
                     {c.timestamp ? c.timestamp.split(" ")[0] : "-"}
                   </TableCell>}
                   
                   {visibleColumns.candidate && <TableCell>
-                    <div className="font-semibold text-gray-900">{c.name}</div>
+                    <div className="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">{c.name}</div>
                     <div className="text-xs text-gray-500">{c.email}</div>
                   </TableCell>}
 
@@ -503,7 +579,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                )}
 
                {/* Grid Info */}
-               <div className="grid grid-cols-3 gap-x-6 gap-y-4 text-sm"> {/* Changed to Cols-3 */}
+               <div className="grid grid-cols-3 gap-x-6 gap-y-4 text-sm"> 
                    
                    <div className="col-span-3 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2">
                       <User className="h-4 w-4"/> Personal Info
@@ -533,7 +609,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                    </div>
                    <div className="col-span-1">
                        <label className="text-gray-500 text-xs uppercase font-bold">Skills</label>
-                       <p className="whitespace-pre-wrap text-xs text-gray-600 leading-relaxed">
+                       <p className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed font-normal">
                           {selectedCandidate.skills ? selectedCandidate.skills.replace(/(?<!^)(\s?-\s)/g, "\n- ") : "-"}
                        </p>
                    </div>
@@ -569,6 +645,14 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                        <label className="text-gray-500 text-xs uppercase font-bold">Applied Date</label>
                        <p>{selectedCandidate.timestamp || "-"}</p>
                    </div>
+                   
+                   <div className="col-span-3"> {/* Use Full Width for Cert to allow long text */}
+                        <label className="text-gray-500 text-xs uppercase font-bold flex gap-2">
+                            <Award className="h-3 w-3"/> Certification
+                        </label>
+                        <p className="whitespace-pre-wrap text-sm">{selectedCandidate.certification || "-"}</p>
+                   </div>
+
                    <div>
                         <label className="text-gray-500 text-xs uppercase font-bold">Status</label>
                         <p>
