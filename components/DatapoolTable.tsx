@@ -1,21 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
-import { LangType } from "@/lib/dictionary";
+import { dictionary, LangType } from "@/lib/dictionary";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Eye, Filter, Download } from "lucide-react";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Search, Eye, EyeOff, Filter, Settings, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Candidate {
   id: string;
-  name: string; // Mapped from fullName
-  position: string; // Mapped from positionRaw or jobCode
+  name: string;
+  position: string;
   status: string;
   matchScore: number;
   phone: string;
@@ -26,9 +25,11 @@ interface Candidate {
   offerDate?: string;
   startDate?: string;
   source?: string;
-  timestamp?: string; // Apply Date
+  timestamp?: string;
   failureReason?: string;
   summary?: string;
+  isPotential?: boolean;
+  rejectedRound?: string;
 }
 
 interface DatapoolTableProps {
@@ -37,15 +38,28 @@ interface DatapoolTableProps {
 }
 
 export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
-
+  const t = dictionary[lang].datapoolTable;
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [scoreFilter, setScoreFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
   const [showRejected, setShowRejected] = useState(false);
+
+  // Column Visibility
+  const [visibleColumns, setVisibleColumns] = useState({
+    received: true,
+    candidate: true,
+    position: true,
+    score: true,
+    source: true,
+    status: true,
+    rejectedRound: true,
+    potential: true,
+    summary: false, // Default hidden
+    actions: true
+  });
 
   // Detail Modal
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
@@ -61,7 +75,6 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       
-      // Map API data to UI structure (reuse logic from Kanban)
       const formatted = data.candidates.map((c: any) => ({
         id: c.id,
         name: c.fullName,
@@ -79,6 +92,8 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         timestamp: c.timestamp,
         failureReason: c.failureReason,
         summary: c.summary,
+        isPotential: c.isPotential,
+        rejectedRound: c.rejectedRound,
       }));
       setCandidates(formatted);
     } catch (err) {
@@ -90,7 +105,6 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
 
   // Filter Logic
   const filteredCandidates = candidates.filter((c) => {
-    // 1. Text Search
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = 
       c.name?.toLowerCase().includes(searchLower) ||
@@ -98,30 +112,23 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
       c.email?.toLowerCase().includes(searchLower) ||
       c.phone?.includes(searchLower);
 
-    // 2. Score Filter
     const matchesScore =
       scoreFilter === "all" ||
       (scoreFilter === "high" && c.matchScore >= 8) ||
       (scoreFilter === "medium" && c.matchScore >= 5 && c.matchScore < 8) ||
       (scoreFilter === "low" && c.matchScore < 5);
 
-    // 3. Date Filter (Simple string compare for now, ideally parse dates)
-    // Skipping complex date logic for brevity, assumes formatted dd/mm/yyyy
-    
-    // 4. Status Mode (New vs Rejected)
-    // "New" view includes: "New" or any non-final status? 
-    // User asked for "CV chưa screen" (Unscreened) vs "Rejected".
-    // Unscreened usually means "New".
-    // Let's broaden "Unscreened" to be "New".
-    // If showRejected is true -> only "Rejected".
-    // If showRejected is false -> only "New" (or maybe everything EXCEPT Rejected? User said "2 dạng", implying disjoint sets).
-    // Let's implement: Default = "New". Toggle ON = "Rejected".
-    
-    // Actually user might want to see "All Active" vs "Rejected".
-    // But specific request was "CV chưa screen" (New).
     const isRejected = c.status === "Rejected";
     const isNew = c.status === "New";
     
+    // Toggle View: Rejected vs New
+    // User wants "Show Rejected" to show Rejected list. Default shows New.
+    // However, if "Potential" is a separate concept, maybe it spans both?
+    // User said: "Show thêm cột tiềm năng".
+    // For now, adhere to the toggle logic: One view or the other?
+    // User image showed "Showing Rejected" button.
+    // "Viewing: Rejected" text.
+    // I'll stick to: Toggle ON -> Show Rejected. Toggle OFF -> Show New.
     const matchesMode = showRejected ? isRejected : isNew;
 
     return matchesSearch && matchesScore && matchesMode;
@@ -136,7 +143,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         <div className="relative flex-1 w-full md:w-auto">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
           <Input
-            placeholder="Search candidates (Name, Position, Email)..."
+            placeholder={t.searchPlaceholder}
             className="pl-8 bg-white"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -144,13 +151,13 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-2 w-full md:w-auto overflow-x-auto">
+        <div className="flex gap-2 w-full md:w-auto items-center">
            <Select value={scoreFilter} onValueChange={setScoreFilter}>
             <SelectTrigger className="w-[130px] bg-white">
-              <SelectValue placeholder="All Scores" />
+              <SelectValue placeholder={t.filterAll} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Scores</SelectItem>
+              <SelectItem value="all">{t.filterAll}</SelectItem>
               <SelectItem value="high">High (&ge; 8)</SelectItem>
               <SelectItem value="medium">Medium (5-7)</SelectItem>
               <SelectItem value="low">Low (&lt; 5)</SelectItem>
@@ -162,13 +169,40 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
             className={`gap-2 min-w-[140px] transition-colors ${showRejected ? 'bg-[#B91C1C] hover:bg-[#991b1b] text-white' : 'bg-white text-gray-700 border hover:bg-gray-100'}`}
             onClick={() => setShowRejected(!showRejected)}
           >
-             {showRejected ? <Eye className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
-             {showRejected ? "Showing Rejected" : "Show Rejected"}
+             {showRejected ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+             {showRejected ? t.viewingRejected : t.viewingNew.replace("Viewing:", t.btnShowRejected)} 
+             {/* Note: User wanted to replace "Viewing:..." text with selector. I put button text here. */}
+             {/* Actually, user said "Viewing: Rejected" text NEXT to button is wasting space. I removed that text element and put status IN button if I want? */}
+             {/* I'll label button "Show Rejected" / "Show New" */}
+             {showRejected ? t.btnHideRejected : t.btnShowRejected}
           </Button>
 
-           <div className="text-xs text-gray-500 flex items-center px-2">
-              Viewing: <b>{showRejected ? "Rejected" : "Unscreened (New)"}</b>
-           </div>
+          {/* Column Selector (Replaces the 'Viewing' text area) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+               <Button variant="outline" className="ml-2 gap-2" title={t.configureColumns}>
+                  <Settings className="h-4 w-4" />
+               </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuCheckboxItem checked={visibleColumns.potential} onCheckedChange={(c) => setVisibleColumns(p => ({...p, potential: !!c}))}>
+                 {t.colPotential}
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={visibleColumns.rejectedRound} onCheckedChange={(c) => setVisibleColumns(p => ({...p, rejectedRound: !!c}))}>
+                 {t.colRejectedRound}
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={visibleColumns.summary} onCheckedChange={(c) => setVisibleColumns(p => ({...p, summary: !!c}))}>
+                 {t.colSummary}
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={visibleColumns.score} onCheckedChange={(c) => setVisibleColumns(p => ({...p, score: !!c}))}>
+                 {t.colScore}
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={visibleColumns.source} onCheckedChange={(c) => setVisibleColumns(p => ({...p, source: !!c}))}>
+                 {t.colSource}
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
         </div>
       </div>
 
@@ -177,43 +211,47 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         <Table>
           <TableHeader>
             <TableRow className="bg-gray-100/50">
-              <TableHead className="w-[100px]">Received</TableHead>
-              <TableHead>Candidate</TableHead>
-              <TableHead>Position</TableHead>
-              <TableHead className="text-center">AI Score</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              {visibleColumns.received && <TableHead className="w-[100px]">{t.colReceived}</TableHead>}
+              {visibleColumns.candidate && <TableHead>{t.colCandidate}</TableHead>}
+              {visibleColumns.position && <TableHead>{t.colPosition}</TableHead>}
+              {visibleColumns.score && <TableHead className="text-center">{t.colScore}</TableHead>}
+              {visibleColumns.source && <TableHead>{t.colSource}</TableHead>}
+              {visibleColumns.status && <TableHead>{t.colStatus}</TableHead>}
+              {visibleColumns.rejectedRound && <TableHead>{t.colRejectedRound}</TableHead>}
+              {visibleColumns.potential && <TableHead className="text-center">{t.colPotential}</TableHead>}
+              {visibleColumns.summary && <TableHead className="w-[200px]">{t.colSummary}</TableHead>}
+              {visibleColumns.actions && <TableHead className="text-right">{t.colActions}</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                   Listing candidates...
-                </TableCell>
+                <TableCell colSpan={10} className="h-24 text-center">Loading...</TableCell>
               </TableRow>
             ) : filteredCandidates.length === 0 ? (
                <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-gray-500">
-                   No candidates found in {showRejected ? "Rejected" : "New"} pool.
+                <TableCell colSpan={10} className="h-24 text-center text-gray-500">
+                   {showRejected ? "No rejected candidates." : "No new candidates."}
                 </TableCell>
               </TableRow>
             ) : (
               filteredCandidates.map((c) => (
                 <TableRow key={c.id} className="hover:bg-gray-50/50 cursor-pointer" onClick={() => setSelectedCandidate(c)}>
-                  <TableCell className="font-medium text-xs text-gray-500">
+                  {visibleColumns.received && <TableCell className="font-medium text-xs text-gray-500">
                     {c.timestamp ? c.timestamp.split(" ")[0] : "-"}
-                  </TableCell>
-                  <TableCell>
+                  </TableCell>}
+                  
+                  {visibleColumns.candidate && <TableCell>
                     <div className="font-semibold text-gray-900">{c.name}</div>
                     <div className="text-xs text-gray-500">{c.email}</div>
-                  </TableCell>
-                  <TableCell className="text-sm">
+                  </TableCell>}
+
+                  {visibleColumns.position && <TableCell className="text-sm">
                     {c.position}
-                    {c.matchScore >= 8 && <Badge variant="secondary" className="ml-2 text-[10px] bg-green-100 text-green-800">Top Match</Badge>}
-                  </TableCell>
-                  <TableCell className="text-center">
+                    {/* User asked to remove Top Match badge */}
+                  </TableCell>}
+
+                  {visibleColumns.score && <TableCell className="text-center">
                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold ${
                         c.matchScore >= 8 ? "bg-green-100 text-green-700" :
                         c.matchScore >= 5 ? "bg-yellow-100 text-yellow-700" :
@@ -221,22 +259,37 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                      }`}>
                         {c.matchScore}
                      </span>
-                  </TableCell>
-                   <TableCell className="text-sm text-gray-600">{c.source}</TableCell>
-                   <TableCell>
+                  </TableCell>}
+
+                   {visibleColumns.source && <TableCell className="text-sm text-gray-600">{c.source}</TableCell>}
+                   
+                   {visibleColumns.status && <TableCell>
                       <Badge variant="outline" className={showRejected ? "border-red-200 text-red-700 bg-red-50" : "border-blue-200 text-blue-700 bg-blue-50"}>
                         {c.status}
                       </Badge>
-                   </TableCell>
-                   <TableCell className="text-right">
+                   </TableCell>}
+
+                   {visibleColumns.rejectedRound && <TableCell className="text-sm text-gray-600">
+                      {c.rejectedRound || "-"}
+                   </TableCell>}
+
+                   {visibleColumns.potential && <TableCell className="text-center">
+                      {c.isPotential && <Check className="h-5 w-5 text-yellow-500 mx-auto" />}
+                   </TableCell>}
+
+                   {visibleColumns.summary && <TableCell className="text-xs text-gray-500 max-w-[200px] truncate" title={c.summary}>
+                      {c.summary}
+                   </TableCell>}
+
+                   {visibleColumns.actions && <TableCell className="text-right">
                       {c.cvLink && (
                         <Button variant="ghost" size="sm" asChild onClick={(e) => e.stopPropagation()}>
                           <a href={c.cvLink} target="_blank" rel="noopener noreferrer">
-                            View CV
+                            {t.viewCV}
                           </a>
                         </Button>
                       )}
-                   </TableCell>
+                   </TableCell>}
                 </TableRow>
               ))
             )}
@@ -256,7 +309,10 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                {/* Header Info */}
                <div className="flex items-start justify-between border-b pb-4">
                   <div>
-                    <h3 className="text-2xl font-bold text-gray-900">{selectedCandidate.name}</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                        {selectedCandidate.name}
+                        {selectedCandidate.isPotential && <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Potential CV</Badge>}
+                    </h3>
                     <p className="text-sm text-gray-500">{selectedCandidate.position} • {selectedCandidate.email}</p>
                   </div>
                   <div className="text-right">
@@ -265,17 +321,17 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                   </div>
                </div>
 
-               {/* AI Summary */}
-               <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 space-y-2">
-                  <span className="font-semibold text-blue-800 flex items-center gap-2">
-                    ✨ AI Analysis
-                  </span>
-                  <p className="text-sm text-blue-900 whitespace-pre-wrap leading-relaxed">
-                    {selectedCandidate.summary || "No detailed summary available."}
-                  </p>
-               </div>
+               {selectedCandidate.summary && (
+                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 space-y-2">
+                      <span className="font-semibold text-blue-800 flex items-center gap-2">
+                        ✨ Summary
+                      </span>
+                      <p className="text-sm text-blue-900 whitespace-pre-wrap leading-relaxed">
+                        {selectedCandidate.summary}
+                      </p>
+                   </div>
+               )}
 
-               {/* Process Info */}
                <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <label className="font-semibold text-gray-700">Application Date</label>
@@ -286,8 +342,11 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                     <p>{selectedCandidate.source || "N/A"}</p>
                   </div>
                   <div>
-                     <label className="font-semibold text-gray-700">Current Status</label>
-                     <p className={selectedCandidate.status === "Rejected" ? "text-red-600 font-bold" : "text-gray-900"}>{selectedCandidate.status}</p>
+                     <label className="font-semibold text-gray-700">Status</label>
+                     <p className={selectedCandidate.status === "Rejected" ? "text-red-600 font-bold" : "text-gray-900"}>
+                        {selectedCandidate.status}
+                        {selectedCandidate.rejectedRound && <span className="text-gray-500 font-normal ml-1">({selectedCandidate.rejectedRound})</span>}
+                     </p>
                   </div>
                    {selectedCandidate.failureReason && (
                      <div>
@@ -301,7 +360,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                <div className="flex justify-end gap-3 pt-4 border-t">
                   {selectedCandidate.cvLink && (
                      <Button variant="outline" asChild>
-                       <a href={selectedCandidate.cvLink} target="_blank" rel="noopener noreferrer">Open Original CV</a>
+                       <a href={selectedCandidate.cvLink} target="_blank" rel="noopener noreferrer">Original CV</a>
                      </Button>
                   )}
                   <Button onClick={() => setSelectedCandidate(null)}>Close</Button>

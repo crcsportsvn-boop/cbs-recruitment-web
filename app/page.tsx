@@ -51,8 +51,8 @@ function HomeContent() {
     vi: {
       title: "Cổng Thông Tin Tuyển Dụng",
       tabInput: "Phễu Đầu Vào (Input)",
+      tabDatapool: "Kho Dữ Liệu",
       tabProcess: "Quy Trình Tuyển Dụng",
-      tabDatapool: "Kho Dữ Liệu (Datapool)",
       tabReport: "Báo Cáo",
       tabConfig: "Cấu Hình",
       footer: "© 2026 CBS Vietnam - Recruitment Portal"
@@ -60,8 +60,8 @@ function HomeContent() {
     en: {
       title: "Recruitment Portal",
       tabInput: "Candidate Input",
-      tabProcess: "Recruitment Process",
       tabDatapool: "Datapool",
+      tabProcess: "Recruitment Process",
       tabReport: "Reports",
       tabConfig: "Settings",
       footer: "© 2026 CBS Vietnam - All rights reserved"
@@ -196,11 +196,11 @@ function HomeContent() {
                 <TabsTrigger value="input" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                     {t[lang].tabInput}
                 </TabsTrigger>
-                <TabsTrigger value="kanban" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
-                    {t[lang].tabProcess}
-                </TabsTrigger>
                 <TabsTrigger value="datapool" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                     {t[lang].tabDatapool}
+                </TabsTrigger>
+                <TabsTrigger value="kanban" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
+                    {t[lang].tabProcess}
                 </TabsTrigger>
                 {/* Reports & Config: HO might need reports? Assuming Yes for now. Admin sees Config. */}
                 <TabsTrigger value="reports" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">

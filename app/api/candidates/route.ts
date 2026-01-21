@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     // Read from A2 to AI (Column 34)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:AJ`, 
+      range: `${SHEET_NAME}!A2:AK`, 
     });
 
     const rows = response.data.values;
@@ -67,7 +67,8 @@ export async function GET(req: NextRequest) {
       offerDate: row[32], // AG
       startDate: row[33], // AH
       officialDate: row[34], // AI
-      log: row[35] // AJ
+      log: row[35], // AJ
+      rejectedRound: row[36] // AK
     }));
 
     // Reverse to show latest first

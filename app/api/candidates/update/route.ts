@@ -15,7 +15,9 @@ const COLUMN_MAP: Record<string, string> = {
   offerDate: "AG",
   startDate: "AH",
   officialDate: "AI",
-  log: "AJ"
+  log: "AJ",
+  rejectedRound: "AK",
+  isPotential: "AA"
 };
 
 export async function POST(req: NextRequest) {

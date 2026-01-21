@@ -4,7 +4,7 @@ export const dictionary = {
       title: "Cổng Thông Tin Tuyển Dụng",
       tabInput: "Phễu Đầu Vào",
       tabProcess: "Quy Trình Tuyển Dụng",
-      tabDatapool: "Kho Dữ Liệu (Datapool)",
+      tabDatapool: "Kho Dữ Liệu",
       tabReport: "Báo Cáo",
       tabConfig: "Cấu Hình",
       adminDash: "Dashboard Quản Trị",
@@ -60,6 +60,26 @@ export const dictionary = {
       errorTitle: "Lỗi",
       errorMissing: "Vui lòng điền đủ thông tin",
       newUpload: "Thêm ứng viên khác"
+    },
+    datapoolTable: {
+      searchPlaceholder: "Tìm kiếm (Tên, Email, Vị trí)...",
+      filterAll: "Tất cả điểm",
+      btnShowRejected: "Hiện Đã Loại",
+      btnHideRejected: "Ẩn Đã Loại",
+      viewingRejected: "Đang xem: Đã Loại",
+      viewingNew: "Đang xem: Mới",
+      colReceived: "Ngày nhận",
+      colCandidate: "Ứng viên",
+      colPosition: "Vị trí",
+      colScore: "Điểm AI",
+      colSource: "Nguồn",
+      colStatus: "Trạng thái",
+      colActions: "Thao tác",
+      colRejectedRound: "Vòng loại",
+      colPotential: "CV Tiềm năng",
+      colSummary: "Tóm tắt",
+      viewCV: "Xem CV",
+      configureColumns: "Cấu hình cột"
     }
   },
   en: {
@@ -123,6 +143,26 @@ export const dictionary = {
       errorTitle: "Error",
       errorMissing: "Please fill all details",
       newUpload: "Add another"
+    },
+    datapoolTable: {
+      searchPlaceholder: "Search (Name, Email, Position)...",
+      filterAll: "All Scores",
+      btnShowRejected: "Show Rejected",
+      btnHideRejected: "Hide Rejected",
+      viewingRejected: "Viewing: Rejected",
+      viewingNew: "Viewing: New",
+      colReceived: "Received",
+      colCandidate: "Candidate",
+      colPosition: "Position",
+      colScore: "AI Score",
+      colSource: "Source",
+      colStatus: "Status",
+      colActions: "Actions",
+      colRejectedRound: "Rejected Round",
+      colPotential: "Potential CV",
+      colSummary: "Summary",
+      viewCV: "View CV",
+      configureColumns: "Configure Columns"
     }
   }
 };

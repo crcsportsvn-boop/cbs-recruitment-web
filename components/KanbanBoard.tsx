@@ -32,6 +32,8 @@ interface Candidate {
   interviewDate2?: string;
   testResult?: string;
   failureReason?: string;
+  isPotential?: boolean;
+  rejectedRound?: string;
 }
 
 interface KanbanBoardProps {
@@ -74,6 +76,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
   const [declineReasonType, setDeclineReasonType] = useState<string>("");
   const [declineReasonText, setDeclineReasonText] = useState("");
+  const [isPotentialDecline, setIsPotentialDecline] = useState(false);
 
   const COLUMNS = [
     { id: "New", title: t.colNew, color: "bg-gray-50" },
@@ -175,6 +178,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     setSelectedCandidate(candidate);
     setDeclineReasonType("");
     setDeclineReasonText("");
+    setIsPotentialDecline(false);
     setIsDeclineModalOpen(true);
   };
 
@@ -185,14 +189,23 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     let finalReason = declineReasonType;
     if (declineReasonType === "Other" || !declineReasonType) {
         finalReason = declineReasonText;
-    } else {
-       // If standard reason, ensure we are using the English value (already set by Select value)
-       // The UI logic below ensures value is EN
     }
+
+    const roundMap: Record<string, string> = {
+       "New": "Screening",
+       "Screening": "Screening",
+       "Interview": "Interview Round 1",
+       "Interview2": "Interview Round 2", 
+       "Offer": "Offer"
+    };
+    const currentStatus = selectedCandidate.status || "New";
+    const rejectedRound = roundMap[currentStatus] || currentStatus;
 
     await updateCandidateAPI(selectedCandidate.id, {
       status: "Rejected",
-      failureReason: finalReason
+      failureReason: finalReason,
+      isPotential: isPotentialDecline,
+      rejectedRound: rejectedRound
     });
     setIsDeclineModalOpen(false);
   };
