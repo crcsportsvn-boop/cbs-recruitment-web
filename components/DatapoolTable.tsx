@@ -63,7 +63,8 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   
   // Column Filters
   const [colFilters, setColFilters] = useState({
-     received: "",
+     dateFrom: "",
+     dateTo: "",
      candidate: "",
      position: "",
      source: "",
@@ -166,6 +167,18 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     }
   };
 
+  // Helper to parse DD/MM/YYYY
+  const parseDate = (dateStr?: string) => {
+      if (!dateStr) return null;
+      try {
+          const parts = dateStr.split(' ')[0].split('/'); // "21/01/2026"
+          if (parts.length === 3) {
+              return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+          }
+      } catch (e) { return null; }
+      return null;
+  };
+
   // Filter Logic
   const filteredCandidates = candidates.filter((c) => {
     // Global Search
@@ -188,9 +201,27 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     const isNew = c.status === "New";
     const matchesMode = showRejected ? isRejected : isNew;
 
+    // Date Range Filter
+    let matchesDate = true;
+    if (colFilters.dateFrom || colFilters.dateTo) {
+        const cDate = parseDate(c.timestamp);
+        if (cDate) {
+            if (colFilters.dateFrom) {
+                const fromDate = new Date(colFilters.dateFrom); // YYYY-MM-DD
+                fromDate.setHours(0,0,0,0);
+                if (cDate < fromDate) matchesDate = false;
+            }
+            if (colFilters.dateTo) {
+                const toDate = new Date(colFilters.dateTo);
+                toDate.setHours(23,59,59,999);
+                if (cDate > toDate) matchesDate = false;
+            }
+        }
+    }
+
     // Column Filters
     const matchesColFilters = 
-        (colFilters.received === "" || c.timestamp?.toLowerCase().includes(colFilters.received.toLowerCase())) &&
+        matchesDate &&
         (colFilters.candidate === "" || c.name.toLowerCase().includes(colFilters.candidate.toLowerCase()) || c.email.toLowerCase().includes(colFilters.candidate.toLowerCase())) &&
         (colFilters.position === "" || c.position?.toLowerCase().includes(colFilters.position.toLowerCase())) &&
         (colFilters.source === "" || c.source?.toLowerCase().includes(colFilters.source.toLowerCase())) &&
@@ -395,10 +426,56 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
             
             {/* Filter Row */}
             <TableRow className="bg-gray-50 border-b">
-               {visibleColumns.received && <TableHead className="p-1"><Input placeholder="Filter..." className="h-7 text-xs bg-white" value={colFilters.received} onChange={(e)=>setColFilters({...colFilters, received: e.target.value})}/></TableHead>}
+               {visibleColumns.received && <TableHead className="p-1">
+                   <div className="flex flex-col gap-1">
+                        <Input type="date" className="h-6 text-[10px] w-full px-1 bg-white" 
+                             value={colFilters.dateFrom} 
+                             onChange={(e) => setColFilters({...colFilters, dateFrom: e.target.value})}
+                        />
+                        <Input type="date" className="h-6 text-[10px] w-full px-1 bg-white" 
+                             value={colFilters.dateTo} 
+                             onChange={(e) => setColFilters({...colFilters, dateTo: e.target.value})}
+                        />
+                   </div>
+               </TableHead>}
                {visibleColumns.candidate && <TableHead className="p-1"><Input placeholder="Name/Email..." className="h-7 text-xs bg-white" value={colFilters.candidate} onChange={(e)=>setColFilters({...colFilters, candidate: e.target.value})}/></TableHead>}
                {visibleColumns.position && <TableHead className="p-1"><Input placeholder="Position..." className="h-7 text-xs bg-white" value={colFilters.position} onChange={(e)=>setColFilters({...colFilters, position: e.target.value})}/></TableHead>}
-               {visibleColumns.score && <TableHead className="p-1 text-center font-normal text-xs text-gray-400">-</TableHead>}
+               
+               {/* Score Filter Dropdown */}
+               {visibleColumns.score && <TableHead className="p-1 text-center">
+                   <Select value={scoreFilter} onValueChange={setScoreFilter}>
+                        <SelectTrigger className="h-7 text-xs bg-white w-full px-2">
+                           {/* Show dot icon if selected */}
+                           {scoreFilter === "all" ? <span className="text-gray-400">All</span> : 
+                            scoreFilter === "high" ? <div className="h-2 w-2 rounded-full bg-green-500 mx-auto"/> :
+                            scoreFilter === "medium" ? <div className="h-2 w-2 rounded-full bg-yellow-500 mx-auto"/> :
+                            <div className="h-2 w-2 rounded-full bg-red-500 mx-auto"/>
+                           }
+                        </SelectTrigger>
+                        <SelectContent>
+                             <SelectItem value="all">{lang === 'vi' ? 'Tất cả' : 'All'}</SelectItem>
+                             <SelectItem value="high">
+                                 <div className="flex items-center gap-2">
+                                     <div className="h-2 w-2 rounded-full bg-green-500"/>
+                                     {lang === 'vi' ? 'Phù hợp cao (>=8)' : 'High Match (>=8)'}
+                                 </div>
+                             </SelectItem>
+                             <SelectItem value="medium">
+                                 <div className="flex items-center gap-2">
+                                     <div className="h-2 w-2 rounded-full bg-yellow-500"/>
+                                     {lang === 'vi' ? 'Phù hợp TB (5-7)' : 'Medium (5-7)'}
+                                 </div>
+                             </SelectItem>
+                             <SelectItem value="low">
+                                 <div className="flex items-center gap-2">
+                                     <div className="h-2 w-2 rounded-full bg-red-500"/>
+                                     {lang === 'vi' ? 'Phù hợp thấp (<5)' : 'Low Match (<5)'}
+                                 </div>
+                             </SelectItem>
+                        </SelectContent>
+                   </Select>
+               </TableHead>}
+               
                {visibleColumns.source && <TableHead className="p-1"><Input placeholder="Source..." className="h-7 text-xs bg-white" value={colFilters.source} onChange={(e)=>setColFilters({...colFilters, source: e.target.value})}/></TableHead>}
                {visibleColumns.status && <TableHead className="p-1"><Input placeholder="Status..." className="h-7 text-xs bg-white" value={colFilters.status} onChange={(e)=>setColFilters({...colFilters, status: e.target.value})}/></TableHead>}
                {visibleColumns.education && <TableHead className="p-1"><Input placeholder="School/Degree..." className="h-7 text-xs bg-white" value={colFilters.education} onChange={(e)=>setColFilters({...colFilters, education: e.target.value})}/></TableHead>}
