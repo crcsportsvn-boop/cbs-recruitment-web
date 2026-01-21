@@ -323,6 +323,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       });
     } catch (error) {
       console.error("Update failed", error);
+      alert(`Failed to update candidate: ${error instanceof Error ? error.message : "Unknown error"}`);
       fetchCandidates();
     }
   };
@@ -613,6 +614,19 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                    onChange={(e) => setDeclineReasonText(e.target.value)}
                  />
              )}
+
+             <div className="flex items-center space-x-2 pt-2">
+                <input 
+                   type="checkbox" 
+                   id="potentialCv"
+                   className="h-4 w-4 rounded border-gray-300 text-[#B91C1C] focus:ring-[#B91C1C]"
+                   checked={isPotentialDecline}
+                   onChange={(e) => setIsPotentialDecline(e.target.checked)}
+                />
+                <Label htmlFor="potentialCv" className="font-medium cursor-pointer">
+                   {lang === 'vi' ? "Đánh dấu là CV Tiềm năng" : "Mark as Potential Candidate"}
+                </Label>
+             </div>
            </div>
            <DialogFooter>
              <Button variant="outline" onClick={() => setIsDeclineModalOpen(false)}>{t.btnCancel}</Button>
