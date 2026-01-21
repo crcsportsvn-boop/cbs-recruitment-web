@@ -1,78 +1,84 @@
-import { google } from "googleapis";
 import { NextRequest, NextResponse } from "next/server";
+import { google } from "googleapis";
 
 export const dynamic = 'force-dynamic';
 
+const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w"; 
+const SHEET_NAME = "Datapool";
+
 export async function POST(req: NextRequest) {
   try {
-    const { id, updates } = await req.json();
-
-    if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
-       console.error("Missing Google Credentials Env Vars");
-       return NextResponse.json({ error: "Server Configuration Error: Missing Google Credentials" }, { status: 500 });
+    // 1. Get OAuth tokens from cookie (User Context)
+    const tokensCookie = req.cookies.get("google_tokens");
+    if (!tokensCookie) {
+      return NextResponse.json(
+        { error: "Not authenticated", redirect: "/api/auth/login" },
+        { status: 401 }
+      );
     }
 
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      },
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
+    const tokens = JSON.parse(tokensCookie.value);
+    const { id, updates } = await req.json(); // id is the Row Index (e.g. 2, 3...)
 
-    const sheets = google.sheets({ version: "v4", auth });
-    
-    // Explicitly check Environment Variable for Sheet ID
-    const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
-    const SHEET_NAME = "Datapool";
+    // 2. Setup OAuth2 Client
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
+    oauth2Client.setCredentials(tokens);
 
-    // Column Mapping per User Request
-    // Status: AB
-    // Failure Reason: AC
-    // Potential: AA
-    // Rejected Round: AK (Included as per previous logic, ensuring it maps if sent)
-    // Dates/Other fields preserved
+    const sheets = google.sheets({ version: "v4", auth: oauth2Client });
+
+    // 3. Define Column Mapping (Letter to Field)
+    // ONLY fields that need to be updated during Process/Reject
     const COLUMN_MAP: Record<string, string> = {
-      isPotential: "AA",   // Column 26
-      status: "AB",        // Column 27
+      isPotential: "AA", // Column 26
+      status: "AB",      // Column 27
       failureReason: "AC", // Column 28
-      testResult: "AD",    // Column 29
+      testResult: "AD",  // Column 29
       interviewDate1: "AE",
       interviewDate2: "AF",
       offerDate: "AG",
       interviewer: "AI",
-      rejectedRound: "AK", // Restored to enable persistence of rejection round
+      rejectedRound: "AK", // Column 36
       log: "AJ"
     };
 
-    const data = [];
-
-    // ID is expected to be the Row Number directly (e.g. "2", "3")
+    // 4. Prepare Batch Update
+    const dataToUpdate = [];
+    
+    // We iterate over the 'updates' object keys
     for (const [key, value] of Object.entries(updates)) {
-      if (COLUMN_MAP[key]) {
-        data.push({
-          range: `${SHEET_NAME}!${COLUMN_MAP[key]}${id}`,
-          values: [[value]],
+      const colLetter = COLUMN_MAP[key];
+      if (colLetter) {
+        dataToUpdate.push({
+          range: `${SHEET_NAME}!${colLetter}${id}`,
+          values: [[value]], 
         });
       }
     }
 
-    if (data.length === 0) {
-      return NextResponse.json({ message: "No mappable columns found to update" });
+    if (dataToUpdate.length === 0) {
+       return NextResponse.json({ message: "No mappable fields to update" });
     }
 
-    // Use batchUpdate with USER_ENTERED to handle types (booleans, numbers, strings) correctly
+    // 5. Execute Batch Update
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
       requestBody: {
-        valueInputOption: "USER_ENTERED",
-        data: data,
+        data: dataToUpdate,
+        valueInputOption: "USER_ENTERED", 
       },
     });
 
-    return NextResponse.json({ success: true, updatedCells: data.length });
+    return NextResponse.json({ success: true });
+
   } catch (error: any) {
-    console.error("Update Error:", error);
-    return NextResponse.json({ error: error.message, details: error }, { status: 500 });
+    console.error("Update Candidate Error:", error);
+    // Return detailed error for frontend debugging
+    return NextResponse.json(
+      { error: error.message || "Failed to update candidate", details: error },
+      { status: 500 }
+    );
   }
 }
