@@ -94,8 +94,13 @@ Used in `app/api/user/route.ts`. Controls permissions.
 | `GOOGLE_CLIENT_SECRET`            | OAuth Client Secret                                                                       |
 | `GOOGLE_SERVICE_ACCOUNT_JSON`     | **CRITICAL**: Full JSON content of Service Account Key (for server-side Sheet operations) |
 | `GOOGLE_SHEET_ID_HO`              | ID of the Master Google Sheet (HO)                                                        |
-| `GOOGLE_DRIVE_INPUT_FOLDER_ID_HO` | Drive Folder ID for CV Uploads                                                            |
+| `GOOGLE_DRIVE_INPUT_FOLDER_ID_HO` | Drive Folder ID for CV Uploads (HO). Correct ID: `1L23vAO-hvrXPxE-VFTAzGzA0_kyb_wGN`      |
 | `REDIRECT_URI`                    | OAuth Callback URL (e.g., `http://localhost:3000/api/auth/callback`)                      |
+
+### Drive Folder Configuration
+
+- **HO Recruitment Folder**: `1L23vAO-hvrXPxE-VFTAzGzA0_kyb_wGN`
+- **ST Recruitment Folder**: _(Placeholder - Update in Env)_
 
 ### Key API Routes
 
