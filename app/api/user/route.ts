@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     try {
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'User_view!A:D',
+            range: 'User_view!A:F',
         });
 
         const rows = response.data.values;
@@ -90,7 +90,9 @@ export async function GET(req: NextRequest) {
                 // Capture configs if available (Cols C and D)
                 config = {
                     uploadCv: userRow[2] || "DEFAULT",
-                    viewKanban: userRow[3] || "DEFAULT"
+                    viewKanban: userRow[3] || "DEFAULT",
+                    displayName: userRow[4] || userInfo.data.name, // Col E: Name
+                    phoneNumber: userRow[5] || "" // Col F: Phone
                 };
             }
         }

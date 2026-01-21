@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Search, EyeOff, Eye } from "lucide-react";
+import { MoreHorizontal, Search, EyeOff, Eye, Copy, Check } from "lucide-react";
 import { dictionary, LangType } from "@/lib/dictionary";
+
 
 interface Candidate {
   id: number;
@@ -35,6 +36,7 @@ interface Candidate {
 
 interface KanbanBoardProps {
   lang: LangType;
+  user?: any;
 }
 
 // English Keys for Database Storage
@@ -44,7 +46,7 @@ const REASONS_EN = {
   offer: ["Declined Offer", "Accepted Other Job", "Salary Negotiation Failed", "Ghosted", "Other"]
 };
 
-export default function KanbanBoard({ lang }: KanbanBoardProps) {
+export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const t = dictionary[lang].kanban;
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -199,9 +201,26 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
     if (!selectedCandidate) return;
     
     // Outlook Logic...
-    const subject = `Interview Invitation (Round ${interviewRound}) - ${selectedCandidate.positionRaw}`;
-    const body = `Dear Mr./Ms. ${selectedCandidate.fullName},\n\nWe are pleased to invite you to Round ${interviewRound} interview.\n\nTime: ${interviewDetails.time} - ${interviewDetails.date}\nVenue: ${interviewDetails.venue}\nInterviewer: ${interviewDetails.interviewer}\n\nBest regards,\nCBS HR Team`; 
+    // Outlook Logic...
+    const subject = `Interview Invitation (Round ${interviewRound}) - ${selectedCandidate.positionRaw} - ${selectedCandidate.fullName}`;
     
+    // Construct Signature
+    const senderName = user?.config?.displayName || user?.name || "HR Team";
+    const senderPhone = user?.config?.phoneNumber || "";
+    
+    // Plain Text Body for Mailto
+    const body = `Dear Mr./Ms. ${selectedCandidate.fullName},\n\n` +
+                 `Greetings from CBS VN.\n\n` +
+                 `Thank you for your interest in a possible job opportunity with us. After exploring your qualifications, we are pleased to invite you to join an offline interview with the following details:\n\n` +
+                 `Applied Position:  ${selectedCandidate.positionRaw}\n` +
+                 `Date & time:       ${interviewDetails.time}, ${new Date(interviewDetails.date).toLocaleDateString('en-GB')}\n` +
+                 `Venue:             ${interviewDetails.venue}\n` +
+                 `Meet with:         ${interviewDetails.interviewer}\n\n` +
+                 `Please confirm your attendance by replying to this email. Should you need any assistance, do not hesitate to contact me via ${senderPhone} (${senderName}).\n\n` +
+                 `Thanks and best regards!\n\n` +
+                 `${senderName}\n` +
+                 `CBS HR Team`;
+
     const mailtoLink = `mailto:${selectedCandidate.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(mailtoLink, "_blank");
 
@@ -222,6 +241,61 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
     await updateCandidateAPI(selectedCandidate.id, updates);
 
     setIsInterviewModalOpen(false);
+  };
+
+  const copyToClipboard = () => {
+      if (!selectedCandidate) return;
+      const senderName = user?.config?.displayName || user?.name || "HR Team";
+      const senderPhone = user?.config?.phoneNumber || "";
+      const dateStr = new Date(interviewDetails.date).toLocaleDateString('en-GB'); // dd/MM/yyyy
+
+      // Rich Text HTML logic
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+            <p>Dear <strong>${selectedCandidate.fullName}</strong>,</p>
+            <p>Greetings from <strong>CBS VN</strong>.</p>
+            <p>Thank you for your interest in a possible job opportunity with us. After exploring your qualifications, we are pleased to invite you to join an <u>offline</u> interview with the following details:</p>
+            
+            <table style="border-collapse: collapse; margin: 15px 0;">
+                <tr>
+                    <td style="font-weight: bold; padding-right: 20px; padding-bottom: 5px; vertical-align: top; white-space: nowrap;">Applied Position:</td>
+                    <td style="font-weight: bold; padding-bottom: 5px;">${selectedCandidate.positionRaw}</td>
+                </tr>
+                <tr>
+                    <td style="font-weight: bold; padding-right: 20px; padding-bottom: 5px; vertical-align: top; white-space: nowrap;">Date & time:</td>
+                    <td style="padding-bottom: 5px;">${dateStr}, at <strong>${interviewDetails.time}</strong></td>
+                </tr>
+                <tr>
+                    <td style="font-weight: bold; padding-right: 20px; padding-bottom: 5px; vertical-align: top; white-space: nowrap;">Venue:</td>
+                    <td style="padding-bottom: 5px;">${interviewDetails.venue}</td>
+                </tr>
+                <tr>
+                    <td style="font-weight: bold; padding-right: 20px; padding-bottom: 5px; vertical-align: top; white-space: nowrap;">Meet with:</td>
+                    <td style="padding-bottom: 5px;">${interviewDetails.interviewer}</td>
+                </tr>
+            </table>
+
+            <p>Please confirm your attendance by replying to this email. Should you need any assistance, do not hesitate to contact me via ${senderPhone} (${senderName}).</p>
+            <br/>
+            <p><strong>Thanks and best regards!</strong></p>
+            <br/>
+            <p style="color: #EE2E24; font-weight: bold;">${senderName}</p>
+        </div>
+      `;
+      
+      const blob = new Blob([htmlContent], { type: "text/html" });
+      const textBlob = new Blob([htmlContent.replace(/<[^>]*>/g, "")], { type: "text/plain" });
+      const data = [new ClipboardItem({ 
+          "text/html": blob,
+          "text/plain": textBlob 
+      })];
+      
+      navigator.clipboard.write(data).then(() => {
+          alert("Copied email template to clipboard!");
+      }).catch(err => {
+          console.error("Failed to copy:", err);
+          alert("Failed to copy. Please use Chrome/Edge.");
+      });
   };
 
   const updateCandidateAPI = async (id: number, updates: any) => {
@@ -360,7 +434,7 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
           {/* Rejected Toggle */}
           {/* Rejected Toggle */}
           <Button 
-            className="gap-2 h-9 bg-[#B91C1C] hover:bg-[#991b1b] text-white"
+            className="gap-2 h-9 bg-[#EE2E24] hover:bg-[#D5261C] text-white"
             size="sm"
             onClick={() => setShowRejected(!showRejected)}
           >
@@ -560,6 +634,9 @@ export default function KanbanBoard({ lang }: KanbanBoardProps) {
             </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsInterviewModalOpen(false)}>{t.btnCancel}</Button>
+            <Button variant="secondary" onClick={copyToClipboard} className="gap-2">
+                <Copy className="h-4 w-4" /> Copy Email Template
+            </Button>
             <Button onClick={confirmInterview} className="bg-[#EE2E24] hover:bg-[#D5261C]">{t.btnSendInvite}</Button>
           </DialogFooter>
         </DialogContent>

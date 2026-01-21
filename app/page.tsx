@@ -116,7 +116,7 @@ function HomeContent() {
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col font-sans">
       {/* Header / Nav */}
-      <header className="bg-[#B91C1C] text-white p-4 shadow-md sticky top-0 z-40">
+      <header className="bg-[#EE2E24] text-white p-4 shadow-md sticky top-0 z-40">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
              {/* Logo */}

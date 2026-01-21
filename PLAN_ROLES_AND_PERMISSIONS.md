@@ -1,66 +1,44 @@
-# Kế hoạch Phân quyền & Quản lý User (Phương án B)
+# Kế hoạch Phân quyền & Quản lý User
 
-Mục tiêu: Xây dựng hệ thống phân quyền (RBAC) cho Web App, cho phép các nhóm user khác nhau (Admin, HO, Store) truy cập giao diện và luồng xử lý riêng biệt.
+## 1. Trạng thái hiện tại (Đã hoàn thành - 20/01/2025)
 
-## 1. Cơ chế Định danh & Phân quyền
+### A. Hệ thống Đăng nhập & Bảo mật (RBAC)
 
-### 1.1. Bảng User Config (Identity Map)
+- [x] **Login Guard:** Chặn truy cập nếu chưa đăng nhập.
+- [x] **Google OAuth Logic:** Fix lỗi Loop Login vô hạn (Sửa Cookie Path & Scope).
+- [x] **Guest View:** Xử lý trường hợp user đăng nhập nhưng chưa được phân quyền (Hiện thông báo lỗi chi tiết & Nút Logout).
+- [x] **Logout:** Thêm API và nút đăng xuất.
+- [x] **Service Account Integration:** Code API User tự động parse `GOOGLE_SERVICE_ACCOUNT_JSON` để tránh lỗi thiếu credentials.
 
-Tạo một Google Sheet mới (hoặc file config JSON/Env) để quản lý danh sách user được phép truy cập.
+### B. Biến Môi trường & Cấu hình (Environment Vars)
 
-**Cấu trúc bảng "Users" (đề xuất):**
+- [x] **Đổi tên biến chuẩn hóa:**
+  - `GOOGLE_SHEET_ID` -> `GOOGLE_SHEET_ID_HO` (Fallback ID cũ đã tích hợp).
+  - `GOOGLE_DRIVE_INPUT_FOLDER_ID` -> `GOOGLE_DRIVE_INPUT_FOLDER_ID_HO` (Fallback ID cũ đã tích hợp).
+- [x] **Placeholder cho Store:** Đã khai báo sẵn `_ST` vars trong code (`GOOGLE_SHEET_ID_ST`, `FOLDER...ST`) để dùng cho bước tiếp theo.
 
-| Email (Google ID)      | Role (Vai trò)    | Upload Folder ID                   | Dashboard Scope  |
-| :--------------------- | :---------------- | :--------------------------------- | :--------------- |
-| `admin@cbs.com`        | **ADMIN**         | `ALL`                              | Full Access      |
-| `hr.ho@cbs.com`        | **HO_RECRUITER**  | `1L23vAO...` (HO Folder)           | Office Jobs Only |
-| `store.aeon@cbs.com`   | **STORE_MANAGER** | `1P60dhE...` (Store Aeon Folder)   | Store Jobs Only  |
-| `store.vincom@cbs.com` | **STORE_MANAGER** | `XYZ_ABC...` (Store Vincom Folder) | Store Jobs Only  |
+### C. Giao diện (UI/UX)
 
-### 1.2. Middleware & Session
+- [x] **Ngôn ngữ:** Mặc định Tiếng Anh (EN), có nút toggle EN/VN ngay màn hình Login.
+- [ ] **Màu sắc:** Nút Login & Các nút chính chuyển về màu đỏ Theme (`#EE2E24`).
+- [ ] **Kanban:** Cập nhật màu cột chẵn thành đỏ nhạt (`#FFF0F0`) thay vì cam.
 
-- **Login Flow:** Giữ nguyên Google OAuth.
-- **Post-Login Check:** Sau khi login thành công, hệ thống sẽ check Email user với bảng "User Config".
-  - Nếu Email không tồn tại -> Chặn truy cập (403 Forbidden).
-  - Nếu tồn tại -> Lưu `Role` và `AccessScope` vào Session/Cookie.
+---
 
-## 2. Luồng Hoạt động theo Role
+## 2. Việc cần làm tiếp theo (To-Do Next Session)
 
-### 2.1. Nhóm ADMIN
+### Cho View Store (Cửa hàng)
 
-- **Giao diện:** Thấy toàn bộ Dashboard, cấu hình hệ thống.
-- **Quyền hạn:**
-  - Thêm/Sửa/Xóa User trong hệ thống.
-  - Cấu hình các Job đang active.
-  - Xem Log hoạt động.
+- [ ] **Kích hoạt Role Store:** Trong `app/api/user/route.ts`, xử lý logic nếu Role == "Store_Manager".
+- [ ] **Biến môi trường ST:** Uncomment và map các biến `_ST` vào logic upload/view.
+- [ ] **Giao diện Store:** Xây dựng Dashboard riêng cho Store (tối giản, chỉ thấy candidate của store mình).
 
-### 2.2. Nhóm HO (Khối Văn Phòng)
+### Kiểm tra & Vận hành (Validation)
 
-- **Giao diện:** Dashboard hiển thị CV khối văn phòng.
-- **Upload:** Upload CV vào folder mặc định (HO Folder).
-- **Quy trình:**
-  - Duyệt sơ loại (Screening) -> N8N update status.
-  - Lên lịch phỏng vấn -> Gửi invite.
-  - Offer / Onboarding.
+- [ ] **Test luồng HO:** Kiểm tra lại toàn bộ luồng Upload -> Sheet -> Kanban với biến môi trường mới `_HO`.
+- [ ] **Test phân quyền:** Cho 2 user khác nhau (1 HO, 1 Store) login để đảm bảo thấy data khác nhau.
 
-### 2.3. Nhóm STORE (Cửa hàng)
+### Ghi chú kỹ thuật (Tech Notes)
 
-- **Giao diện:** Dashboard tối giản, chỉ hiện CV của Store mình.
-- **Upload:**
-  - Tự động upload vào Folder riêng của Store (định nghĩa trong bảng User).
-  - Form Upload đơn giản hóa (ít trường thông tin hơn).
-- **Quy trình:**
-  - Xem CV đã lọc bởi N8N.
-  - Bấm nút "Gọi PV" -> Note lại kết quả.
-
-## 3. N8N Integration Upgrade (Brainstorm)
-
-- Update N8N Workflow để quét dynamic folders (hoặc gom file từ các folder con về folder xử lý chung nhưng vẫn giữ metadata nguồn gốc).
-- Datapool Sheet cần thêm cột `Store/Department` để Web App filter dữ liệu theo Role.
-
-## 4. Checklist Triển khai (To-Do)
-
-- [ ] Tạo bảng Config Users (Google Sheet).
-- [ ] Update API `/api/auth/callback` để check role sau khi login.
-- [ ] Update API `/api/upload` để lấy Folder ID động dựa trên User Role.
-- [ ] Xây dựng Layout riêng cho Admin/Store (hoặc conditional rendering component).
+- File config phân quyền hiện tại: `User_view` tab trong Google Sheet chính.
+- Biến môi trường trên Vercel cần lưu ý: `GOOGLE_SERVICE_ACCOUNT_JSON` (Full JSON content).

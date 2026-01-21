@@ -13,7 +13,7 @@ export const RECRUITMENT_SOURCES = [
   "Ops/Office",
   "Talent pool",
   "Lead form",
-  "Mục khác",
+  "Others",
 ] as const;
 
 export type RecruitmentSource = (typeof RECRUITMENT_SOURCES)[number];
