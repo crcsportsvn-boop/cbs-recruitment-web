@@ -425,26 +425,32 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
             </TableRow>
             
             <TableRow className="bg-gray-50 border-b">
-               {visibleColumns.received && <TableHead className="p-1 min-w-[130px]">
+               {visibleColumns.received && <TableHead className="p-1 min-w-[150px]">
                    <div className="flex flex-row gap-1">
-                        <Input 
-                            type="text" 
-                            placeholder="From" 
-                            className="h-6 text-[10px] w-1/2 px-1 bg-white" 
-                            onFocus={(e) => e.target.type = 'date'}
-                            onBlur={(e) => {if(!e.target.value) e.target.type = 'text'}}
-                            value={colFilters.dateFrom} 
-                            onChange={(e) => setColFilters({...colFilters, dateFrom: e.target.value})}
-                        />
-                        <Input 
-                            type="text" 
-                            placeholder="To" 
-                            className="h-6 text-[10px] w-1/2 px-1 bg-white" 
-                            onFocus={(e) => e.target.type = 'date'}
-                            onBlur={(e) => {if(!e.target.value) e.target.type = 'text'}}
-                            value={colFilters.dateTo} 
-                            onChange={(e) => setColFilters({...colFilters, dateTo: e.target.value})}
-                        />
+                        <div className="relative w-1/2">
+                            <Calendar className="absolute left-1 top-1.5 h-3 w-3 text-gray-400 pointer-events-none" />
+                            <Input 
+                                type="text" 
+                                placeholder="From" 
+                                className="h-6 text-[10px] pl-5 pr-1 w-full bg-white" 
+                                onFocus={(e) => e.target.type = 'date'}
+                                onBlur={(e) => {if(!e.target.value) e.target.type = 'text'}}
+                                value={colFilters.dateFrom} 
+                                onChange={(e) => setColFilters({...colFilters, dateFrom: e.target.value})}
+                            />
+                        </div>
+                        <div className="relative w-1/2">
+                            <Calendar className="absolute left-1 top-1.5 h-3 w-3 text-gray-400 pointer-events-none" />
+                            <Input 
+                                type="text" 
+                                placeholder="To" 
+                                className="h-6 text-[10px] pl-5 pr-1 w-full bg-white" 
+                                onFocus={(e) => e.target.type = 'date'}
+                                onBlur={(e) => {if(!e.target.value) e.target.type = 'text'}}
+                                value={colFilters.dateTo} 
+                                onChange={(e) => setColFilters({...colFilters, dateTo: e.target.value})}
+                            />
+                        </div>
                    </div>
                </TableHead>}
                {visibleColumns.candidate && <TableHead className="p-1"><Input placeholder="Name/Email..." className="h-7 text-xs bg-white" value={colFilters.candidate} onChange={(e)=>setColFilters({...colFilters, candidate: e.target.value})}/></TableHead>}
@@ -453,12 +459,12 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                {/* Score Filter Dropdown */}
                {visibleColumns.score && <TableHead className="p-1 text-center">
                    <Select value={scoreFilter} onValueChange={setScoreFilter}>
-                        <SelectTrigger className="h-7 text-xs bg-white w-full px-2">
+                        <SelectTrigger className="h-7 text-xs bg-white w-full px-2 flex items-center justify-between">
                            {/* Show dot icon if selected */}
                            {scoreFilter === "all" ? <span className="text-gray-400">All</span> : 
-                            scoreFilter === "high" ? <div className="h-2 w-2 rounded-full bg-green-500 mx-auto"/> :
-                            scoreFilter === "medium" ? <div className="h-2 w-2 rounded-full bg-yellow-500 mx-auto"/> :
-                            <div className="h-2 w-2 rounded-full bg-red-500 mx-auto"/>
+                            scoreFilter === "high" ? <div className="h-2 w-2 rounded-full bg-green-500"/> :
+                            scoreFilter === "medium" ? <div className="h-2 w-2 rounded-full bg-yellow-500"/> :
+                            <div className="h-2 w-2 rounded-full bg-red-500"/>
                            }
                         </SelectTrigger>
                         <SelectContent>
