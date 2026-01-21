@@ -554,6 +554,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
                            <div className="space-y-1">
                                <p className="text-[11px] text-gray-600 font-medium">{c.jobCode}</p>
+                               {c.positionId && <p className="text-[10px] text-gray-400 leading-tight">{c.positionId}</p>}
                                <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 block w-fit max-w-full whitespace-normal break-words" title={c.positionRaw}>
                                {c.positionRaw}
                                </span>

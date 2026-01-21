@@ -8,7 +8,15 @@ import DatapoolTable from "@/components/DatapoolTable";
 import ScrollTopButton from "@/components/ScrollTopButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Globe } from "lucide-react";
+import { Globe, LogOut, ChevronDown, User as UserIcon } from "lucide-react";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 export default function Home() {
@@ -153,6 +161,30 @@ function HomeContent() {
               <Globe className="h-4 w-4 mr-2" />
               {lang === 'vi' ? 'EN' : 'VN'}
             </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 gap-2 px-2">
+                   <div className="h-6 w-6 bg-white/20 rounded-full flex items-center justify-center">
+                      <UserIcon className="h-4 w-4" />
+                   </div>
+                   <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>
+                   <div className="flex flex-col">
+                      <span>{user?.displayName || user?.name || "User"}</span>
+                      <span className="text-xs text-gray-400 font-normal">{user?.email}</span>
+                   </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => window.location.href = "/api/auth/logout"} className="text-red-600 focus:text-red-600">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  {lang === 'vi' ? 'Đăng xuất' : 'Log out'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>

@@ -1,93 +1,73 @@
-import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
+import { NextRequest, NextResponse } from "next/server";
 
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
-const SHEET_NAME = "Datapool";
-
-// Column Mapping (0-indexed based on A=0, but API uses A1 notation)
-// A=0, Z=25, AA=26, AB=27...
-const COLUMN_MAP: Record<string, string> = {
-  status: "AB",
-  failureReason: "AC",
-  testResult: "AD",
-  interviewDate1: "AE",
-  interviewDate2: "AF",
-  offerDate: "AG",
-  startDate: "AH",
-  officialDate: "AI",
-  log: "AJ",
-  rejectedRound: "AK",
-  isPotential: "AA"
-};
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
     const { id, updates } = await req.json();
 
-    if (!id || !updates) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      },
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+    });
 
-    // 1. Auth 
-    const tokensCookie = req.cookies.get("google_tokens");
-    if (!tokensCookie) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-    const tokens = JSON.parse(tokensCookie.value);
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET
-    );
-    oauth2Client.setCredentials(tokens);
-    const sheets = google.sheets({ version: "v4", auth: oauth2Client });
-
-    // 2. Prepare Updates
-    const data = [];
+    const sheets = google.sheets({ version: "v4", auth });
     
+    // Explicitly check Environment Variable for Sheet ID
+    const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
+    const SHEET_NAME = "Datapool";
+
+    // Column Mapping per User Request
+    // Status: AB
+    // Failure Reason: AC
+    // Potential: AA
+    // Rejected Round: AK (Included as per previous logic, ensuring it maps if sent)
+    // Dates/Other fields preserved
+    const COLUMN_MAP: Record<string, string> = {
+      isPotential: "AA",   // Column 26
+      status: "AB",        // Column 27
+      failureReason: "AC", // Column 28
+      testResult: "AD",    // Column 29
+      interviewDate1: "AE",
+      interviewDate2: "AF",
+      offerDate: "AG",
+      interviewer: "AI",
+      rejectedRound: "AK", // Column 36
+      log: "AJ"
+    };
+
+    const data = [];
+
+    // ID is expected to be the Row Number directly (e.g. "2", "3")
     for (const [key, value] of Object.entries(updates)) {
       if (COLUMN_MAP[key]) {
         data.push({
           range: `${SHEET_NAME}!${COLUMN_MAP[key]}${id}`,
-          values: [[value]]
+          values: [[value]],
         });
       }
     }
 
-    // Special Logic: If Status is "Screening", update TA Duyệt (Y - 24)
-    if (updates.status === "Screening") {
-       data.push({
-        range: `${SHEET_NAME}!Y${id}`,
-        values: [["TRUE"]]
-      });
-    }
-
-    if (updates.log) {
-       // Append log? actually the sheet just writes cell. User said "điền vào cột Note (AJ)".
-       // If we want to APPEND, we need to read first. But simpler is just Write for now, or assume frontend sends full log.
-       // User said "lưu log", implying history.
-       // I'll assume frontend sends the NEW string to overwrite/append.
-    }
-
     if (data.length === 0) {
-        return NextResponse.json({ success: true, message: "No mappable updates found" });
+      return NextResponse.json({ message: "No mappable columns found to update" });
     }
 
-    // 3. Execute Batch Update
+    // Use batchUpdate with USER_ENTERED to handle types (booleans, numbers, strings) correctly
     await sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
       requestBody: {
         valueInputOption: "USER_ENTERED",
-        data: data
-      }
+        data: data,
+      },
     });
 
-    return NextResponse.json({ success: true });
-
+    return NextResponse.json({ success: true, updatedCells: data.length });
   } catch (error: any) {
-    console.error("Update Candidate Error:", error);
-    return NextResponse.json(
-      { error: "Failed to update candidate", details: error.message },
-      { status: 500 }
-    );
+    console.error("Update Error:", error);
+    return NextResponse.json({ error: error.message, details: error }, { status: 500 });
   }
 }
