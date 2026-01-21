@@ -17,7 +17,7 @@ A web-based Recruitment Portal for CBS Vietnam to manage candidate applications,
 - **Styling**: Tailwind CSS (Utility-first) + Shadcn UI (Components)
 - **Database**: Google Sheets (via `googleapis` v4)
 - **File Storage**: Google Drive (via `googleapis` v3)
-- **Authentication**: Google OAuth 2.0 (Custom implementation with Cookies)
+- **Authentication**: Google OAuth 2.0. **Important**: The application uses the **Logged-in User's Credentials** (via `google_tokens` cookie) to read/write to Sheets. It does **NOT** use a Service Account.
 
 ---
 
@@ -54,7 +54,14 @@ Used in `app/api/candidates/route.ts`. Maps candidate data from N8N/Forms.
 | 9         | J         | phone          | Phone Number                                                              |
 | 10        | K         | email          | Email Address                                                             |
 | 11        | L         | location       | Current Location                                                          |
+| 12        | M         | degree         | Degree (Bachelor, etc.)                                                   |
+| 13        | N         | education      | School / University                                                       |
+| 14        | O         | jobFunction    | **Function / Task**                                                       |
+| 19        | T         | skills         | **Skills**                                                                |
+| 20        | U         | workHistory    | **Work History / Experience**                                             |
+| 21        | V         | summary        | AI Summary                                                                |
 | 23        | X         | cvLink         | Google Drive Link to CV                                                   |
+| 26        | AA        | isPotential    | **Potential CV** (TRUE/FALSE)                                             |
 | 27        | AB        | status         | **Kanban Status**: New, Screening, Interview, Interview2, Offer, Rejected |
 | 28        | AC        | failureReason  | Reason for Rejection                                                      |
 | 29        | AD        | testResult     | Filtering/Test Result Date                                                |
@@ -62,6 +69,7 @@ Used in `app/api/candidates/route.ts`. Maps candidate data from N8N/Forms.
 | 31        | AF        | interviewDate2 | Date/Time for Round 2                                                     |
 | 32        | AG        | offerDate      | Date Offer Sent                                                           |
 | 35        | AJ        | log            | Operation Logs                                                            |
+| 36        | AK        | rejectedRound  | **Round where candidate was rejected**                                    |
 
 ### B. Sheet: `User_view` (RBAC & Config)
 
@@ -80,53 +88,48 @@ Used in `app/api/user/route.ts`. Controls permissions.
 
 ## 4. Backend Logic & Infrastructure
 
-### Authentication Flow
+### Authentication Flow (Corrected Jan 2026)
 
-1.  **Frontend**: User clicks "Login with Google".
-2.  **Route**: `/api/auth/login` -> Redirects to Google OAuth Consent Screen.
-3.  **Callback**: `/api/auth/callback` -> Exchanges code for Tokens.
-4.  **Storage**: Tokens stored in `httpOnly` cookie named `google_tokens`.
-5.  **Validation**: `/api/user` reads cookie -> Fetches Profile (Google) + Role (Sheet).
+1.  **Login**: User logs in via Google OAuth.
+2.  **Tokens**: Access Token & Refresh Token are stored in `google_tokens` cookie.
+3.  **Operations**: All API routes (`GET /candidates`, `POST /candidates/update`) use the **Tokens from the Cookie** to authenticate with Google Sheets API.
+4.  **Implication**: The **Logged-in User** must have "Editor" access to the Google Sheet. The app acts _on behalf of_ the user.
 
 ### Environment Variables
 
-| Variable                          | Purpose                                                                                   |
-| :-------------------------------- | :---------------------------------------------------------------------------------------- |
-| `GOOGLE_CLIENT_ID`                | OAuth Client ID                                                                           |
-| `GOOGLE_CLIENT_SECRET`            | OAuth Client Secret                                                                       |
-| `GOOGLE_SERVICE_ACCOUNT_JSON`     | **CRITICAL**: Full JSON content of Service Account Key (for server-side Sheet operations) |
-| `GOOGLE_SHEET_ID_HO`              | ID of the Master Google Sheet (HO)                                                        |
-| `GOOGLE_DRIVE_INPUT_FOLDER_ID_HO` | Drive Folder ID for CV Uploads (HO). Correct ID: `1L23vAO-hvrXPxE-VFTAzGzA0_kyb_wGN`      |
-| `REDIRECT_URI`                    | OAuth Callback URL (e.g., `http://localhost:3000/api/auth/callback`)                      |
-
-### Drive Folder Configuration
-
-- **HO Recruitment Folder**: `1L23vAO-hvrXPxE-VFTAzGzA0_kyb_wGN`
-- **ST Recruitment Folder**: _(Placeholder - Update in Env)_
+| Variable                          | Purpose                                                                              |
+| :-------------------------------- | :----------------------------------------------------------------------------------- |
+| `GOOGLE_CLIENT_ID`                | OAuth Client ID                                                                      |
+| `GOOGLE_CLIENT_SECRET`            | OAuth Client Secret                                                                  |
+| `GOOGLE_SHEET_ID_HO`              | ID of the Master Google Sheet (HO)                                                   |
+| `GOOGLE_DRIVE_INPUT_FOLDER_ID_HO` | Drive Folder ID for CV Uploads (HO). Correct ID: `1L23vAO-hvrXPxE-VFTAzGzA0_kyb_wGN` |
+| `REDIRECT_URI`                    | OAuth Callback URL (e.g., `https://.../api/auth/callback`)                           |
+| `GOOGLE_SERVICE_ACCOUNT_JSON`     | _Deprecated/Not Used for Sheet Writes in current flow_.                              |
 
 ### Key API Routes
 
-- `GET /api/candidates`: Fetch all candidates (filtered by permissions in future).
-- `POST /api/candidates/update`: Update status, log, or interview dates.
-- `POST /api/upload`: Multer processing -> Upload to Drive -> Appending to Sheet `Datapool`.
-- `GET /api/user`: Returns User Profile + Role + Signature Config.
+- `GET /api/candidates`: Fetch all candidates. Uses User Cookie.
+- `POST /api/candidates/update`: Update status (Process/Reject). Uses User Cookie.
+- `GET /api/user`: Returns User Profile + Role.
 
 ---
 
 ## 5. Development Guidelines
 
 1.  **Aesthetics**: Always enforce "Premium, Clean, Modern". Use standard Red `#B91C1C`.
-2.  **Email Templates**: Do **not** use `mailto` for complex formatting (tables/bold). Use `Clipboard API` to generate HTML templates that users can paste into Outlook.
+2.  **Auth Principle**: Never assume Service Account access. Always check for `google_tokens` cookie in API routes.
 3.  **Roles**:
     - **HO_Recruiter**: Full access to `Datapool`.
     - **Store_Manager**: (Future) Restricted view based on Store ID.
-    - **Guest**: Read-only/No access state.
 
 ## 6. Common Issues & Fixes
 
-- **"Missing client_email"**: Check `GOOGLE_SERVICE_ACCOUNT_JSON` in `.env`.
-- **Email Formatting**: Outlook requires pasted HTML. Use the "Copy Email Template" button feature.
-- **Permissions**: Ensure Service Account Email (`...gserviceaccount.com`) is an **Editor** on the Google Sheet and Drive Folder.
+- **"Failed to update candidate"**:
+  - Check if User (e.g., `dinhsang031@gmail.com`) has **Edit Access** to the Google Sheet.
+  - Check if `google_tokens` cookie is present (User might need to logout/login).
+- **Rejection Not Saving**:
+  - Ensure `rejectedRound` (Col AK) and `isPotential` (Col AA) are editable in the Sheet.
+  - Check API response for specific Google Sheets API errors (e.g. "Invalid Value").
 
 ---
 
