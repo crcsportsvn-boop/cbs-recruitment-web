@@ -433,7 +433,15 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                                 type="text" 
                                 placeholder="From" 
                                 className="h-6 text-[10px] pl-5 pr-1 w-full bg-white" 
-                                onFocus={(e) => e.target.type = 'date'}
+                                onFocus={(e) => {
+                                    e.target.type = 'date';
+                                    try { e.target.showPicker(); } catch (err) {}
+                                }}
+                                onClick={(e) => {
+                                    if(e.currentTarget.type === 'date') {
+                                        try { e.currentTarget.showPicker(); } catch (err) {}
+                                    }
+                                }}
                                 onBlur={(e) => {if(!e.target.value) e.target.type = 'text'}}
                                 value={colFilters.dateFrom} 
                                 onChange={(e) => setColFilters({...colFilters, dateFrom: e.target.value})}
@@ -445,7 +453,15 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                                 type="text" 
                                 placeholder="To" 
                                 className="h-6 text-[10px] pl-5 pr-1 w-full bg-white" 
-                                onFocus={(e) => e.target.type = 'date'}
+                                onFocus={(e) => {
+                                    e.target.type = 'date';
+                                    try { e.target.showPicker(); } catch (err) {}
+                                }}
+                                onClick={(e) => {
+                                    if(e.currentTarget.type === 'date') {
+                                        try { e.currentTarget.showPicker(); } catch (err) {}
+                                    }
+                                }}
                                 onBlur={(e) => {if(!e.target.value) e.target.type = 'text'}}
                                 value={colFilters.dateTo} 
                                 onChange={(e) => setColFilters({...colFilters, dateTo: e.target.value})}
