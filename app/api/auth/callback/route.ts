@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     response.cookies.set("google_tokens", JSON.stringify(tokens), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 365, // 1 year (Effectively "forever")
       path: "/",
     });
 

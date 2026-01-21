@@ -240,7 +240,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedCandidate, currentIndex, filteredCandidates]); // Depend on currentIndex/filteredCandidates to ensure handleNext/Prev work correctly
+  }, [selectedCandidate, currentIndex, filteredCandidates]); 
 
   return (
     <div className="space-y-4 p-4 bg-white rounded-lg shadow min-h-[500px]">
@@ -503,9 +503,9 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                )}
 
                {/* Grid Info */}
-               <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+               <div className="grid grid-cols-3 gap-x-6 gap-y-4 text-sm"> {/* Changed to Cols-3 */}
                    
-                   <div className="col-span-2 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2">
+                   <div className="col-span-3 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2">
                       <User className="h-4 w-4"/> Personal Info
                    </div>
                    
@@ -522,46 +522,50 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                        <p>{selectedCandidate.location || "-"}</p>
                    </div>
                    
-                   <div className="col-span-2 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2 mt-4">
+                   <div className="col-span-3 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2 mt-4">
                       <Briefcase className="h-4 w-4"/> Experience & Skills
                    </div>
-                   <div>
-                       <label className="text-gray-500 text-xs uppercase font-bold">Current Function</label>
-                       <p>{selectedCandidate.jobFunction || "-"}</p>
-                   </div>
-                   <div>
-                       <label className="text-gray-500 text-xs uppercase font-bold">Skills</label>
-                       <p className="whitespace-pre-wrap text-sm">{selectedCandidate.skills || "-"}</p>
-                   </div>
                    <div className="col-span-2">
+                       <label className="text-gray-500 text-xs uppercase font-bold">Current Function</label>
+                       <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                          {selectedCandidate.jobFunction ? selectedCandidate.jobFunction.replace(/(?<!^)(\s?-\s)/g, "\n- ") : "-"}
+                       </p>
+                   </div>
+                   <div className="col-span-1">
+                       <label className="text-gray-500 text-xs uppercase font-bold">Skills</label>
+                       <p className="whitespace-pre-wrap text-xs text-gray-600 leading-relaxed">
+                          {selectedCandidate.skills ? selectedCandidate.skills.replace(/(?<!^)(\s?-\s)/g, "\n- ") : "-"}
+                       </p>
+                   </div>
+                   <div className="col-span-3 mt-2">
                        <label className="text-gray-500 text-xs uppercase font-bold">Work History</label>
-                       <p className="whitespace-pre-wrap text-sm bg-gray-50 p-3 rounded border mt-1">
+                       <p className="whitespace-pre-wrap text-sm bg-gray-50 p-3 rounded border mt-1 leading-relaxed">
                          {selectedCandidate.workHistory 
-                            ? selectedCandidate.workHistory.replace(/\\n/g, "\n") 
+                            ? selectedCandidate.workHistory.replace(/\\n/g, "\n").replace(/(?<!^)(\s?-\s)/g, "\n- ") 
                             : "-"}
                        </p>
                    </div>
 
-                   <div className="col-span-2 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2 mt-4">
+                   <div className="col-span-3 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2 mt-4">
                       <GraduationCap className="h-4 w-4"/> Education
                    </div>
                    <div>
                        <label className="text-gray-500 text-xs uppercase font-bold">School</label>
                        <p>{selectedCandidate.education || "-"}</p>
                    </div>
-                   <div>
+                   <div className="col-span-2">
                        <label className="text-gray-500 text-xs uppercase font-bold">Degree</label>
                        <p>{selectedCandidate.degree || "-"}</p>
                    </div>
 
-                    <div className="col-span-2 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2 mt-4">
+                    <div className="col-span-3 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2 mt-4">
                       <Calendar className="h-4 w-4"/> Application Info
                    </div>
                    <div>
                        <label className="text-gray-500 text-xs uppercase font-bold">Source</label>
                        <p>{selectedCandidate.source || "-"}</p>
                    </div>
-                   <div>
+                   <div className="col-span-2">
                        <label className="text-gray-500 text-xs uppercase font-bold">Applied Date</label>
                        <p>{selectedCandidate.timestamp || "-"}</p>
                    </div>
@@ -572,20 +576,25 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                             {selectedCandidate.rejectedRound && <span className="ml-2 text-red-500 text-xs">Failed at: {selectedCandidate.rejectedRound}</span>}
                         </p>
                    </div>
-                   {selectedCandidate.failureReason && (
+                   <div className="col-span-2">
+                    {selectedCandidate.failureReason && (
                         <div>
                             <label className="text-gray-500 text-xs uppercase font-bold">Failure Reason</label>
                             <p className="text-red-600">{selectedCandidate.failureReason}</p>
                         </div>
                    )}
+                   </div>
+
                    {selectedCandidate.matchReason && (
-                       <div className="col-span-2 bg-gray-50 p-2 rounded border">
+                       <div className="col-span-3 bg-gray-50 p-2 rounded border">
                            <label className="text-gray-500 text-xs uppercase font-bold">AI Match Reason</label>
-                           <p className="text-gray-700">{selectedCandidate.matchReason}</p>
+                           <p className="text-gray-700 whitespace-pre-wrap">
+                               {selectedCandidate.matchReason.replace(/(?<!^)(\s?-\s)/g, "\n- ")}
+                           </p>
                        </div>
                    )}
                    {selectedCandidate.notes && (
-                       <div className="col-span-2 bg-yellow-50 p-2 rounded border border-yellow-100">
+                       <div className="col-span-3 bg-yellow-50 p-2 rounded border border-yellow-100">
                            <label className="text-gray-500 text-xs uppercase font-bold">Notes</label>
                            <p className="text-gray-700">{selectedCandidate.notes}</p>
                        </div>
