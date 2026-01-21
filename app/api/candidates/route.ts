@@ -54,7 +54,8 @@ export async function GET(req: NextRequest) {
       phone: row[9],
       email: row[10],
       location: row[11],
-      education: row[12],
+      degree: row[12], // Col M
+      education: row[13], // Col N - School
       summary: row[21],
       matchReason: row[22],
       cvLink: row[23],

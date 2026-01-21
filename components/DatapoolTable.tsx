@@ -8,12 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Search, Eye, EyeOff, Settings, Check, MoreHorizontal } from "lucide-react";
+import { Search, Eye, EyeOff, Settings, Check, MoreHorizontal, User, Calendar, MapPin, GraduationCap } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
 interface Candidate {
-  id: string; // ID is string in frontend (mapped from id: number)
+  id: string; 
   name: string;
   position: string;
   status: string;
@@ -21,7 +21,8 @@ interface Candidate {
   phone: string;
   email: string;
   cvLink: string;
-  education?: string;
+  education?: string; 
+  degree?: string;
   matchReason?: string;
   source?: string;
   timestamp?: string;
@@ -29,6 +30,10 @@ interface Candidate {
   summary?: string;
   isPotential?: boolean;
   rejectedRound?: string;
+  yob?: string;
+  gender?: string;
+  location?: string;
+  notes?: string;
 }
 
 interface DatapoolTableProps {
@@ -36,14 +41,13 @@ interface DatapoolTableProps {
   user?: any;
 }
 
-// Reasons copied from KanbanBoard
 const REASONS_EN = {
   screening: ["Not suitable for JD", "Insufficient Experience", "Duplicate CV", "Blacklist", "Other"],
 };
 
 export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   const t = dictionary[lang].datapoolTable;
-  const tKanban = dictionary[lang].kanban; // Borrow translations
+  const tKanban = dictionary[lang].kanban; 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -60,11 +64,11 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     score: true,
     source: true,
     status: true,
-    education: false, // Default hidden
-    matchReason: false, // Default hidden
+    education: false, 
+    matchReason: false, 
     rejectedRound: true,
     potential: true,
-    summary: false, // Default hidden
+    summary: false, 
     actions: true
   });
 
@@ -98,7 +102,8 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         phone: c.phone,
         email: c.email,
         cvLink: c.cvLink,
-        education: c.education,
+        education: c.education, // School
+        degree: c.degree, // Degree
         matchReason: c.matchReason,
         source: c.source,
         timestamp: c.timestamp,
@@ -106,6 +111,10 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         summary: c.summary,
         isPotential: c.isPotential,
         rejectedRound: c.rejectedRound,
+        yob: c.yob,
+        gender: c.gender,
+        location: c.location,
+        notes: c.notes,
       }));
       setCandidates(formatted);
     } catch (err) {
@@ -121,18 +130,15 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
             method: "POST",
             body: JSON.stringify({ id, updates })
         });
-        // Optimistic update
         setCandidates(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
     } catch (error) {
         console.error("Update failed", error);
-        fetchCandidates(); // Revert on fail
+        alert("Failed to update candidate. Check console.");
     }
   };
 
   // Actions
   const handleProceedToScreen = async (c: Candidate) => {
-     // Move to Screening
-     // Logic from Kanban: Set testResult date if moving from New
      const todayStr = new Date().toLocaleDateString('en-GB'); 
      await updateCandidateAPI(c.id, {
          status: "Screening",
@@ -141,8 +147,6 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   };
 
   const handleWithdrawToScreen = async (c: Candidate) => {
-      // Restore to Screening
-      // Clear failure info
       await updateCandidateAPI(c.id, {
           status: "Screening",
           failureReason: "",
@@ -166,7 +170,6 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
          finalReason = declineReasonText;
      }
 
-     // Logic: From Datapool (New) -> Rejected means "Screening" failure
      const rejectedRound = "Screening"; 
 
      await updateCandidateAPI(candidateToReject.id, {
@@ -196,9 +199,6 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
 
     const isRejected = c.status === "Rejected";
     const isNew = c.status === "New";
-    // Show Rejected mode: only show Rejected.
-    // Show New mode: only show New.
-    // (Existing Datapool logic: only Input/Datapool candidates shown, not In-Process).
     const matchesMode = showRejected ? isRejected : isNew;
 
     return matchesSearch && matchesScore && matchesMode;
@@ -290,11 +290,9 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
               {visibleColumns.source && <TableHead>{t.colSource}</TableHead>}
               {visibleColumns.status && <TableHead>{t.colStatus}</TableHead>}
               
-              {/* Extra Columns */}
               {visibleColumns.education && <TableHead>{t.colEducation}</TableHead>}
               {visibleColumns.matchReason && <TableHead>{t.colMatchReason}</TableHead>}
 
-              {/* Rejected Cols - Show only if Rejected Mode */}
               {(showRejected && visibleColumns.rejectedRound) && <TableHead>{t.colRejectedRound}</TableHead>}
               {(showRejected && visibleColumns.potential) && <TableHead className="text-center">{t.colPotential}</TableHead>}
 
@@ -347,7 +345,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                       </Badge>
                    </TableCell>}
 
-                   {visibleColumns.education && <TableCell className="text-sm text-gray-600">{c.education || "-"}</TableCell>}
+                   {visibleColumns.education && <TableCell className="text-sm text-gray-600">{c.education || c.degree || "-"}</TableCell>}
                    {visibleColumns.matchReason && <TableCell className="text-xs text-gray-500 max-w-[150px] truncate" title={c.matchReason}>{c.matchReason || "-"}</TableCell>}
 
                    {(showRejected && visibleColumns.rejectedRound) && <TableCell className="text-sm text-gray-600">
@@ -371,6 +369,9 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => setSelectedCandidate(c)}>
+                                      {tKanban?.actionDetail} (Full CV)
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => window.open(c.cvLink, "_blank")}>
                                       {t.viewCV}
                                   </DropdownMenuItem>
@@ -405,52 +406,117 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
        <Dialog open={!!selectedCandidate} onOpenChange={(open) => !open && setSelectedCandidate(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Candidate Details</DialogTitle>
+            <DialogTitle>Candidate Profile</DialogTitle>
           </DialogHeader>
           
           {selectedCandidate && (
             <div className="grid gap-6 py-4">
                {/* Header Info */}
                <div className="flex items-start justify-between border-b pb-4">
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                        {selectedCandidate.name}
-                        {selectedCandidate.isPotential && <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Potential CV</Badge>}
-                    </h3>
-                    <p className="text-sm text-gray-500">{selectedCandidate.position} • {selectedCandidate.email}</p>
+                  <div className="flex items-center gap-4">
+                      <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center">
+                          <User className="h-8 w-8 text-gray-400"/>
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                            {selectedCandidate.name}
+                            {selectedCandidate.isPotential && <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Potential</Badge>}
+                        </h3>
+                        <p className="text-sm text-gray-500 flex items-center gap-2">
+                            <span className="font-semibold">{selectedCandidate.position}</span>
+                            <span>•</span>
+                            <span>{selectedCandidate.email}</span>
+                            <span>•</span>
+                            <span>{selectedCandidate.phone}</span>
+                        </p>
+                      </div>
                   </div>
                   <div className="text-right">
                      <div className="text-3xl font-bold text-primary">{selectedCandidate.matchScore}/10</div>
                      <span className="text-xs text-gray-400">AI Match Score</span>
                   </div>
                </div>
-               
-               {/* Details Grid */}
-               <div className="grid grid-cols-2 gap-4 text-sm">
-                   {selectedCandidate.education && (
-                      <div className="col-span-2">
-                        <label className="font-semibold text-gray-700">Education</label>
-                        <p>{selectedCandidate.education}</p>
-                      </div>
-                   )}
-                   {selectedCandidate.matchReason && (
-                      <div className="col-span-2 bg-gray-50 p-2 rounded">
-                        <label className="font-semibold text-gray-700">Match Reason</label>
-                        <p className="text-gray-600">{selectedCandidate.matchReason}</p>
-                      </div>
-                   )}
-                   
-                   <div>
-                     <label className="font-semibold text-gray-700">Source</label>
-                     <p>{selectedCandidate.source || "N/A"}</p>
-                   </div>
-                   <div>
-                      <label className="font-semibold text-gray-700">Status</label>
-                      <p className={selectedCandidate.status === "Rejected" ? "text-red-600 font-bold" : "text-gray-900"}>
-                         {selectedCandidate.status}
-                         {selectedCandidate.rejectedRound && <span className="text-gray-500 font-normal ml-1">({selectedCandidate.rejectedRound})</span>}
+
+               {/* Summary */}
+               {selectedCandidate.summary && (
+                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 space-y-2">
+                      <span className="font-semibold text-blue-800 flex items-center gap-2">
+                        ✨ Summary
+                      </span>
+                      <p className="text-sm text-blue-900 whitespace-pre-wrap leading-relaxed">
+                        {selectedCandidate.summary}
                       </p>
                    </div>
+               )}
+
+               {/* Grid Info */}
+               <div className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                   
+                   <div className="col-span-2 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2">
+                      <User className="h-4 w-4"/> Personal Info
+                   </div>
+                   
+                   <div>
+                       <label className="text-gray-500 text-xs uppercase font-bold">Full Name</label>
+                       <p>{selectedCandidate.name}</p>
+                   </div>
+                   <div>
+                       <label className="text-gray-500 text-xs uppercase font-bold">Gender / YOB</label>
+                       <p>{selectedCandidate.gender || "-"} / {selectedCandidate.yob || "-"}</p>
+                   </div>
+                   <div>
+                       <label className="text-gray-500 text-xs uppercase font-bold flex items-center gap-1"><MapPin className="h-3 w-3"/> Location</label>
+                       <p>{selectedCandidate.location || "-"}</p>
+                   </div>
+                   
+                   <div className="col-span-2 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2 mt-4">
+                      <GraduationCap className="h-4 w-4"/> Education
+                   </div>
+                   <div>
+                       <label className="text-gray-500 text-xs uppercase font-bold">School</label>
+                       <p>{selectedCandidate.education || "-"}</p>
+                   </div>
+                   <div>
+                       <label className="text-gray-500 text-xs uppercase font-bold">Degree</label>
+                       <p>{selectedCandidate.degree || "-"}</p>
+                   </div>
+
+                    <div className="col-span-2 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2 mt-4">
+                      <Calendar className="h-4 w-4"/> Application Info
+                   </div>
+                   <div>
+                       <label className="text-gray-500 text-xs uppercase font-bold">Source</label>
+                       <p>{selectedCandidate.source || "-"}</p>
+                   </div>
+                   <div>
+                       <label className="text-gray-500 text-xs uppercase font-bold">Applied Date</label>
+                       <p>{selectedCandidate.timestamp || "-"}</p>
+                   </div>
+                   <div>
+                        <label className="text-gray-500 text-xs uppercase font-bold">Status</label>
+                        <p>
+                            <Badge variant="outline">{selectedCandidate.status}</Badge>
+                            {selectedCandidate.rejectedRound && <span className="ml-2 text-red-500 text-xs">Failed at: {selectedCandidate.rejectedRound}</span>}
+                        </p>
+                   </div>
+                   {selectedCandidate.failureReason && (
+                        <div>
+                            <label className="text-gray-500 text-xs uppercase font-bold">Failure Reason</label>
+                            <p className="text-red-600">{selectedCandidate.failureReason}</p>
+                        </div>
+                   )}
+                   {selectedCandidate.matchReason && (
+                       <div className="col-span-2 bg-gray-50 p-2 rounded border">
+                           <label className="text-gray-500 text-xs uppercase font-bold">AI Match Reason</label>
+                           <p className="text-gray-700">{selectedCandidate.matchReason}</p>
+                       </div>
+                   )}
+                   {selectedCandidate.notes && (
+                       <div className="col-span-2 bg-yellow-50 p-2 rounded border border-yellow-100">
+                           <label className="text-gray-500 text-xs uppercase font-bold">Notes</label>
+                           <p className="text-gray-700">{selectedCandidate.notes}</p>
+                       </div>
+                   )}
                </div>
 
                {/* Action Footer */}
