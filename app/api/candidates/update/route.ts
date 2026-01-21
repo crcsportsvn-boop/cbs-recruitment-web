@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       interviewDate2: "AF",
       offerDate: "AG",
       interviewer: "AI",
-      // rejectedRound: "AK", // Removed per latest user request (only AB, AC, AA required)
+      rejectedRound: "AK", // Restored to enable persistence of rejection round
       log: "AJ"
     };
 

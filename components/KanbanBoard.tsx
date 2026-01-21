@@ -312,19 +312,25 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   };
 
   const updateCandidateAPI = async (id: number, updates: any) => {
+    // Optimistic update
     setCandidates(prev => prev.map(c => 
       c.id === id ? { ...c, ...updates } : c
     ));
 
     try {
-      await fetch("/api/candidates/update", {
+      const res = await fetch("/api/candidates/update", {
         method: "POST",
         body: JSON.stringify({ id, updates })
       });
+      
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Update Failed");
+      }
     } catch (error) {
       console.error("Update failed", error);
       alert(`Failed to update candidate: ${error instanceof Error ? error.message : "Unknown error"}`);
-      fetchCandidates();
+      fetchCandidates(); // Revert
     }
   };
 

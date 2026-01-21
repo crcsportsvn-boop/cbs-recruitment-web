@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Search, Eye, EyeOff, Settings, Check, MoreHorizontal, User, Calendar, MapPin, GraduationCap } from "lucide-react";
+import { Search, Eye, EyeOff, Settings, Check, MoreHorizontal, User, Calendar, MapPin, GraduationCap, ChevronLeft, ChevronRight } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
@@ -102,8 +102,8 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         phone: c.phone,
         email: c.email,
         cvLink: c.cvLink,
-        education: c.education, // School
-        degree: c.degree, // Degree
+        education: c.education,
+        degree: c.degree,
         matchReason: c.matchReason,
         source: c.source,
         timestamp: c.timestamp,
@@ -126,14 +126,20 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
 
   const updateCandidateAPI = async (id: string, updates: any) => {
     try {
-        await fetch("/api/candidates/update", {
+        const res = await fetch("/api/candidates/update", {
             method: "POST",
             body: JSON.stringify({ id, updates })
         });
+        
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || "API returned error");
+        }
+
         setCandidates(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
     } catch (error) {
         console.error("Update failed", error);
-        alert("Failed to update candidate. Check console.");
+        alert(`Failed to update candidate: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
@@ -144,6 +150,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
          status: "Screening",
          testResult: todayStr
      });
+     if (selectedCandidate?.id === c.id) setIsDeclineModalOpen(false); // Close modals if open
   };
 
   const handleWithdrawToScreen = async (c: Candidate) => {
@@ -175,7 +182,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
      await updateCandidateAPI(candidateToReject.id, {
          status: "Rejected",
          failureReason: finalReason,
-         isPotential: isPotentialDecline,
+         isPotential: isPotentialDecline, // Pass boolean, server checks mapping
          rejectedRound: rejectedRound
      });
      setIsDeclineModalOpen(false);
@@ -203,6 +210,18 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
 
     return matchesSearch && matchesScore && matchesMode;
   });
+
+  // Navigation Logic for Modal
+  const currentIndex = selectedCandidate ? filteredCandidates.findIndex(c => c.id === selectedCandidate.id) : -1;
+  const hasNext = currentIndex !== -1 && currentIndex < filteredCandidates.length - 1;
+  const hasPrev = currentIndex > 0;
+
+  const handleNext = () => {
+    if (hasNext) setSelectedCandidate(filteredCandidates[currentIndex + 1]);
+  }
+  const handlePrev = () => {
+    if (hasPrev) setSelectedCandidate(filteredCandidates[currentIndex - 1]);
+  }
 
   return (
     <div className="space-y-4 p-4 bg-white rounded-lg shadow min-h-[500px]">
@@ -370,7 +389,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => setSelectedCandidate(c)}>
-                                      {tKanban?.actionDetail} (Full CV)
+                                      {tKanban?.actionDetail}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => window.open(c.cvLink, "_blank")}>
                                       {t.viewCV}
@@ -406,7 +425,17 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
        <Dialog open={!!selectedCandidate} onOpenChange={(open) => !open && setSelectedCandidate(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Candidate Profile</DialogTitle>
+             <div className="flex items-center justify-between">
+                <DialogTitle>Candidate Profile</DialogTitle>
+                <div className="flex gap-2 pr-8">
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={handlePrev} disabled={!hasPrev}>
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleNext} disabled={!hasNext}>
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+             </div>
           </DialogHeader>
           
           {selectedCandidate && (
@@ -520,13 +549,27 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                </div>
 
                {/* Action Footer */}
-               <div className="flex justify-end gap-3 pt-4 border-t">
-                  {selectedCandidate.cvLink && (
-                     <Button variant="outline" asChild>
-                       <a href={selectedCandidate.cvLink} target="_blank" rel="noopener noreferrer">Original CV</a>
-                     </Button>
-                  )}
-                  <Button onClick={() => setSelectedCandidate(null)}>Close</Button>
+               <div className="flex justify-between items-center pt-4 border-t">
+                  <div className="flex gap-2">
+                     {!showRejected && (
+                         <>
+                            <Button variant="destructive" size="sm" onClick={() => handleRejectClick(selectedCandidate)}>
+                                {t.actionReject}
+                            </Button>
+                            <Button className="bg-green-600 hover:bg-green-700" size="sm" onClick={() => handleProceedToScreen(selectedCandidate)}>
+                                {t.actionProceed}
+                            </Button>
+                         </>
+                     )}
+                  </div>
+                  <div className="flex gap-2">
+                     {selectedCandidate.cvLink && (
+                        <Button variant="outline" asChild>
+                          <a href={selectedCandidate.cvLink} target="_blank" rel="noopener noreferrer">Original CV</a>
+                        </Button>
+                     )}
+                     <Button variant="ghost" onClick={() => setSelectedCandidate(null)}>Close</Button>
+                  </div>
                </div>
             </div>
           )}
