@@ -3,6 +3,8 @@
 > **Status**: Active Development
 > **Last Updated**: 2026-01-21
 > **OS**: Windows / Next.js Framework
+> **Deployment**: Vercel (Production)
+> **Environment**: Updates must be made in Vercel Project Settings.
 
 ## 1. Project Overview
 
