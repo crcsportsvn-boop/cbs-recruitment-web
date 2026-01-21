@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAME}!A:C`,
       valueInputOption: "USER_ENTERED",
+      insertDataOption: "INSERT_ROWS",
       requestBody: {
         values: [sheetRow],
       },
