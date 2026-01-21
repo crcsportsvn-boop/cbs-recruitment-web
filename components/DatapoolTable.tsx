@@ -411,10 +411,31 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
           <TableHeader>
             <TableRow className="bg-gray-100/50">
               {visibleColumns.received && <TableHead className="w-[100px]">{t.colReceived}</TableHead>}
-              {visibleColumns.candidate && <TableHead>{t.colCandidate}</TableHead>}
-              {visibleColumns.position && <TableHead>{t.colPosition}</TableHead>}
+              {visibleColumns.candidate && <TableHead>
+                  <div className="flex items-center gap-2">
+                      {t.colCandidate}
+                      <Badge variant="secondary" className="h-5 px-1.5 min-w-[20px] justify-center text-[10px] bg-gray-100 text-gray-600">
+                          {filteredCandidates.length}
+                      </Badge>
+                  </div>
+              </TableHead>}
+              {visibleColumns.position && <TableHead>
+                  <div className="flex items-center gap-2">
+                      {t.colPosition}
+                      <Badge variant="secondary" className="h-5 px-1.5 min-w-[20px] justify-center text-[10px] bg-gray-100 text-gray-600">
+                          {new Set(filteredCandidates.map(c => c.position).filter(Boolean)).size}
+                      </Badge>
+                  </div>
+              </TableHead>}
               {visibleColumns.score && <TableHead className="text-center">{t.colScore}</TableHead>}
-              {visibleColumns.source && <TableHead>{t.colSource}</TableHead>}
+              {visibleColumns.source && <TableHead>
+                  <div className="flex items-center gap-2">
+                       {t.colSource}
+                       <Badge variant="secondary" className="h-5 px-1.5 min-w-[20px] justify-center text-[10px] bg-gray-100 text-gray-600">
+                          {new Set(filteredCandidates.map(c => c.source).filter(Boolean)).size}
+                       </Badge>
+                  </div>
+              </TableHead>}
               {visibleColumns.status && <TableHead>{t.colStatus}</TableHead>}
               {visibleColumns.education && <TableHead>{t.colEducation}</TableHead>}
               {visibleColumns.matchReason && <TableHead>{t.colMatchReason}</TableHead>}
