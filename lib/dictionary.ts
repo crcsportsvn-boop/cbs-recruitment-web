@@ -64,8 +64,8 @@ export const dictionary = {
     datapoolTable: {
       searchPlaceholder: "Tìm kiếm (Tên, Email, Vị trí)...",
       filterAll: "Tất cả điểm",
-      btnShowRejected: "Hiện Đã Loại",
-      btnHideRejected: "Ẩn Đã Loại",
+      btnShowRejected: "Hiện CV Loại",
+      btnHideRejected: "Hiện CV Mới",
       viewingRejected: "Đang xem: Đã Loại",
       viewingNew: "Đang xem: Mới",
       colReceived: "Ngày nhận",
@@ -78,6 +78,11 @@ export const dictionary = {
       colRejectedRound: "Vòng loại",
       colPotential: "CV Tiềm năng",
       colSummary: "Tóm tắt",
+      colEducation: "Trường tốt nghiệp",
+      colMatchReason: "Sự phù hợp",
+      actionProceed: "Chuyển sang Screening",
+      actionWithdraw: "Rút về Screening",
+      actionReject: "Từ chối",
       viewCV: "Xem CV",
       configureColumns: "Cấu hình cột"
     }
@@ -147,8 +152,8 @@ export const dictionary = {
     datapoolTable: {
       searchPlaceholder: "Search (Name, Email, Position)...",
       filterAll: "All Scores",
-      btnShowRejected: "Show Rejected",
-      btnHideRejected: "Hide Rejected",
+      btnShowRejected: "Show Rejected CVs",
+      btnHideRejected: "Show New CVs",
       viewingRejected: "Viewing: Rejected",
       viewingNew: "Viewing: New",
       colReceived: "Received",
@@ -161,6 +166,11 @@ export const dictionary = {
       colRejectedRound: "Rejected Round",
       colPotential: "Potential CV",
       colSummary: "Summary",
+      colEducation: "Education",
+      colMatchReason: "Match Reason",
+      actionProceed: "Proceed to Screening",
+      actionWithdraw: "Withdraw to Screening",
+      actionReject: "Reject",
       viewCV: "View CV",
       configureColumns: "Configure Columns"
     }

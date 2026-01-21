@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Search, Eye, EyeOff, Filter, Settings, Check } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { Search, Eye, EyeOff, Settings, Check, MoreHorizontal } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface Candidate {
-  id: string;
+  id: string; // ID is string in frontend (mapped from id: number)
   name: string;
   position: string;
   status: string;
@@ -20,10 +21,8 @@ interface Candidate {
   phone: string;
   email: string;
   cvLink: string;
-  interviewDate1?: string;
-  interviewDate2?: string;
-  offerDate?: string;
-  startDate?: string;
+  education?: string;
+  matchReason?: string;
   source?: string;
   timestamp?: string;
   failureReason?: string;
@@ -37,8 +36,14 @@ interface DatapoolTableProps {
   user?: any;
 }
 
+// Reasons copied from KanbanBoard
+const REASONS_EN = {
+  screening: ["Not suitable for JD", "Insufficient Experience", "Duplicate CV", "Blacklist", "Other"],
+};
+
 export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   const t = dictionary[lang].datapoolTable;
+  const tKanban = dictionary[lang].kanban; // Borrow translations
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -55,14 +60,23 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     score: true,
     source: true,
     status: true,
+    education: false, // Default hidden
+    matchReason: false, // Default hidden
     rejectedRound: true,
     potential: true,
     summary: false, // Default hidden
     actions: true
   });
 
-  // Detail Modal
+  // Actions / Modals
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
+  
+  // Decline Logic
+  const [declineReasonType, setDeclineReasonType] = useState<string>("");
+  const [declineReasonText, setDeclineReasonText] = useState("");
+  const [isPotentialDecline, setIsPotentialDecline] = useState(false);
+  const [candidateToReject, setCandidateToReject] = useState<Candidate | null>(null);
 
   useEffect(() => {
     fetchCandidates();
@@ -84,10 +98,8 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         phone: c.phone,
         email: c.email,
         cvLink: c.cvLink,
-        interviewDate1: c.interviewDate1,
-        interviewDate2: c.interviewDate2,
-        offerDate: c.offerDate,
-        startDate: c.startDate,
+        education: c.education,
+        matchReason: c.matchReason,
         source: c.source,
         timestamp: c.timestamp,
         failureReason: c.failureReason,
@@ -101,6 +113,70 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const updateCandidateAPI = async (id: string, updates: any) => {
+    try {
+        await fetch("/api/candidates/update", {
+            method: "POST",
+            body: JSON.stringify({ id, updates })
+        });
+        // Optimistic update
+        setCandidates(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    } catch (error) {
+        console.error("Update failed", error);
+        fetchCandidates(); // Revert on fail
+    }
+  };
+
+  // Actions
+  const handleProceedToScreen = async (c: Candidate) => {
+     // Move to Screening
+     // Logic from Kanban: Set testResult date if moving from New
+     const todayStr = new Date().toLocaleDateString('en-GB'); 
+     await updateCandidateAPI(c.id, {
+         status: "Screening",
+         testResult: todayStr
+     });
+  };
+
+  const handleWithdrawToScreen = async (c: Candidate) => {
+      // Restore to Screening
+      // Clear failure info
+      await updateCandidateAPI(c.id, {
+          status: "Screening",
+          failureReason: "",
+          rejectedRound: "" 
+      });
+  };
+
+  const handleRejectClick = (c: Candidate) => {
+     setCandidateToReject(c);
+     setDeclineReasonType("");
+     setDeclineReasonText("");
+     setIsPotentialDecline(false);
+     setIsDeclineModalOpen(true);
+  };
+
+  const confirmDecline = async () => {
+     if (!candidateToReject) return;
+     
+     let finalReason = declineReasonType;
+     if (declineReasonType === "Other" || !declineReasonType) {
+         finalReason = declineReasonText;
+     }
+
+     // Logic: From Datapool (New) -> Rejected means "Screening" failure
+     const rejectedRound = "Screening"; 
+
+     await updateCandidateAPI(candidateToReject.id, {
+         status: "Rejected",
+         failureReason: finalReason,
+         isPotential: isPotentialDecline,
+         rejectedRound: rejectedRound
+     });
+     setIsDeclineModalOpen(false);
+     setCandidateToReject(null);
   };
 
   // Filter Logic
@@ -120,15 +196,9 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
 
     const isRejected = c.status === "Rejected";
     const isNew = c.status === "New";
-    
-    // Toggle View: Rejected vs New
-    // User wants "Show Rejected" to show Rejected list. Default shows New.
-    // However, if "Potential" is a separate concept, maybe it spans both?
-    // User said: "Show thêm cột tiềm năng".
-    // For now, adhere to the toggle logic: One view or the other?
-    // User image showed "Showing Rejected" button.
-    // "Viewing: Rejected" text.
-    // I'll stick to: Toggle ON -> Show Rejected. Toggle OFF -> Show New.
+    // Show Rejected mode: only show Rejected.
+    // Show New mode: only show New.
+    // (Existing Datapool logic: only Input/Datapool candidates shown, not In-Process).
     const matchesMode = showRejected ? isRejected : isNew;
 
     return matchesSearch && matchesScore && matchesMode;
@@ -170,14 +240,10 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
             onClick={() => setShowRejected(!showRejected)}
           >
              {showRejected ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-             {showRejected ? t.viewingRejected : t.viewingNew.replace("Viewing:", t.btnShowRejected)} 
-             {/* Note: User wanted to replace "Viewing:..." text with selector. I put button text here. */}
-             {/* Actually, user said "Viewing: Rejected" text NEXT to button is wasting space. I removed that text element and put status IN button if I want? */}
-             {/* I'll label button "Show Rejected" / "Show New" */}
              {showRejected ? t.btnHideRejected : t.btnShowRejected}
           </Button>
 
-          {/* Column Selector (Replaces the 'Viewing' text area) */}
+          {/* Column Selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
                <Button variant="outline" className="ml-2 gap-2" title={t.configureColumns}>
@@ -193,6 +259,12 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem checked={visibleColumns.summary} onCheckedChange={(c) => setVisibleColumns(p => ({...p, summary: !!c}))}>
                  {t.colSummary}
+              </DropdownMenuCheckboxItem>
+               <DropdownMenuCheckboxItem checked={visibleColumns.education} onCheckedChange={(c) => setVisibleColumns(p => ({...p, education: !!c}))}>
+                 {t.colEducation}
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem checked={visibleColumns.matchReason} onCheckedChange={(c) => setVisibleColumns(p => ({...p, matchReason: !!c}))}>
+                 {t.colMatchReason}
               </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem checked={visibleColumns.score} onCheckedChange={(c) => setVisibleColumns(p => ({...p, score: !!c}))}>
                  {t.colScore}
@@ -217,8 +289,15 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
               {visibleColumns.score && <TableHead className="text-center">{t.colScore}</TableHead>}
               {visibleColumns.source && <TableHead>{t.colSource}</TableHead>}
               {visibleColumns.status && <TableHead>{t.colStatus}</TableHead>}
-              {visibleColumns.rejectedRound && <TableHead>{t.colRejectedRound}</TableHead>}
-              {visibleColumns.potential && <TableHead className="text-center">{t.colPotential}</TableHead>}
+              
+              {/* Extra Columns */}
+              {visibleColumns.education && <TableHead>{t.colEducation}</TableHead>}
+              {visibleColumns.matchReason && <TableHead>{t.colMatchReason}</TableHead>}
+
+              {/* Rejected Cols - Show only if Rejected Mode */}
+              {(showRejected && visibleColumns.rejectedRound) && <TableHead>{t.colRejectedRound}</TableHead>}
+              {(showRejected && visibleColumns.potential) && <TableHead className="text-center">{t.colPotential}</TableHead>}
+
               {visibleColumns.summary && <TableHead className="w-[200px]">{t.colSummary}</TableHead>}
               {visibleColumns.actions && <TableHead className="text-right">{t.colActions}</TableHead>}
             </TableRow>
@@ -226,11 +305,11 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={10} className="h-24 text-center">Loading...</TableCell>
+                <TableCell colSpan={12} className="h-24 text-center">Loading...</TableCell>
               </TableRow>
             ) : filteredCandidates.length === 0 ? (
                <TableRow>
-                <TableCell colSpan={10} className="h-24 text-center text-gray-500">
+                <TableCell colSpan={12} className="h-24 text-center text-gray-500">
                    {showRejected ? "No rejected candidates." : "No new candidates."}
                 </TableCell>
               </TableRow>
@@ -248,7 +327,6 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
 
                   {visibleColumns.position && <TableCell className="text-sm">
                     {c.position}
-                    {/* User asked to remove Top Match badge */}
                   </TableCell>}
 
                   {visibleColumns.score && <TableCell className="text-center">
@@ -269,11 +347,14 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                       </Badge>
                    </TableCell>}
 
-                   {visibleColumns.rejectedRound && <TableCell className="text-sm text-gray-600">
+                   {visibleColumns.education && <TableCell className="text-sm text-gray-600">{c.education || "-"}</TableCell>}
+                   {visibleColumns.matchReason && <TableCell className="text-xs text-gray-500 max-w-[150px] truncate" title={c.matchReason}>{c.matchReason || "-"}</TableCell>}
+
+                   {(showRejected && visibleColumns.rejectedRound) && <TableCell className="text-sm text-gray-600">
                       {c.rejectedRound || "-"}
                    </TableCell>}
 
-                   {visibleColumns.potential && <TableCell className="text-center">
+                   {(showRejected && visibleColumns.potential) && <TableCell className="text-center">
                       {c.isPotential && <Check className="h-5 w-5 text-yellow-500 mx-auto" />}
                    </TableCell>}
 
@@ -282,13 +363,36 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                    </TableCell>}
 
                    {visibleColumns.actions && <TableCell className="text-right">
-                      {c.cvLink && (
-                        <Button variant="ghost" size="sm" asChild onClick={(e) => e.stopPropagation()}>
-                          <a href={c.cvLink} target="_blank" rel="noopener noreferrer">
-                            {t.viewCV}
-                          </a>
-                        </Button>
-                      )}
+                       <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                           <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-gray-100 rounded-full">
+                                    <MoreHorizontal className="h-4 w-4 text-gray-500" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => window.open(c.cvLink, "_blank")}>
+                                      {t.viewCV}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  
+                                  {showRejected ? (
+                                     <DropdownMenuItem onClick={() => handleWithdrawToScreen(c)}>
+                                         {t.actionWithdraw}
+                                     </DropdownMenuItem>
+                                  ) : (
+                                     <>
+                                       <DropdownMenuItem onClick={() => handleProceedToScreen(c)}>
+                                           {t.actionProceed}
+                                       </DropdownMenuItem>
+                                       <DropdownMenuItem onClick={() => handleRejectClick(c)} className="text-red-600 focus:text-red-600">
+                                           {t.actionReject}
+                                       </DropdownMenuItem>
+                                     </>
+                                  )}
+                              </DropdownMenuContent>
+                           </DropdownMenu>
+                       </div>
                    </TableCell>}
                 </TableRow>
               ))
@@ -296,8 +400,8 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
           </TableBody>
         </Table>
       </div>
-      
-      {/* Candidate Details Modal */}
+
+       {/* Candidate Details Modal */}
        <Dialog open={!!selectedCandidate} onOpenChange={(open) => !open && setSelectedCandidate(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -320,40 +424,33 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                      <span className="text-xs text-gray-400">AI Match Score</span>
                   </div>
                </div>
-
-               {selectedCandidate.summary && (
-                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 space-y-2">
-                      <span className="font-semibold text-blue-800 flex items-center gap-2">
-                        ✨ Summary
-                      </span>
-                      <p className="text-sm text-blue-900 whitespace-pre-wrap leading-relaxed">
-                        {selectedCandidate.summary}
+               
+               {/* Details Grid */}
+               <div className="grid grid-cols-2 gap-4 text-sm">
+                   {selectedCandidate.education && (
+                      <div className="col-span-2">
+                        <label className="font-semibold text-gray-700">Education</label>
+                        <p>{selectedCandidate.education}</p>
+                      </div>
+                   )}
+                   {selectedCandidate.matchReason && (
+                      <div className="col-span-2 bg-gray-50 p-2 rounded">
+                        <label className="font-semibold text-gray-700">Match Reason</label>
+                        <p className="text-gray-600">{selectedCandidate.matchReason}</p>
+                      </div>
+                   )}
+                   
+                   <div>
+                     <label className="font-semibold text-gray-700">Source</label>
+                     <p>{selectedCandidate.source || "N/A"}</p>
+                   </div>
+                   <div>
+                      <label className="font-semibold text-gray-700">Status</label>
+                      <p className={selectedCandidate.status === "Rejected" ? "text-red-600 font-bold" : "text-gray-900"}>
+                         {selectedCandidate.status}
+                         {selectedCandidate.rejectedRound && <span className="text-gray-500 font-normal ml-1">({selectedCandidate.rejectedRound})</span>}
                       </p>
                    </div>
-               )}
-
-               <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <label className="font-semibold text-gray-700">Application Date</label>
-                    <p>{selectedCandidate.timestamp || "N/A"}</p>
-                  </div>
-                  <div>
-                    <label className="font-semibold text-gray-700">Source</label>
-                    <p>{selectedCandidate.source || "N/A"}</p>
-                  </div>
-                  <div>
-                     <label className="font-semibold text-gray-700">Status</label>
-                     <p className={selectedCandidate.status === "Rejected" ? "text-red-600 font-bold" : "text-gray-900"}>
-                        {selectedCandidate.status}
-                        {selectedCandidate.rejectedRound && <span className="text-gray-500 font-normal ml-1">({selectedCandidate.rejectedRound})</span>}
-                     </p>
-                  </div>
-                   {selectedCandidate.failureReason && (
-                     <div>
-                        <label className="font-semibold text-gray-700">Failure Reason</label>
-                         <p className="text-red-600 italic">"{selectedCandidate.failureReason}"</p>
-                     </div>
-                   )}
                </div>
 
                {/* Action Footer */}
@@ -367,6 +464,58 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Decline Modal */}
+      <Dialog open={isDeclineModalOpen} onOpenChange={setIsDeclineModalOpen}>
+        <DialogContent>
+           <DialogHeader>
+             <DialogTitle>{tKanban?.modalDeclineTitle}</DialogTitle>
+           </DialogHeader>
+           <div className="py-2 space-y-4">
+             <div className="space-y-2">
+                <Label>{tKanban?.labelForReason}</Label>
+                <Select value={declineReasonType} onValueChange={setDeclineReasonType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={tKanban?.selectReasonPlaceholder} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REASONS_EN.screening.map((reasonEn) => (
+                       <SelectItem key={reasonEn} value={reasonEn}>
+                         {tKanban?.reasons?.screening[REASONS_EN.screening.indexOf(reasonEn)] || reasonEn}
+                       </SelectItem>
+                    ))}
+                    <SelectItem value="Other">Khác (Other)</SelectItem>
+                  </SelectContent>
+                </Select>
+             </div>
+             
+             {(declineReasonType === "Other" || !declineReasonType) && (
+                 <Input 
+                   placeholder={tKanban?.placeholderReason}
+                   value={declineReasonText}
+                   onChange={(e) => setDeclineReasonText(e.target.value)}
+                 />
+             )}
+
+             <div className="flex items-center space-x-2 pt-2">
+                <input 
+                   type="checkbox" 
+                   id="potentialCv"
+                   className="h-4 w-4 rounded border-gray-300 text-[#B91C1C] focus:ring-[#B91C1C]"
+                   checked={isPotentialDecline}
+                   onChange={(e) => setIsPotentialDecline(e.target.checked)}
+                />
+                <Label htmlFor="potentialCv" className="font-medium cursor-pointer">
+                   {lang === 'vi' ? "Đánh dấu là CV Tiềm năng" : "Mark as Potential Candidate"}
+                </Label>
+             </div>
+           </div>
+           <DialogFooter>
+             <Button variant="outline" onClick={() => setIsDeclineModalOpen(false)}>{tKanban?.btnCancel}</Button>
+             <Button variant="destructive" onClick={confirmDecline}>{tKanban?.btnConfirmDecline}</Button>
+           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
