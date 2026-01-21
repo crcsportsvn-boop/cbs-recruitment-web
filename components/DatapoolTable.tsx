@@ -529,13 +529,17 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                        <label className="text-gray-500 text-xs uppercase font-bold">Current Function</label>
                        <p>{selectedCandidate.jobFunction || "-"}</p>
                    </div>
-                    <div>
-                       <label className="text-gray-500 text-xs uppercase font-bold">Work History</label>
-                       <p className="line-clamp-2" title={selectedCandidate.workHistory}>{selectedCandidate.workHistory || "-"}</p>
-                   </div>
-                    <div className="col-span-2">
+                   <div>
                        <label className="text-gray-500 text-xs uppercase font-bold">Skills</label>
-                       <p className="whitespace-pre-wrap">{selectedCandidate.skills || "-"}</p>
+                       <p className="whitespace-pre-wrap text-sm">{selectedCandidate.skills || "-"}</p>
+                   </div>
+                   <div className="col-span-2">
+                       <label className="text-gray-500 text-xs uppercase font-bold">Work History</label>
+                       <p className="whitespace-pre-wrap text-sm bg-gray-50 p-3 rounded border mt-1">
+                         {selectedCandidate.workHistory 
+                            ? selectedCandidate.workHistory.replace(/\\n/g, "\n") 
+                            : "-"}
+                       </p>
                    </div>
 
                    <div className="col-span-2 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2 mt-4">
