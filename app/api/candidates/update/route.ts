@@ -7,6 +7,11 @@ export async function POST(req: NextRequest) {
   try {
     const { id, updates } = await req.json();
 
+    if (!process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
+       console.error("Missing Google Credentials Env Vars");
+       return NextResponse.json({ error: "Server Configuration Error: Missing Google Credentials" }, { status: 500 });
+    }
+
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { Search, Eye, EyeOff, Settings, Check, MoreHorizontal, User, Calendar, MapPin, GraduationCap, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Eye, EyeOff, Settings, Check, MoreHorizontal, User, Calendar, MapPin, GraduationCap, ChevronLeft, ChevronRight, Briefcase, FileText, Wrench } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
@@ -34,6 +34,10 @@ interface Candidate {
   gender?: string;
   location?: string;
   notes?: string;
+  // New Fields
+  jobFunction?: string;
+  workHistory?: string;
+  skills?: string;
 }
 
 interface DatapoolTableProps {
@@ -115,6 +119,10 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         gender: c.gender,
         location: c.location,
         notes: c.notes,
+        // Map new fields
+        jobFunction: c.jobFunction,
+        workHistory: c.workHistory,
+        skills: c.skills,
       }));
       setCandidates(formatted);
     } catch (err) {
@@ -182,7 +190,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
      await updateCandidateAPI(candidateToReject.id, {
          status: "Rejected",
          failureReason: finalReason,
-         isPotential: isPotentialDecline, // Pass boolean, server checks mapping
+         isPotential: isPotentialDecline, 
          rejectedRound: rejectedRound
      });
      setIsDeclineModalOpen(false);
@@ -222,6 +230,17 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   const handlePrev = () => {
     if (hasPrev) setSelectedCandidate(filteredCandidates[currentIndex - 1]);
   }
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!selectedCandidate) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "ArrowRight") handleNext();
+        if (e.key === "ArrowLeft") handlePrev();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedCandidate, currentIndex, filteredCandidates]); // Depend on currentIndex/filteredCandidates to ensure handleNext/Prev work correctly
 
   return (
     <div className="space-y-4 p-4 bg-white rounded-lg shadow min-h-[500px]">
@@ -461,7 +480,12 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                       </div>
                   </div>
                   <div className="text-right">
-                     <div className="text-3xl font-bold text-primary">{selectedCandidate.matchScore}/10</div>
+                     <div className={`text-3xl font-bold ${
+                         selectedCandidate.matchScore >= 8 ? 'text-green-600' : 
+                         selectedCandidate.matchScore >= 5 ? 'text-yellow-600' : 'text-red-600'
+                     }`}>
+                         {selectedCandidate.matchScore}/10
+                     </div>
                      <span className="text-xs text-gray-400">AI Match Score</span>
                   </div>
                </div>
@@ -498,6 +522,22 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                        <p>{selectedCandidate.location || "-"}</p>
                    </div>
                    
+                   <div className="col-span-2 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2 mt-4">
+                      <Briefcase className="h-4 w-4"/> Experience & Skills
+                   </div>
+                   <div>
+                       <label className="text-gray-500 text-xs uppercase font-bold">Current Function</label>
+                       <p>{selectedCandidate.jobFunction || "-"}</p>
+                   </div>
+                    <div>
+                       <label className="text-gray-500 text-xs uppercase font-bold">Work History</label>
+                       <p className="line-clamp-2" title={selectedCandidate.workHistory}>{selectedCandidate.workHistory || "-"}</p>
+                   </div>
+                    <div className="col-span-2">
+                       <label className="text-gray-500 text-xs uppercase font-bold">Skills</label>
+                       <p className="whitespace-pre-wrap">{selectedCandidate.skills || "-"}</p>
+                   </div>
+
                    <div className="col-span-2 border-b pb-2 mb-2 font-semibold text-gray-800 flex items-center gap-2 mt-4">
                       <GraduationCap className="h-4 w-4"/> Education
                    </div>
