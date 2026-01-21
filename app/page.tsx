@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import CandidateInputForm from "@/components/CandidateInputForm";
 import KanbanBoard from "@/components/KanbanBoard";
+import DatapoolTable from "@/components/DatapoolTable";
 import ScrollTopButton from "@/components/ScrollTopButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ function HomeContent() {
       title: "Cổng Thông Tin Tuyển Dụng",
       tabInput: "Phễu Đầu Vào (Input)",
       tabProcess: "Quy Trình Tuyển Dụng",
+      tabDatapool: "Kho Dữ Liệu (Datapool)",
       tabReport: "Báo Cáo",
       tabConfig: "Cấu Hình",
       footer: "© 2026 CBS Vietnam - Recruitment Portal"
@@ -59,6 +61,7 @@ function HomeContent() {
       title: "Recruitment Portal",
       tabInput: "Candidate Input",
       tabProcess: "Recruitment Process",
+      tabDatapool: "Datapool",
       tabReport: "Reports",
       tabConfig: "Settings",
       footer: "© 2026 CBS Vietnam - All rights reserved"
@@ -116,7 +119,7 @@ function HomeContent() {
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col font-sans">
       {/* Header / Nav */}
-      <header className="bg-[#EE2E24] text-white p-4 shadow-md sticky top-0 z-40">
+      <header className="bg-[#B91C1C] text-white p-4 shadow-md sticky top-0 z-40">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
              {/* Logo */}
@@ -190,18 +193,21 @@ function HomeContent() {
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <div className="flex justify-center mb-8 sticky top-20 z-30 bg-gray-50 pb-4">
                 <TabsList className="bg-white shadow-md p-1 h-auto">
-                <TabsTrigger value="input" className="px-6 py-3 data-[state=active]:bg-[#EE2E24] data-[state=active]:text-white transition-all">
+                <TabsTrigger value="input" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                     {t[lang].tabInput}
                 </TabsTrigger>
-                <TabsTrigger value="kanban" className="px-6 py-3 data-[state=active]:bg-[#EE2E24] data-[state=active]:text-white transition-all">
+                <TabsTrigger value="kanban" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                     {t[lang].tabProcess}
                 </TabsTrigger>
+                <TabsTrigger value="datapool" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
+                    {t[lang].tabDatapool}
+                </TabsTrigger>
                 {/* Reports & Config: HO might need reports? Assuming Yes for now. Admin sees Config. */}
-                <TabsTrigger value="reports" className="px-6 py-3 data-[state=active]:bg-[#EE2E24] data-[state=active]:text-white transition-all">
+                <TabsTrigger value="reports" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                     {t[lang].tabReport}
                 </TabsTrigger>
                 {isAdmin && (
-                    <TabsTrigger value="settings" className="px-6 py-3 data-[state=active]:bg-[#EE2E24] data-[state=active]:text-white transition-all">
+                    <TabsTrigger value="settings" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                         {t[lang].tabConfig}
                     </TabsTrigger>
                 )}
@@ -214,8 +220,12 @@ function HomeContent() {
 
             <TabsContent value="kanban" className="w-full h-full min-h-[600px] animate-in fade-in slide-in-from-right-10 duration-300">
                 <div className="bg-white p-4 rounded-lg shadow min-h-[700px]">
-                <KanbanBoard lang={lang} />
+                <KanbanBoard lang={lang} user={user} />
                 </div>
+            </TabsContent>
+
+            <TabsContent value="datapool" className="w-full h-full min-h-[600px] animate-in fade-in slide-in-from-right-10 duration-300">
+                 <DatapoolTable lang={lang} user={user} />
             </TabsContent>
 
             <TabsContent value="reports">

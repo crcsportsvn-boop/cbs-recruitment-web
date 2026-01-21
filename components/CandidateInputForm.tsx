@@ -294,7 +294,7 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
             {loading && uploadProgress.total > 0 && (
               <div className="w-full bg-gray-200 rounded-full h-2.5">
                 <div 
-                  className="bg-[#EE2E24] h-2.5 rounded-full transition-all duration-300" 
+                  className="bg-[#B91C1C] h-2.5 rounded-full transition-all duration-300" 
                   style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
                 ></div>
                 <p className="text-xs text-center mt-1 text-gray-500">
@@ -303,7 +303,7 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
               </div>
             )}
 
-             <Button type="submit" className="w-full h-12 text-lg bg-[#EE2E24] hover:bg-[#D5261C] text-white" disabled={loading}>
+             <Button type="submit" className="w-full h-12 text-lg bg-[#B91C1C] hover:bg-[#991b1b] text-white" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />

@@ -279,7 +279,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
             <br/>
             <p><strong>Thanks and best regards!</strong></p>
             <br/>
-            <p style="color: #EE2E24; font-weight: bold;">${senderName}</p>
+            <p style="color: #B91C1C; font-weight: bold;">${senderName}</p>
         </div>
       `;
       
@@ -434,7 +434,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           {/* Rejected Toggle */}
           {/* Rejected Toggle */}
           <Button 
-            className="gap-2 h-9 bg-[#EE2E24] hover:bg-[#D5261C] text-white"
+            className="gap-2 h-9 bg-[#B91C1C] hover:bg-[#991b1b] text-white"
             size="sm"
             onClick={() => setShowRejected(!showRejected)}
           >
@@ -637,7 +637,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
             <Button variant="secondary" onClick={copyToClipboard} className="gap-2">
                 <Copy className="h-4 w-4" /> Copy Email Template
             </Button>
-            <Button onClick={confirmInterview} className="bg-[#EE2E24] hover:bg-[#D5261C]">{t.btnSendInvite}</Button>
+            <Button onClick={confirmInterview} className="bg-[#B91C1C] hover:bg-[#991b1b]">{t.btnSendInvite}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
