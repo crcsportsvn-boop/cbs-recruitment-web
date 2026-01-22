@@ -333,17 +333,13 @@ export default function Reports({ lang, user }: ReportProps) {
 
   const uniqueJobCodes = useMemo(() => {
       const allCodes = new Set<string>();
-      // Only show jobs from actual data, not hardcoded templates
+      // Only show jobs from Jobs sheet, not from candidates history
       jobs.forEach(j => {
-        const code = j.jobCode?.trim() || "Unknown";
-        allCodes.add(code);
-      });
-      candidates?.forEach(c => {
-        const code = c.jobCode?.trim() || "Unknown";
-        allCodes.add(code);
+        const code = j.jobCode?.trim();
+        if (code) allCodes.add(code);
       });
       return Array.from(allCodes).sort();
-  }, [jobs, candidates]);
+  }, [jobs]);
 
   const uniqueSources = useMemo(() => Array.from(new Set(candidates.map(c => c.source || "Unknown"))).sort(), [candidates]);
 
@@ -393,7 +389,8 @@ export default function Reports({ lang, user }: ReportProps) {
                                 <SelectItem value="all">{t.all}</SelectItem>
                                 {uniqueJobCodes.map(code => {
                                     const jobMeta = jobs.find(j => j.jobCode === code);
-                                    const rawName = ACTIVE_JOBS.find(j => j.id === code)?.name || jobMeta?.title || code;
+                                    // Prioritize title from Jobs sheet, fallback to ACTIVE_JOBS, then code
+                                    const rawName = jobMeta?.title || ACTIVE_JOBS.find(j => j.id === code)?.name || code;
                                     const isStopped = jobMeta?.status === "Stopped";
                                     // Truncate name
                                     const name = rawName.length > 25 ? rawName.substring(0,25)+"..." : rawName;

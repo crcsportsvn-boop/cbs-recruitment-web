@@ -440,11 +440,9 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     
     const finalReason = stopJobReason === "Other" ? stopJobOtherReason : stopJobReason;
     if (!finalReason) {
-        alert("Please select or enter a reason");
+        // Show validation error in UI (stop job reason is required)
         return;
     }
-
-    if (!confirm(`Confirm STOP recruitment for Job Code: ${selectedJobCode}?`)) return;
 
     // Determine Title and Group
     const jobInfo = ACTIVE_JOBS.find(j => j.id === selectedJobCode);
@@ -468,10 +466,8 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         setStopJobReason("");
         setStopJobOtherReason("");
         fetchCandidates(); // Refresh to update Stock view
-        alert(`Job ${selectedJobCode} stopped successfully. New candidates will be marked as Stock.`);
     } catch (e) {
         console.error(e);
-        alert("Failed to stop job on server");
     }
   };
 
@@ -798,7 +794,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                       <Card key={c.id} className="hover:shadow-md transition-all duration-200 group bg-white border-l-4" style={{ borderLeftColor: parseInt(c.matchScore) >= 8 ? '#22c55e' : parseInt(c.matchScore) >= 5 ? '#eab308' : '#6b7280' }}>
                         <CardContent className="p-3 space-y-2">
                            <div className="flex justify-between items-start">
-                              <h4 className="font-bold text-[13px] text-[#B91C1C] leading-snug" title={c.fullName}>{c.fullName}</h4>
+                              <h4 className="font-bold text-[11px] text-[#B91C1C] leading-snug" title={c.fullName}>{c.fullName}</h4>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" className="h-6 w-6 p-0 -mt-1 -mr-2 hover:bg-gray-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
