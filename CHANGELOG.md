@@ -25,6 +25,7 @@ Tài liệu này ghi lại toàn bộ lịch sử thay đổi, cập nhật và 
 
 ### 🐛 Fixed (Sửa lỗi)
 
+- **HOTFIX**: Sửa lỗi TypeScript (Type Mismatch) trong Kanban Board khiến quá trình Build thất bại.
 - Khắc phục lỗi căn chỉnh layout cột điểm số.
 - Sửa lỗi crash khi Reject ứng viên mà không có lý do.
 - Cải thiện UX bộ chọn ngày (Date Picker) trigger nhạy hơn.

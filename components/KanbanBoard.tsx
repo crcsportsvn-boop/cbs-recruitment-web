@@ -35,6 +35,7 @@ interface Candidate {
   failureReason?: string;
   isPotential?: boolean;
   rejectedRound?: string;
+  notes?: string;
 }
 
 interface KanbanBoardProps {
@@ -60,10 +61,16 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
   const [showRejected, setShowRejected] = useState(false);
+  const [showStock, setShowStock] = useState(false);
+  const [selectedJobCode, setSelectedJobCode] = useState<string>("all");
+  
+  // Job Codes for Filter
+  const uniqueJobCodes = Array.from(new Set(candidates.map(c => c.jobCode).filter(Boolean))) as string[];
 
   // Modal State
   const [isInterviewModalOpen, setIsInterviewModalOpen] = useState(false);
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
+  const [isStopJobModalOpen, setIsStopJobModalOpen] = useState(false); // New
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   
   // Data for Modals
@@ -77,6 +84,8 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
   const [declineReasonType, setDeclineReasonType] = useState<string>("");
   const [declineReasonText, setDeclineReasonText] = useState("");
+  const [stopJobReason, setStopJobReason] = useState(""); // New
+  const [stopJobOtherReason, setStopJobOtherReason] = useState(""); // New
   const [isPotentialDecline, setIsPotentialDecline] = useState(false);
 
   const COLUMNS = [
@@ -355,12 +364,93 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     }
   };
 
+  const handleStopJob = async () => {
+    if (selectedJobCode === "all") return;
+    
+    // Determine reason
+    const finalReason = stopJobReason === "Other" ? stopJobOtherReason : stopJobReason;
+    if (!finalReason) {
+        alert("Please select or enter a reason");
+        return;
+    }
+
+    if (!confirm(`Confirm STOP recruitment for Job Code: ${selectedJobCode}? All candidates will move to "Stock".`)) return;
+
+    // Optimistic Update Frontend
+    setCandidates(prev => prev.map(c => {
+        if (c.jobCode === selectedJobCode) {
+            return { ...c, notes: "Stock" }; 
+        }
+        return c;
+    }));
+
+    try {
+        const res = await fetch("/api/jobs/stop", {
+            method: "POST",
+            body: JSON.stringify({ jobCode: selectedJobCode, reason: finalReason })
+        });
+        if (!res.ok) throw new Error("Failed to stop job");
+        
+        setIsStopJobModalOpen(false);
+        setStopJobReason("");
+        setStopJobOtherReason("");
+        setShowStock(true); // Switch to Stock view to show result
+    } catch (e) {
+        console.error(e);
+        alert("Failed to stop job on server");
+        fetchCandidates(); // Revert
+    }
+  };
+
+  const handleReactivateCandidate = async (candidate: Candidate) => {
+     if (!confirm(`Reactivate candidate ${candidate.fullName}? This will move them to Screening.`)) return;
+
+     // Optimistic
+     setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, notes: "", status: "Screening" } : c));
+     
+     // API
+     await updateCandidateAPI(candidate.id, { notes: "Stock-Reactivated", status: "Screening" }); 
+     // Note: API should clear 'notes' column ideally or set to something else. 
+     // Sending specific value "Stock-Reactivated" or empty string depending on backend handler.
+     // For now I'll send empty string via separate custom endpoint or just update updateCandidateAPI to handle notes clear.
+     // updateCandidateAPI handles generic updates.
+     await updateCandidateAPI(candidate.id, { notes: "", status: "Screening" });
+  };
+
   // --- FILTERING ---
   const filteredCandidates = candidates.filter(c => {
-    // 1. Hide Rejected candidates if Toggle is OFF
-    if (!showRejected && c.status === "Rejected") return false;
+    const isStock = c.notes?.includes("Stock");
+    
+    // 1. View Logic
+    if (showStock) {
+        return isStock;
+    }
+    
+    // If NOT showing stock, hide stock items
+    if (isStock) return false;
 
-    // 2. Search Term
+    // Reject Logic
+    if (!showRejected && c.status === "Rejected") return false;
+    if (showRejected && c.status !== "Rejected") return false; // Optional: Show ONLY rejected? 
+    // User current logic for Show Rejected was to TOGGLE it ON TOP, or Filter?
+    // Current code: "if !showRejected && c.status === Rejected return false" -> Means "Hide rejected by default".
+    // If showRejected is true, it shows BOTH active and rejected? 
+    // "Toggle Rejected" usually implies "Show Rejected" in list. 
+    
+    // Let's refine based on "View Mode".
+    // "Normal": Active, Non-Stock.
+    // "Rejected Toggle": Active + Rejected? Or Just Rejected?
+    // User requested: "show một pop up... giống Show Reject"
+    
+    // To keep it simple:
+    // If showStock -> Show ONLY Stock.
+    // If showRejected -> Show ONLY Rejected (or Active + Rejected, but typically user wants to review rejected separately).
+    // Let's stick to: "Show Rejected" = Include Rejected. 
+    
+    // 2. Job Code Filter
+    if (selectedJobCode !== "all" && c.jobCode !== selectedJobCode) return false;
+
+    // 3. Search Term
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = 
       c.fullName?.toLowerCase().includes(searchLower) ||
@@ -368,7 +458,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       c.positionId?.toLowerCase().includes(searchLower) ||
       c.positionRaw?.toLowerCase().includes(searchLower);
 
-    // 3. Score Filter
+    // 4. Score Filter
     let matchesScore = true;
     if (scoreFilter !== "all") {
        const score = parseInt(c.matchScore) || 0;
@@ -377,7 +467,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
        if (scoreFilter === "low") matchesScore = score < 5;
     }
 
-    // 4. Date Filter
+    // 5. Date Filter
     let matchesDate = true;
     if (dateFrom || dateTo) {
       if (!c.timestamp) {
@@ -428,19 +518,56 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         
         {/* Sticky Filter Bar */}
         <div className="bg-white p-3 border-b flex flex-wrap gap-3 items-center shrink-0">
-          {/* Search */}
-          <div className="flex items-center gap-2 flex-1 min-w-[150px]">
-            <Search className="w-4 h-4 text-gray-500" />
-            <Input 
-              placeholder={t.searchPlaceholder} 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-white h-9 text-sm"
-            />
+          
+          {/* Job Code Filter & Search Split */}
+          <div className="flex gap-2 items-center flex-1 min-w-[300px]">
+             {/* Job Code Finder */}
+             <div className="flex items-center">
+                <Select value={selectedJobCode} onValueChange={setSelectedJobCode}>
+                  <SelectTrigger className="w-[180px] h-9 text-sm bg-white border-r-0 rounded-r-none focus:ring-0">
+                    <SelectValue placeholder="Select Job Code" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Jobs</SelectItem>
+                    {uniqueJobCodes.map(code => (
+                        <SelectItem key={code} value={code}>{code}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {/* 3-Dots Menu for Stop Job */}
+                {selectedJobCode !== "all" && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon" className="h-9 w-9 rounded-none border-l-0 bg-gray-50">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem className="text-red-600" onClick={() => setIsStopJobModalOpen(true)}>
+                                Stop Recruitment
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
+             </div>
+
+             {/* Text Search */}
+             <div className="flex items-center gap-2 flex-1">
+                <div className="relative flex-1">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                    <Input 
+                      placeholder={t.searchPlaceholder} 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="bg-white h-9 pl-8 text-sm w-full"
+                    />
+                </div>
+             </div>
           </div>
           
           {/* Score Filter */}
-          <div className="w-[140px]">
+          <div className="w-[130px]">
             <Select value={scoreFilter} onValueChange={setScoreFilter}>
               <SelectTrigger className="bg-white h-9 text-sm">
                 <SelectValue placeholder={t.filterScore} />
@@ -459,50 +586,79 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
             <span className="text-xs text-gray-500 font-medium whitespace-nowrap">From:</span>
             <Input 
               type="date" 
-              className="h-7 w-[110px] text-xs border-0 focus-visible:ring-0 p-1"
+              className="h-7 w-[105px] text-xs border-0 focus-visible:ring-0 p-1"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
             />
             <span className="text-xs text-gray-500 font-medium whitespace-nowrap">To:</span>
             <Input 
               type="date" 
-              className="h-7 w-[110px] text-xs border-0 focus-visible:ring-0 p-1"
+              className="h-7 w-[105px] text-xs border-0 focus-visible:ring-0 p-1"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
             />
           </div>
 
-          {/* Rejected Toggle */}
-          {/* Rejected Toggle */}
-          <Button 
-            className="gap-2 h-9 bg-[#B91C1C] hover:bg-[#991b1b] text-white"
-            size="sm"
-            onClick={() => setShowRejected(!showRejected)}
-          >
-            {showRejected ? <EyeOff className="w-3 h-3"/> : <Eye className="w-3 h-3"/>}
-            {t.toggleRejected || "Rejected"}
-          </Button>
+          {/* View Toggles */}
+          <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center">
+             <Button 
+                variant={(!showRejected && !showStock) ? "white" : "ghost"} 
+                size="sm" 
+                className={`h-7 text-xs ${(!showRejected && !showStock) ? "bg-white shadow-sm" : "text-gray-500"}`}
+                onClick={() => { setShowRejected(false); setShowStock(false); }}
+             >
+                Active
+             </Button>
+             <Button 
+                variant={showRejected ? "white" : "ghost"} 
+                size="sm" 
+                className={`h-7 text-xs ${showRejected ? "bg-white text-red-600 shadow-sm" : "text-gray-500"}`}
+                onClick={() => { setShowRejected(true); setShowStock(false); }}
+             >
+                Rejected
+             </Button>
+             <Button 
+                variant={showStock ? "white" : "ghost"} 
+                size="sm" 
+                className={`h-7 text-xs ${showStock ? "bg-white text-blue-600 shadow-sm" : "text-gray-500"}`}
+                onClick={() => { setShowRejected(false); setShowStock(true); }}
+             >
+                Stock
+             </Button>
+          </div>
 
         </div>
 
         {/* Board Columns */}
         <div className="flex-1 overflow-x-auto overflow-y-hidden p-3" style={{ transform: "rotateX(180deg)" }}>
            <div className="flex gap-3 h-full min-w-max" style={{ transform: "rotateX(180deg)" }}>
-            {COLUMNS.map((col) => (
-              <div key={col.id} className={`w-[250px] flex flex-col rounded-lg border border-gray-200/60 shadow-sm ${col.color}`}>
+            {COLUMNS.map((col) => {
+               // Hide columns in Stock View except 'New' or just show List?
+               // User wants "appearance like Show Rejected" -> likely means in Table? 
+               // Or Kanban? "xuất hiện ở view Stock... giống Show Reject của 2 tap datapool và process"
+               // Update: Show Rejected is a Table View in Datapool, but Kanban can also show Rejected col.
+               // Let's assume Stock View in Kanban just filters cards. But columns?
+               // All columns are relevant since Stock candidates might have been in any stage.
+               // But usually Stock View might be a single list.
+               // For now, I'll keep Kanban columns.
+               
+               const colCandidates = filteredCandidates.filter(c => (c.status || "New") === col.id);
+               
+               // If Stock View, we might want to show Reactivate Button on cards
+               
+               return (
+              <div key={col.id} className={`w-[220px] flex flex-col rounded-lg border border-gray-200/60 shadow-sm ${col.color}`}>
                 {/* Column Header */}
                 <div className="flex justify-between items-center p-3 border-b bg-white/60 rounded-t-lg backdrop-blur-sm sticky top-0">
                   <h3 className="font-bold text-sm text-gray-700 truncate" title={col.title}>{col.title}</h3>
                   <Badge variant="secondary" className="bg-white/80 h-5 text-[10px] px-2 shadow-sm">
-                    {filteredCandidates.filter(c => (c.status || "New") === col.id).length}
+                    {colCandidates.length}
                   </Badge>
                 </div>
 
                 {/* Cards Container */}
                 <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-gray-300">
-                  {filteredCandidates
-                    .filter(c => (c.status || "New") === col.id)
-                    .map((c) => (
+                  {colCandidates.map((c) => (
                       <Card key={c.id} className="hover:shadow-md transition-all duration-200 group bg-white border-l-4" style={{ borderLeftColor: parseInt(c.matchScore) >= 8 ? '#22c55e' : parseInt(c.matchScore) >= 5 ? '#eab308' : '#6b7280' }}>
                         <CardContent className="p-3 space-y-2">
                            <div className="flex justify-between items-start">
@@ -514,72 +670,77 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                  <DropdownMenuItem onClick={() => window.open(c.cvLink, "_blank")}>
-                                    {t.actionDetail} (CV)
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  
-                                  {col.id === "New" && (
-                                    <DropdownMenuItem onClick={() => moveStatus(c, "Screening")}>
-                                      Pass Screening
-                                    </DropdownMenuItem>
-                                  )}
-                                  
-                                  {col.id === "Screening" && (
-                                    <DropdownMenuItem onClick={() => moveStatus(c, "HR Interview", "HR")}>
-                                      Schedule HR Interview
-                                    </DropdownMenuItem>
-                                  )}
-
-                                  {col.id === "HR Interview" && (
-                                    <DropdownMenuItem onClick={() => moveStatus(c, "Interview", "L1")}>
-                                      Schedule Manager L1
-                                    </DropdownMenuItem>
-                                  )}
-
-                                  {col.id === "Interview" && (
+                                  {showStock ? (
+                                     <DropdownMenuItem onClick={() => handleReactivateCandidate(c)}>
+                                        Reactivate (Tái tục)
+                                     </DropdownMenuItem>
+                                  ) : (
                                     <>
-                                      <DropdownMenuItem onClick={() => moveStatus(c, "Interview2", "L2")}>
-                                        Schedule Manager L2
-                                      </DropdownMenuItem>
-                                       <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
-                                        Make Offer
-                                      </DropdownMenuItem>
+                                        {/* Standard Actions */}
+                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                        <DropdownMenuItem onClick={() => window.open(c.cvLink, "_blank")}>
+                                            {t.actionDetail} (CV)
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        
+                                        {col.id === "New" && (
+                                            <DropdownMenuItem onClick={() => moveStatus(c, "Screening")}>
+                                            Pass Screening
+                                            </DropdownMenuItem>
+                                        )}
+                                        {col.id === "Screening" && (
+                                            <DropdownMenuItem onClick={() => moveStatus(c, "HR Interview", "HR")}>
+                                            Schedule HR Interview
+                                            </DropdownMenuItem>
+                                        )}
+                                        {col.id === "HR Interview" && (
+                                            <DropdownMenuItem onClick={() => moveStatus(c, "Interview", "L1")}>
+                                            Schedule Manager L1
+                                            </DropdownMenuItem>
+                                        )}
+                                        {col.id === "Interview" && (
+                                            <>
+                                            <DropdownMenuItem onClick={() => moveStatus(c, "Interview2", "L2")}>
+                                                Schedule Manager L2
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
+                                                Make Offer
+                                            </DropdownMenuItem>
+                                            </>
+                                        )}
+                                        {col.id === "Interview2" && (
+                                            <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
+                                            Make Offer
+                                            </DropdownMenuItem>
+                                        )}
+
+                                        {/* Withdraw Logic */}
+                                        {col.id !== "New" && (
+                                            <>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onClick={() => handleWithdraw(c)}>
+                                                {t.actionWithdraw}
+                                            </DropdownMenuItem>
+                                            </>
+                                        )}
+                                        
+                                        {/* Recovery logic only for Rejected, not for Stock (Stock has Reactivate) */}
+                                        {col.id === "Rejected" && (
+                                            <>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onClick={() => handleWithdraw(c)}>
+                                                Recover to Previous
+                                            </DropdownMenuItem>
+                                            </>
+                                        )}
+
+                                        <DropdownMenuSeparator />
+                                        {col.id !== "Rejected" && (
+                                            <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeclineClick(c)}>
+                                            {t.actionDecline}
+                                            </DropdownMenuItem>
+                                        )}
                                     </>
-                                  )}
-
-                                  {col.id === "Interview2" && (
-                                    <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
-                                      Make Offer
-                                    </DropdownMenuItem>
-                                  )}
-                                  
-                                  {/* Withdraw is available if not New */}
-                                  {col.id !== "New" && (
-                                     <>
-                                       <DropdownMenuSeparator />
-                                       <DropdownMenuItem onClick={() => handleWithdraw(c)}>
-                                         {t.actionWithdraw}
-                                       </DropdownMenuItem>
-                                     </>
-                                  )}
-                                  
-                                  {/* Allow Re-withdraw if Rejected */}
-                                  {col.id === "Rejected" && (
-                                     <>
-                                       <DropdownMenuSeparator />
-                                       <DropdownMenuItem onClick={() => handleWithdraw(c)}>
-                                         Recover to Previous
-                                       </DropdownMenuItem>
-                                     </>
-                                  )}
-
-                                  <DropdownMenuSeparator />
-                                  {col.id !== "Rejected" && (
-                                    <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeclineClick(c)}>
-                                      {t.actionDecline}
-                                    </DropdownMenuItem>
                                   )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -591,6 +752,8 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 block w-fit max-w-full whitespace-normal break-words" title={c.positionRaw}>
                                {c.positionRaw}
                                </span>
+                               {/* Show Stock Reason */}
+                               {showStock && c.notes && <p className="text-[10px] text-blue-600 italic">{c.notes}</p>}
                            </div>
                            
                            <div className="flex items-center justify-between pt-1 border-t border-gray-100 mt-1">
@@ -598,7 +761,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                {c.timestamp ? c.timestamp.split(" ")[0] : ""}
                              </div>
                              
-                             {(col.id === "New") && (
+                             {(col.id === "New" || showStock) && (
                                <Badge className={`h-5 text-[10px] px-1.5 ${
                                   parseInt(c.matchScore) >= 8 ? "bg-green-500" : 
                                   parseInt(c.matchScore) >= 5 ? "bg-yellow-500" : "bg-gray-500"
@@ -613,7 +776,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                     ))}
                 </div>
               </div>
-            ))}
+            );})}
            </div>
         </div>
 
@@ -702,6 +865,48 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Stop Job Modal */}
+      <Dialog open={isStopJobModalOpen} onOpenChange={setIsStopJobModalOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Stop Recruitment for {selectedJobCode}</DialogTitle>
+                <p className="text-sm text-gray-500">
+                    This will move all active candidates for this Job Code to the "Stock" view.
+                    They will not appear in the standard process anymore.
+                </p>
+            </DialogHeader>
+            <div className="py-2 space-y-4">
+                <div className="space-y-2">
+                    <Label>Reason for Stopping</Label>
+                    <Select value={stopJobReason} onValueChange={setStopJobReason}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select Reason" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Headcount reduction">Headcount reduction</SelectItem>
+                            <SelectItem value="Budget constraints">Budget constraints</SelectItem>
+                            <SelectItem value="Strategy change">Strategy change</SelectItem>
+                            <SelectItem value="Hired internally">Hired internally</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                {stopJobReason === "Other" && (
+                    <Input 
+                        placeholder="Type other reason..."
+                        value={stopJobOtherReason}
+                        onChange={(e) => setStopJobOtherReason(e.target.value)}
+                    />
+                )}
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsStopJobModalOpen(false)}>Cancel</Button>
+                <Button variant="destructive" onClick={handleStopJob}>Confirm Stop</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
