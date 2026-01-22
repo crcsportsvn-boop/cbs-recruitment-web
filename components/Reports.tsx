@@ -27,6 +27,7 @@ interface Candidate {
   timestamp?: string; // dd/MM/yyyy HH:mm:ss
   startDate?: string;
   officialDate?: string;
+  rejectedRound?: string;
 }
 
 interface JobData {
@@ -185,9 +186,19 @@ export default function Reports({ lang, user }: ReportProps) {
 
   const getStage = (c: Candidate) => {
       if (c.startDate || c.officialDate || c.status === "Hired") return "Hired";
-      if (c.status === "Interview") return "Interview Round 1";
-      if (c.status === "Interview2") return "Interview Round 2";
-      return c.status || "New";
+      
+      let status = c.status || "New";
+      if (status === "Rejected" && c.rejectedRound) {
+          status = c.rejectedRound;
+      }
+
+      if (status === "Interview") return "Interview Round 1";
+      if (status === "Interview2") return "Interview Round 2";
+      
+      // Safety check: if rejectedRound is random text, default to New? 
+      // User request implies we strictly trust the round.
+      // But if it doesn't match a key, it won't be counted in columns anyway.
+      return status;
   };
 
   const filteredCandidates = useMemo(() => {
@@ -280,13 +291,17 @@ export default function Reports({ lang, user }: ReportProps) {
 
   // Job Status Counts
   const jobCounts = useMemo(() => {
-      const stopped = jobs.filter(j => j.status === "Stopped").length;
-      // Merge unique jobs from candidates + active jobs constant
-      // Simplification: Use ACTIVE_JOBS constant as base
-      const totalDefined = ACTIVE_JOBS.length;
-      const hiring = Math.max(0, totalDefined - stopped);
-      return { hiring, stopped };
-  }, [jobs]);
+    const allCodes = new Set<string>();
+    ACTIVE_JOBS.forEach(j => allCodes.add(j.id));
+    jobs.forEach(j => j.jobCode && allCodes.add(j.jobCode));
+    candidates?.forEach(c => c.jobCode && allCodes.add(c.jobCode));
+
+    const stopped = jobs.filter(j => j.status === "Stopped").length;
+    const totalUnique = allCodes.size;
+    const hiring = Math.max(0, totalUnique - stopped);
+      
+    return { hiring, stopped };
+  }, [jobs, candidates]);
 
   const funnelData = STAGES.map((stage, index) => {
       const val = stats.stageCounts[stage] || 0;
@@ -299,7 +314,14 @@ export default function Reports({ lang, user }: ReportProps) {
       return { name: label, fullStage: stage, value: val, rate, totalRate };
   });
 
-  const uniqueJobs = useMemo(() => Array.from(new Set(candidates.map(c => c.jobCode || "Unknown"))).sort(), [candidates]);
+  const uniqueJobCodes = useMemo(() => {
+      const allCodes = new Set<string>();
+      ACTIVE_JOBS.forEach(j => allCodes.add(j.id));
+      jobs.forEach(j => j.jobCode && allCodes.add(j.jobCode));
+      candidates?.forEach(c => c.jobCode && allCodes.add(c.jobCode));
+      return Array.from(allCodes).sort();
+  }, [jobs, candidates]);
+
   const uniqueSources = useMemo(() => Array.from(new Set(candidates.map(c => c.source || "Unknown"))).sort(), [candidates]);
 
   if (loading) {
@@ -317,7 +339,7 @@ export default function Reports({ lang, user }: ReportProps) {
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 items-end">
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-gray-500">Group</label>
                         <Select value={filterGroup} onValueChange={setFilterGroup} disabled={!canChangeGroup}>
@@ -332,46 +354,50 @@ export default function Reports({ lang, user }: ReportProps) {
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-gray-500">{t.status}</label>
                         <Select value={filterStatus} onValueChange={setFilterStatus}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">{t.all}</SelectItem>
-                                <SelectItem value="Hiring">{t.hiring}</SelectItem>
-                                <SelectItem value="Stopped">{t.stopped}</SelectItem>
+                                <SelectItem value="Hiring">Hiring</SelectItem>
+                                <SelectItem value="Stopped">Stopped</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-gray-500">{t.jobCode}</label>
                         <Select value={filterJob} onValueChange={setFilterJob}>
-                            <SelectTrigger><SelectValue placeholder="All Jobs" /></SelectTrigger>
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">{t.all}</SelectItem>
-                                {uniqueJobs.map(j => <SelectItem key={j} value={j}>{j}</SelectItem>)}
+                                {uniqueJobCodes.map(code => {
+                                    const jobMeta = jobs.find(j => j.jobCode === code);
+                                    const rawName = ACTIVE_JOBS.find(j => j.id === code)?.name || jobMeta?.title || code;
+                                    const isStopped = jobMeta?.status === "Stopped";
+                                    // Truncate name
+                                    const name = rawName.length > 25 ? rawName.substring(0,25)+"..." : rawName;
+                                    return <SelectItem key={code} value={code} className={isStopped ? "text-red-500" : ""}>{code} - {name}</SelectItem>
+                                })}
                             </SelectContent>
                         </Select>
                     </div>
                     <div className="space-y-1">
-                         <label className="text-xs font-medium text-gray-500">Source</label>
-                         <Select value={filterSource} onValueChange={setFilterSource}>
-                            <SelectTrigger><SelectValue placeholder="All Sources" /></SelectTrigger>
+                        <label className="text-xs font-medium text-gray-500">Source</label>
+                        <Select value={filterSource} onValueChange={setFilterSource}>
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">{t.all}</SelectItem>
                                 {uniqueSources.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>
-                    {/* Date Filters */}
-                    <div className="flex gap-2 col-span-2 md:col-span-2">
-                        <div className="flex-1 space-y-1">
-                            <label className="text-xs font-medium text-gray-500">{t.dateFrom}</label>
-                            <input type="date" className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" 
-                                value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                            <label className="text-xs font-medium text-gray-500">{t.dateTo}</label>
-                            <input type="date" className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" 
-                                value={dateTo} onChange={e => setDateTo(e.target.value)} />
-                        </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-500">{t.dateFrom}</label>
+                        <input type="date" className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" 
+                            value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-500">{t.dateTo}</label>
+                        <input type="date" className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" 
+                            value={dateTo} onChange={e => setDateTo(e.target.value)} />
                     </div>
                 </div>
             </CardContent>
@@ -430,14 +456,14 @@ export default function Reports({ lang, user }: ReportProps) {
                    <Table>
                        <TableHeader>
                            <TableRow className="bg-gray-50">
-                               <TableHead className="w-[150px]">{t.jobCode}</TableHead>
-                               <TableHead className="w-[200px]">{t.jobTitle}</TableHead>
-                               <TableHead className="text-center font-bold">{t.count}</TableHead>
-                               <TableHead className="text-center text-green-600">Active</TableHead>
-                               <TableHead className="text-center text-gray-500">Stock</TableHead>
-                               <TableHead className="text-center text-red-500">Reject</TableHead>
+                               <TableHead className="w-[12%] min-w-[100px]">{t.jobCode}</TableHead>
+                               <TableHead className="w-[20%] min-w-[200px]">{t.jobTitle}</TableHead>
+                               <TableHead className="text-center font-bold min-w-[50px]">{t.count}</TableHead>
+                               <TableHead className="text-center text-green-600 min-w-[60px]">Active</TableHead>
+                               <TableHead className="text-center text-gray-500 min-w-[60px]">Stock</TableHead>
+                               <TableHead className="text-center text-red-500 min-w-[60px]">Reject</TableHead>
                                {STAGES.map(s => (
-                                   <TableHead key={s} className="text-center text-xs text-gray-400 whitespace-nowrap">
+                                   <TableHead key={s} className="text-center text-xs text-gray-400 whitespace-nowrap min-w-[60px]">
                                        {t[STAGE_KEYS[s] as keyof typeof t] || s}
                                    </TableHead>
                                ))}
@@ -472,13 +498,13 @@ export default function Reports({ lang, user }: ReportProps) {
                    <Table>
                        <TableHeader>
                            <TableRow className="bg-gray-50">
-                               <TableHead>Source</TableHead>
-                               <TableHead className="text-center font-bold">{t.count}</TableHead>
-                               <TableHead className="text-center text-green-600">Active</TableHead>
-                               <TableHead className="text-center text-gray-500">Stock</TableHead>
-                               <TableHead className="text-center text-red-500">Reject</TableHead>
+                               <TableHead className="w-[15%] min-w-[120px]">Source</TableHead>
+                               <TableHead className="text-center font-bold min-w-[50px]">{t.count}</TableHead>
+                               <TableHead className="text-center text-green-600 min-w-[60px]">Active</TableHead>
+                               <TableHead className="text-center text-gray-500 min-w-[60px]">Stock</TableHead>
+                               <TableHead className="text-center text-red-500 min-w-[60px]">Reject</TableHead>
                                {STAGES.map(s => (
-                                   <TableHead key={s} className="text-center text-xs text-gray-400 whitespace-nowrap">
+                                   <TableHead key={s} className="text-center text-xs text-gray-400 whitespace-nowrap min-w-[60px]">
                                         {t[STAGE_KEYS[s] as keyof typeof t] || s}
                                    </TableHead>
                                ))}
