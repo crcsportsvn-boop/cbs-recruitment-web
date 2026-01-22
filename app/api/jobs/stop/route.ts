@@ -40,7 +40,8 @@ export async function POST(req: NextRequest) {
     const rows = readRes.data.values || [];
     
     // 4. Find matching rows
-    const dataToUpdate = [];
+    // 4. Find matching rows
+    const dataToUpdate: { range: string; values: string[][] }[] = [];
     const updateValue = `Stock - ${reason}`;
 
     rows.forEach((row, index) => {

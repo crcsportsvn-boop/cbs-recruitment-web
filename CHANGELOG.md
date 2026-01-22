@@ -2,6 +2,20 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử thay đổi, cập nhật và các phiên bản của dự án.
 
+## [v1.1.0] - Job Management Update - 2026-01-22
+
+**Trạng thái**: 🟡 Testing  
+**Mô tả**: Bổ sung tính năng quản lý tuyển dụng theo Job Code và chế độ xem lưu trữ (Stock).
+
+### 🚀 Added
+
+- **Job Code Filter**: Bộ lọc chuyên biệt cho từng mã công việc.
+- **Stop Recruitment**: Tính năng ngưng tuyển dụng, chuyển toàn bộ ứng viên của Job sang kho lưu trữ (Stock).
+- **Stock View**: Chế độ xem riêng cho các hồ sơ tạm ngưng tuyển.
+- **Reactivate**: Chức năng tái tục quy trình tuyển dụng cho ứng viên trong kho Stock.
+
+---
+
 ## [v1.0.0] - Giai đoạn HO (Head Office) - 2026-01-22
 
 **Trạng thái**: 🟢 Stable (Đã Deploy)  
