@@ -199,6 +199,61 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     }
   };
 
+  // Helper: Update Candidate via API
+  const updateCandidateAPI = async (id: string, updates: any) => {
+    try {
+      await fetch("/api/candidates/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, updates }),
+      });
+    } catch (error) {
+      console.error("Failed to update candidate:", error);
+    }
+  };
+
+  // Handle Rehire (Stock → Active)
+  const handleReactivate = (candidate: Candidate) => {
+    setRehireCandidate(candidate);
+    setIsRehireModalOpen(true);
+  };
+
+  // Confirm Rehire
+  const confirmRehire = async (jobCode: string) => {
+    if (!rehireCandidate) return;
+
+    // Determine correct applyDate logic:
+    // If the target job is STOPPED, we must backdate the candidate's applyDate 
+    // to the stopDate (or effectively before the stop rule) so they are not immediately re-stocked.
+    // If the target job is ACTIVE, we can just clear applyDate (letting it fall back to timestamp), 
+    // or leave it blank.
+    let newApplyDate = "";
+    const targetJob = jobs[jobCode];
+    if (targetJob && targetJob.status === "Stopped" && targetJob.stopDate) {
+        newApplyDate = targetJob.stopDate; 
+    }
+
+    // Optimistic Update
+    setCandidates(prev => prev.map(c => 
+      c.id === rehireCandidate.id 
+        ? { ...c, status: "Screening", jobCode, notes: "", applyDate: newApplyDate } 
+        : c
+    ));
+
+    // API Update
+    await updateCandidateAPI(rehireCandidate.id, { 
+      status: "Screening", 
+      jobCode, 
+      notes: "", 
+      applyDate: newApplyDate 
+    });
+
+    // Refresh data
+    fetchCandidates();
+    setIsRehireModalOpen(false);
+    setRehireCandidate(null);
+  };
+
   // Helper to parse DD/MM/YYYY
   const parseDate = (dateStr?: string) => {
       if (!dateStr) return null;
@@ -1004,4 +1059,3 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     </div>
   );
 }
-
