@@ -146,7 +146,7 @@ function HomeContent() {
               <div className="text-xs text-red-100 flex gap-2 items-center mt-1">
                   <span>{user.email}</span>
                   <span className="bg-white/20 px-1 rounded font-mono" title="Role">{user.role}</span>
-                  {user.id && <span className="bg-black/20 px-1 rounded text-[10px] opacity-70" title="User ID">ID: {user.id}</span>}
+
               </div>
             </div>
           </div>

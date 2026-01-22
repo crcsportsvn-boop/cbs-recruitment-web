@@ -36,12 +36,13 @@ export async function POST(req: NextRequest) {
       status: "AB",      // Column 27
       failureReason: "AC", // Column 28
       testResult: "AD",  // Column 29
-      interviewDate1: "AE",
-      interviewDate2: "AF",
-      offerDate: "AG",
-      interviewer: "AI",
-      rejectedRound: "AK", // Column 36 (Now added by User)
-      log: "AJ"
+      hrInterviewDate: "AE", // New
+      interviewDate1: "AF",
+      interviewDate2: "AG",
+      offerDate: "AH",
+      startDate: "AI",
+      officialDate: "AJ",
+      rejectedRound: "AK" // Note/Rejected Round
     };
 
     // 4. Prepare Batch Update

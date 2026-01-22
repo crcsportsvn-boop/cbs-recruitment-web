@@ -28,6 +28,7 @@ interface Candidate {
   log?: string; 
   // Dates for recovery logic
   offerDate?: string;
+  hrInterviewDate?: string;
   interviewDate1?: string;
   interviewDate2?: string;
   testResult?: string;
@@ -67,12 +68,12 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   
   // Data for Modals
   const [interviewDetails, setInterviewDetails] = useState({
-    date: "", 
-    time: "",
+    date: new Date().toISOString().split('T')[0], // Default to Today
+    time: "09:00",
     venue: "HCM Office – Eximland Building, 163 Phan Dang Luu, Ward 1, Phu Nhuan District, HCMC",
     interviewer: ""
   });
-  const [interviewRound, setInterviewRound] = useState<1 | 2>(1); // 1 or 2
+  const [interviewType, setInterviewType] = useState<"HR" | "L1" | "L2">("L1"); 
 
   const [declineReasonType, setDeclineReasonType] = useState<string>("");
   const [declineReasonText, setDeclineReasonText] = useState("");
@@ -81,10 +82,11 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const COLUMNS = [
     { id: "New", title: t.colNew, color: "bg-gray-50" },
     { id: "Screening", title: t.colScreening, color: "bg-[#FFF0F0]" },
-    { id: "Interview", title: t.colInterview, color: "bg-gray-50" },
-    { id: "Interview2", title: t.colInterview2, color: "bg-[#FFF0F0]" },
-    { id: "Offer", title: t.colOffer, color: "bg-gray-50" },
-    ...(showRejected ? [{ id: "Rejected", title: t.colRejected, color: "bg-[#FFF0F0]" }] : [])
+    { id: "HR Interview", title: t.colHrInterview, color: "bg-gray-50" },
+    { id: "Interview", title: t.colInterview, color: "bg-[#FFF0F0]" },
+    { id: "Interview2", title: t.colInterview2, color: "bg-gray-50" },
+    { id: "Offer", title: t.colOffer, color: "bg-[#FFF0F0]" },
+    ...(showRejected ? [{ id: "Rejected", title: t.colRejected, color: "bg-gray-50" }] : [])
   ];
 
   useEffect(() => {
@@ -92,6 +94,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   }, []);
 
   const fetchCandidates = async () => {
+    /** ... same ... */
     try {
       const res = await fetch("/api/candidates");
       const data = await res.json();
@@ -107,11 +110,19 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
   // --- ACTIONS ---
 
-  const moveStatus = async (candidate: Candidate, targetStatus: string, round?: 1 | 2) => {
-    // 1. Interview Logic
-    if (targetStatus === "Interview" || targetStatus === "Interview2") {
+  const moveStatus = async (candidate: Candidate, targetStatus: string, type?: "HR" | "L1" | "L2") => {
+    // 1. Interview Logic (Including HR Interview)
+    if (targetStatus === "Interview" || targetStatus === "Interview2" || targetStatus === "HR Interview") {
       setSelectedCandidate(candidate);
-      setInterviewRound(round || 1);
+      setInterviewType(type || "L1");
+      
+      // Default Date/Time Logic (Today)
+      setInterviewDetails(prev => ({
+          ...prev, 
+          date: new Date().toISOString().split('T')[0],
+          time: "09:00"
+      }));
+
       setIsInterviewModalOpen(true);
       return; 
     }
@@ -138,16 +149,18 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
      let prev = "New";
      
      if (status === "Rejected") {
-        // Smart Recovery Strategy: Find the latest completed stage
+        // Smart Recovery Strategy
         if (candidate.offerDate) prev = "Offer";
         else if (candidate.interviewDate2) prev = "Interview2";
         else if (candidate.interviewDate1) prev = "Interview";
+        else if (candidate.hrInterviewDate) prev = "HR Interview";
         else if (candidate.testResult) prev = "Screening";
         else prev = "New";
      } else {
         // Standard Step Back
         if (status === "Screening") prev = "New";
-        else if (status === "Interview") prev = "Screening";
+        else if (status === "HR Interview") prev = "Screening";
+        else if (status === "Interview") prev = "HR Interview";
         else if (status === "Interview2") prev = "Interview";
         else if (status === "Offer") prev = "Interview2";
      }
@@ -162,12 +175,12 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
      };
 
      if (status === "Rejected") {
-        updates.failureReason = ""; // Clear failure reason on recovery
+        updates.failureReason = ""; 
      } else {
-        // Clear dates ONLY if backing out from a valid stage (not recovering)
         if (status === "Offer") updates.offerDate = "";
         if (status === "Interview") updates.interviewDate1 = ""; 
-        if (status === "Interview2") updates.interviewDate2 = ""; 
+        if (status === "Interview2") updates.interviewDate2 = "";
+        if (status === "HR Interview") updates.hrInterviewDate = "";
         if (status === "Screening") updates.testResult = ""; 
      }
 
@@ -194,6 +207,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     const roundMap: Record<string, string> = {
        "New": "Screening",
        "Screening": "Screening",
+       "HR Interview": "HR Interview",
        "Interview": "Interview Round 1",
        "Interview2": "Interview Round 2", 
        "Offer": "Offer"
@@ -213,29 +227,30 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const confirmInterview = async () => {
     if (!selectedCandidate) return;
     
-    // Outlook Logic...
-    // Outlook Logic...
-    const subject = `Interview Invitation (Round ${interviewRound}) - ${selectedCandidate.positionRaw} - ${selectedCandidate.fullName}`;
+    // Outlook Logic ONLY for L1 & L2 (Not HR)
+    if (interviewType !== "HR") {
+        const roundName = interviewType === "L1" ? "Round 1" : "Round 2";
+        const subject = `Interview Invitation (${roundName}) - ${selectedCandidate.positionRaw} - ${selectedCandidate.fullName}`;
+        
+        // Construct Signature ...
+        const senderName = user?.config?.displayName || user?.name || "HR Team";
+        const senderPhone = user?.config?.phoneNumber || "";
+        
+        const body = `Dear Mr./Ms. ${selectedCandidate.fullName},\n\n` +
+                     `Greetings from CBS VN.\n\n` +
+                     `Thank you for your interest in a possible job opportunity with us. After exploring your qualifications, we are pleased to invite you to join an offline interview with the following details:\n\n` +
+                     `Applied Position:  ${selectedCandidate.positionRaw}\n` +
+                     `Date & time:       ${interviewDetails.time}, ${new Date(interviewDetails.date).toLocaleDateString('en-GB')}\n` +
+                     `Venue:             ${interviewDetails.venue}\n` +
+                     `Meet with:         ${interviewDetails.interviewer}\n\n` +
+                     `Please confirm your attendance by replying to this email. Should you need any assistance, do not hesitate to contact me via ${senderPhone} (${senderName}).\n\n` +
+                     `Thanks and best regards!\n\n` +
+                     `${senderName}\n` +
+                     `CBS HR Team`;
     
-    // Construct Signature
-    const senderName = user?.config?.displayName || user?.name || "HR Team";
-    const senderPhone = user?.config?.phoneNumber || "";
-    
-    // Plain Text Body for Mailto
-    const body = `Dear Mr./Ms. ${selectedCandidate.fullName},\n\n` +
-                 `Greetings from CBS VN.\n\n` +
-                 `Thank you for your interest in a possible job opportunity with us. After exploring your qualifications, we are pleased to invite you to join an offline interview with the following details:\n\n` +
-                 `Applied Position:  ${selectedCandidate.positionRaw}\n` +
-                 `Date & time:       ${interviewDetails.time}, ${new Date(interviewDetails.date).toLocaleDateString('en-GB')}\n` +
-                 `Venue:             ${interviewDetails.venue}\n` +
-                 `Meet with:         ${interviewDetails.interviewer}\n\n` +
-                 `Please confirm your attendance by replying to this email. Should you need any assistance, do not hesitate to contact me via ${senderPhone} (${senderName}).\n\n` +
-                 `Thanks and best regards!\n\n` +
-                 `${senderName}\n` +
-                 `CBS HR Team`;
-
-    const mailtoLink = `mailto:${selectedCandidate.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailtoLink, "_blank");
+        const mailtoLink = `mailto:${selectedCandidate.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.open(mailtoLink, "_blank");
+    }
 
     // Update API
     const dateObj = new Date(interviewDetails.date);
@@ -244,15 +259,21 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     const fullDate = `${dateStr} ${timeStr}`;
 
     const updates: any = {
-      status: interviewRound === 1 ? "Interview" : "Interview2",
       interviewer: interviewDetails.interviewer
     };
     
-    if (interviewRound === 1) updates.interviewDate1 = fullDate;
-    else updates.interviewDate2 = fullDate;
+    if (interviewType === "HR") {
+        updates.status = "HR Interview";
+        updates.hrInterviewDate = fullDate;
+    } else if (interviewType === "L1") {
+        updates.status = "Interview";
+        updates.interviewDate1 = fullDate;
+    } else {
+        updates.status = "Interview2";
+        updates.interviewDate2 = fullDate;
+    }
 
     await updateCandidateAPI(selectedCandidate.id, updates);
-
     setIsInterviewModalOpen(false);
   };
 

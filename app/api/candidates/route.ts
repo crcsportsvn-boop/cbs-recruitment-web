@@ -68,13 +68,13 @@ export async function GET(req: NextRequest) {
       status: row[27] || "New", // AB: Kết quả (Status)
       failureReason: row[28], // AC
       testResult: row[29], // AD
-      interviewDate1: row[30], // AE
-      interviewDate2: row[31], // AF
-      offerDate: row[32], // AG
-      startDate: row[33], // AH
-      officialDate: row[34], // AI
-      log: row[35], // AJ
-      rejectedRound: row[36] // AK
+      hrInterviewDate: row[30], // AE - HR Interview
+      interviewDate1: row[31], // AF - Round 1
+      interviewDate2: row[32], // AG - Round 2
+      offerDate: row[33], // AH - Offer Sent
+      startDate: row[34], // AI - Start Date
+      officialDate: row[35], // AJ - Official Date
+      rejectedRound: row[36] // AK - Note/Rejected Round
     }));
 
     // Reverse to show latest first
