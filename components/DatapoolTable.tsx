@@ -48,6 +48,7 @@ interface Candidate {
   skills?: string;
   certification?: string;
   jobCode?: string;
+  applyDate?: string;
 }
 
 interface DatapoolTableProps {
@@ -168,7 +169,8 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         skills: c.skills,
 
         certification: c.certification,
-        jobCode: c.jobCode
+        jobCode: c.jobCode,
+        applyDate: c.applyDate
       }));
       setCandidates(formatted);
     } catch (err) {
@@ -233,8 +235,13 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     const job = jobs[c.jobCode || ""];
     if (job && job.status === "Stopped" && job.stopDate && c.timestamp) {
         try {
-             // c.timestamp is "dd/MM/yyyy..."
-             const cDate = parse(c.timestamp, 'dd/MM/yyyy HH:mm:ss', new Date());
+             // c.timestamp is "dd/MM/yyyy...", c.applyDate is ISO "YYYY-MM-DD..."
+             let cDate;
+             if (c.applyDate) {
+                 cDate = parseISO(c.applyDate);
+             } else {
+                 cDate = parse(c.timestamp, 'dd/MM/yyyy HH:mm:ss', new Date());
+             }
              const sDate = parseISO(job.stopDate);
              if (isAfter(cDate, sDate)) isStoppedRule = true;
         } catch (e) {}

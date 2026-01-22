@@ -28,6 +28,7 @@ interface Candidate {
   startDate?: string;
   officialDate?: string;
   rejectedRound?: string;
+  applyDate?: string; // YYYY-MM-DD HH:mm:ss
 }
 
 interface JobData {
@@ -173,9 +174,15 @@ export default function Reports({ lang, user }: ReportProps) {
   const getCandidateState = (c: Candidate) => {
     if (c.notes?.includes("Stock")) return "Stock";
     const job = jobMap[c.jobCode || ""];
-    if (job && job.status === "Stopped" && job.stopDate && c.timestamp) {
+    // Prefer applyDate (ISO), fallback to timestamp (dd/MM/yyyy)
+    if (job && job.status === "Stopped" && job.stopDate) {
         try {
-            const cDate = parse(c.timestamp, 'dd/MM/yyyy HH:mm:ss', new Date());
+            let cDate;
+            if (c.applyDate) {
+                cDate = parseISO(c.applyDate);
+            } else {
+                 cDate = parse(c.timestamp || "", 'dd/MM/yyyy HH:mm:ss', new Date());
+            }
             const sDate = parseISO(job.stopDate);
             if (isAfter(cDate, sDate)) return "Stock";
         } catch (e) {}

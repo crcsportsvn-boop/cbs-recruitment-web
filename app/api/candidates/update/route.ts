@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     // 3. Define Column Mapping (Letter to Field)
     // ONLY fields that need to be updated during Process/Reject
     const COLUMN_MAP: Record<string, string> = {
-      notes: "Z",        // Column 25
+      notes: "AK",         // Column 36 (Moved from Z)
       isPotential: "AA", // Column 26
       status: "AB",      // Column 27
       failureReason: "AC", // Column 28
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       offerDate: "AH",
       startDate: "AI",
       officialDate: "AJ",
-      rejectedRound: "AK" // Note/Rejected Round
+      rejectedRound: "AL" // Column 37 (Moved from AK)
     };
 
     // 4. Prepare Batch Update

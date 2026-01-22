@@ -36,18 +36,20 @@ Tài liệu này mô tả chi tiết cấu trúc bảng tính Google Sheet (Data
 | **W**        | 22              | `matchReason`     | Lý do phù hợp         | AI Generate                     |
 | **X**        | 23              | `cvLink`          | Link CV               | Google Drive Link               |
 | **Y**        | 24              | -                 | (Chưa sử dụng)        |                                 |
-| **Z**        | 25              | `notes`           | Ghi chú ban đầu       |                                 |
+| **Z**        | 25              | -                 | (Chưa sử dụng)        | Cũ là Notes (Đã chuyển sang AK) |
 | **AA**       | 26              | `isPotential`     | CV Tiềm năng          | TRUE/FALSE                      |
 | **AB**       | 27              | `status`          | Trạng thái hiện tại   | New, Screening, HR Interview... |
 | **AC**       | 28              | `failureReason`   | Lý do từ chối         |                                 |
 | **AD**       | 29              | `testResult`      | Kết quả Test / Screen | Ngày thực hiện                  |
-| **AE**       | 30              | `hrInterviewDate` | **Ngày HR PV**        | (Mới thêm) Vòng HR              |
+| **AE**       | 30              | `hrInterviewDate` | **Ngày HR PV**        | Vòng HR                         |
 | **AF**       | 31              | `interviewDate1`  | **Ngày PV Vòng 1**    | Manager L1                      |
 | **AG**       | 32              | `interviewDate2`  | **Ngày PV Vòng 2**    | Manager L2                      |
 | **AH**       | 33              | `offerDate`       | **Ngày gửi Offer**    |                                 |
 | **AI**       | 34              | `startDate`       | **Ngày bắt đầu**      |                                 |
 | **AJ**       | 35              | `officialDate`    | **Ngày chính thức**   |                                 |
-| **AK**       | 36              | `rejectedRound`   | **Note / Vòng loại**  | Ghi chú thêm hoặc vòng bị loại  |
+| **AK**       | 36              | `notes`           | **Ghi chú**           | (Chuyển từ Z)                   |
+| **AL**       | 37              | `rejectedRound`   | **Vòng bị loại**      | (Chuyển từ AK)                  |
+| **AM**       | 38              | `applyDate`       | **Thời gian Apply**   | Format: YYYY-MM-DD HH:mm:ss     |
 
 ## 3. Các Trạng Thái (Status Pipeline)
 

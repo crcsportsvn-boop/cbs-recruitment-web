@@ -27,10 +27,9 @@ export async function GET(req: NextRequest) {
     const sheets = google.sheets({ version: "v4", auth: oauth2Client });
 
     // 3. Read Data from Datapool Sheet
-    // Read from A2 to AI (Column 34)
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:AK`, 
+      range: `${SHEET_NAME}!A2:AM`, 
     });
 
     const rows = response.data.values;
@@ -63,7 +62,7 @@ export async function GET(req: NextRequest) {
       summary: row[21],
       matchReason: row[22],
       cvLink: row[23],
-      notes: row[25], // Z
+      notes: row[36], // AK: Notes
       isPotential: row[26] === "TRUE", // AA
       status: row[27] || "New", // AB: Kết quả (Status)
       failureReason: row[28], // AC
@@ -74,7 +73,8 @@ export async function GET(req: NextRequest) {
       offerDate: row[33], // AH - Offer Sent
       startDate: row[34], // AI - Start Date
       officialDate: row[35], // AJ - Official Date
-      rejectedRound: row[36] // AK - Note/Rejected Round
+      rejectedRound: row[37], // AL - Rejected Round
+      applyDate: row[38] // AM - Apply Time
     }));
 
     // Reverse to show latest first

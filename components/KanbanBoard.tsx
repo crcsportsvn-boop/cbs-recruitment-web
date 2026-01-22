@@ -45,6 +45,7 @@ interface Candidate {
   isPotential?: boolean;
   rejectedRound?: string;
   notes?: string;
+  applyDate?: string;
 }
 
 interface KanbanBoardProps {
@@ -157,6 +158,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         failureReason: c.failureReason,
         isPotential: c.isPotential,
         rejectedRound: c.rejectedRound,
+        applyDate: c.applyDate,
       }));
       setCandidates(formatted);
     } catch (e) {
@@ -493,10 +495,15 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     const isNoteStock = c.notes?.includes("Stock");
     let isStoppedRule = false;
     const job = jobs[c.jobCode || ""];
-    if (job && job.status === "Stopped" && job.stopDate && c.timestamp) {
+    if (job && job.status === "Stopped" && job.stopDate) {
         try {
-             // c.timestamp is "dd/MM/yyyy..."
-             const cDate = parse(c.timestamp, 'dd/MM/yyyy HH:mm:ss', new Date());
+             // Prefer applyDate (ISO), fallback to timestamp (dd/MM/yyyy)
+             let cDate;
+             if (c.applyDate) {
+                 cDate = parseISO(c.applyDate);
+             } else {
+                 cDate = parse(c.timestamp || "", 'dd/MM/yyyy HH:mm:ss', new Date());
+             }
              const sDate = parseISO(job.stopDate);
              if (isAfter(cDate, sDate)) isStoppedRule = true;
         } catch (e) {}
@@ -552,26 +559,34 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     // 5. Date Filter
     let matchesDate = true;
     if (dateFrom || dateTo) {
-      if (!c.timestamp) {
-        matchesDate = false;
+      const dateStr = c.applyDate || c.timestamp; // Use applyDate filters too if available? Or just stick to one strategy. User said "cứ lấy cột này so sánh". 
+      // If applyDate exist (ISO), use it. If not, fallback to timestamp.
+      if (!dateStr) {
+         matchesDate = false;
       } else {
-        const parts = c.timestamp.split(" ")[0].split("/");
-        if (parts.length === 3) {
-          const cDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-          
-          if (dateFrom) {
-            const dStart = new Date(dateFrom); 
-            dStart.setHours(0,0,0,0);
+         let cDate;
+         if (c.applyDate) {
+             cDate = new Date(c.applyDate); 
+         } else if (c.timestamp) {
+             const parts = c.timestamp.split(" ")[0].split("/");
+             if (parts.length === 3) cDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+         }
+
+         if (cDate) {
             cDate.setHours(0,0,0,0);
-            if (cDate < dStart) matchesDate = false;
-          }
-          
-          if (dateTo && matchesDate) {
-             const dEnd = new Date(dateTo);
-             dEnd.setHours(0,0,0,0);
-             if (cDate > dEnd) matchesDate = false;
-          }
-        }
+            if (dateFrom) {
+                const dStart = new Date(dateFrom); 
+                dStart.setHours(0,0,0,0);
+                if (cDate < dStart) matchesDate = false;
+            }
+            if (dateTo && matchesDate) {
+                const dEnd = new Date(dateTo);
+                dEnd.setHours(0,0,0,0);
+                if (cDate > dEnd) matchesDate = false;
+            }
+         } else {
+             matchesDate = false;
+         }
       }
     }
 
