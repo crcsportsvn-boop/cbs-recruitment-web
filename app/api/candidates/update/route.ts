@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
     // 3. Define Column Mapping (Letter to Field)
     // ONLY fields that need to be updated during Process/Reject
     const COLUMN_MAP: Record<string, string> = {
+      jobCode: "E",       // Column 4 (Job Code)
       notes: "AK",         // Column 36 (Moved from Z)
       isPotential: "AA", // Column 26
       status: "AB",      // Column 27
@@ -56,7 +57,8 @@ export async function POST(req: NextRequest) {
       if (colLetter) {
         dataToUpdate.push({
           range: `${SHEET_NAME}!${colLetter}${id}`,
-          values: [[value]], 
+          // Use empty string to clear cell (Google Sheets will treat "" as blank)
+          values: [[value === null ? "" : value]], 
         });
       }
     }
