@@ -481,15 +481,16 @@ export default function Reports({ lang, user }: ReportProps) {
                            <TableRow className="bg-gray-50">
                                <TableHead className="w-[100px] min-w-[100px]">{t.jobCode}</TableHead>
                                <TableHead className="w-[250px] min-w-[200px]">{t.jobTitle}</TableHead>
-                               <TableHead className="text-center font-bold w-[60px]">{t.count}</TableHead>
-                               <TableHead className="text-center text-green-600 min-w-[60px]">Active</TableHead>
-                               <TableHead className="text-center text-gray-500 min-w-[60px]">Stock</TableHead>
-                               <TableHead className="text-center text-red-500 min-w-[60px]">Reject</TableHead>
+                               <TableHead className="text-center font-bold w-24 min-w-[80px]">{t.count}</TableHead>
+                               <TableHead className="text-center text-green-600 w-24 min-w-[80px]">Active</TableHead>
+                               <TableHead className="text-center text-gray-500 w-24 min-w-[80px]">Stock</TableHead>
+                               <TableHead className="text-center text-red-500 w-24 min-w-[80px]">Reject</TableHead>
                                {STAGES.map(s => (
-                                   <TableHead key={s} className="text-center text-xs text-gray-400 whitespace-nowrap min-w-[60px]">
+                                   <TableHead key={s} className="text-center text-xs text-gray-400 whitespace-nowrap w-24 min-w-[80px]">
                                        {t[STAGE_KEYS[s] as keyof typeof t] || s}
                                    </TableHead>
                                ))}
+                               <TableHead className="text-center font-bold text-blue-600 w-24 min-w-[80px]">% Conv</TableHead>
                            </TableRow>
                        </TableHeader>
                        <TableBody>
@@ -506,11 +507,14 @@ export default function Reports({ lang, user }: ReportProps) {
                                    <TableRow key={jobCode}>
                                        <TableCell className="font-medium">{jobCode}</TableCell>
                                        <TableCell className="text-xs text-gray-600 truncate max-w-[200px]" title={title}>{title}</TableCell>
-                                       <TableCell className="text-center font-bold">{stat.total}</TableCell>
-                                       <TableCell className="text-center font-medium text-green-600">{stat.active}</TableCell>
-                                       <TableCell className="text-center text-gray-500">{stat.stock}</TableCell>
-                                       <TableCell className="text-center text-red-500">{stat.rejected}</TableCell>
-                                       {STAGES.map(s => (<TableCell key={s} className="text-center text-xs border-l">{stat.stages[s] || "-"}</TableCell>))}
+                                        <TableCell className="text-center font-bold w-24">{stat.total}</TableCell>
+                                       <TableCell className="text-center font-medium text-green-600 w-24">{stat.active}</TableCell>
+                                       <TableCell className="text-center text-gray-500 w-24">{stat.stock}</TableCell>
+                                       <TableCell className="text-center text-red-500 w-24">{stat.rejected}</TableCell>
+                                       {STAGES.map(s => (<TableCell key={s} className="text-center text-xs border-l w-24">{stat.stages[s] || "-"}</TableCell>))}
+                                       <TableCell className="text-center font-bold text-blue-600 border-l w-24">
+                                            {stat.stages["New"] > 0 ? Math.round((stat.stages["Hired"] / stat.stages["New"]) * 100) + "%" : "0%"}
+                                       </TableCell>
                                    </TableRow>
                                );
                            })}
@@ -528,26 +532,30 @@ export default function Reports({ lang, user }: ReportProps) {
                        <TableHeader>
                            <TableRow className="bg-gray-50">
                                <TableHead className="w-[350px] min-w-[300px]">Source</TableHead>
-                               <TableHead className="text-center font-bold w-[60px]">{t.count}</TableHead>
-                               <TableHead className="text-center text-green-600 min-w-[60px]">Active</TableHead>
-                               <TableHead className="text-center text-gray-500 min-w-[60px]">Stock</TableHead>
-                               <TableHead className="text-center text-red-500 min-w-[60px]">Reject</TableHead>
+                               <TableHead className="text-center font-bold w-24 min-w-[80px]">{t.count}</TableHead>
+                               <TableHead className="text-center text-green-600 w-24 min-w-[80px]">Active</TableHead>
+                               <TableHead className="text-center text-gray-500 w-24 min-w-[80px]">Stock</TableHead>
+                               <TableHead className="text-center text-red-500 w-24 min-w-[80px]">Reject</TableHead>
                                {STAGES.map(s => (
-                                   <TableHead key={s} className="text-center text-xs text-gray-400 whitespace-nowrap min-w-[60px]">
+                                   <TableHead key={s} className="text-center text-xs text-gray-400 whitespace-nowrap w-24 min-w-[80px]">
                                         {t[STAGE_KEYS[s] as keyof typeof t] || s}
                                    </TableHead>
                                ))}
+                               <TableHead className="text-center font-bold text-blue-600 w-24 min-w-[80px]">% Conv</TableHead>
                            </TableRow>
                        </TableHeader>
                        <TableBody>
                            {Object.entries(stats.sourceStats).sort((a,b) => b[1].total - a[1].total).map(([src, stat]: [string, any]) => (
                                <TableRow key={src}>
                                    <TableCell className="font-medium">{src}</TableCell>
-                                   <TableCell className="text-center font-bold">{stat.total}</TableCell>
-                                   <TableCell className="text-center font-medium text-green-600">{stat.active}</TableCell>
-                                   <TableCell className="text-center text-gray-500">{stat.stock}</TableCell>
-                                   <TableCell className="text-center text-red-500">{stat.rejected}</TableCell>
-                                   {STAGES.map(s => (<TableCell key={s} className="text-center text-xs border-l">{stat.stages[s] || "-"}</TableCell>))}
+                                    <TableCell className="text-center font-bold w-24">{stat.total}</TableCell>
+                                   <TableCell className="text-center font-medium text-green-600 w-24">{stat.active}</TableCell>
+                                   <TableCell className="text-center text-gray-500 w-24">{stat.stock}</TableCell>
+                                   <TableCell className="text-center text-red-500 w-24">{stat.rejected}</TableCell>
+                                   {STAGES.map(s => (<TableCell key={s} className="text-center text-xs border-l w-24">{stat.stages[s] || "-"}</TableCell>))}
+                                   <TableCell className="text-center font-bold text-blue-600 border-l w-24">
+                                        {stat.stages["New"] > 0 ? Math.round((stat.stages["Hired"] / stat.stages["New"]) * 100) + "%" : "0%"}
+                                   </TableCell>
                                </TableRow>
                            ))}
                        </TableBody>

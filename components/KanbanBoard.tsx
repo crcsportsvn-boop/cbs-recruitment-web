@@ -203,6 +203,18 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     await updateCandidateAPI(candidate.id, updates);
   };
 
+  const handleHired = async (candidate: Candidate) => {
+      const todayStr = new Date().toLocaleDateString('en-GB');
+      const dateStr = window.prompt("Enter Start Date (dd/mm/yyyy):", todayStr);
+      if (dateStr === null) return; // Cancelled
+
+      await updateCandidateAPI(candidate.id, {
+          status: "Hired",
+          applyDate: dateStr, // "Paste to AI column" as requested
+          officialDate: dateStr // Also set official date for record
+      });
+  };
+
   const handleWithdraw = async (candidate: Candidate) => {
      // Determine previous status
      const status = candidate.status;
@@ -827,6 +839,11 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                             Make Offer
                                             </DropdownMenuItem>
                                         )}
+                                        {col.id === "Offer" && (
+                                            <DropdownMenuItem className="text-green-600 font-bold" onClick={() => handleHired(c)}>
+                                                Hired
+                                            </DropdownMenuItem>
+                                        )}
 
                                         {/* Withdraw Logic */}
                                         {col.id !== "New" && (
@@ -1020,6 +1037,15 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
             </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Rehire Modal */}
+      <RehireModal 
+        isOpen={isRehireModalOpen}
+        onClose={() => setIsRehireModalOpen(false)}
+        candidate={rehireCandidate}
+        availableJobCodes={uniqueJobCodes}
+        onConfirm={confirmRehire}
+      />
 
     </div>
   );
