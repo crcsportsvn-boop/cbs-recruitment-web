@@ -465,7 +465,10 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           await fetch("/api/jobs", {
               method: "POST",
               body: JSON.stringify({
-                  jobs: [{ jobCode: selectedJobCode, status: "Hiring", stopDate: "" }]
+                  jobCode: selectedJobCode,
+                  status: "Hiring",
+                  stopDate: "",
+                  reason: ""
               })
           });
           fetchCandidates();

@@ -87,9 +87,9 @@ export async function POST(req: NextRequest) {
         jobCode,
         title || (rowIndex >= 0 ? rows[rowIndex][1] : ""),
         group || (rowIndex >= 0 ? rows[rowIndex][2] : "HO"),
-        status || (rowIndex >= 0 ? rows[rowIndex][3] : "Hiring"),
-        stopDate || (rowIndex >= 0 ? rows[rowIndex][4] : ""),
-        reason || (rowIndex >= 0 ? rows[rowIndex][5] : "")
+        status !== undefined ? status : (rowIndex >= 0 ? rows[rowIndex][3] : "Hiring"),
+        stopDate !== undefined ? stopDate : (rowIndex >= 0 ? rows[rowIndex][4] : ""),
+        reason !== undefined ? reason : (rowIndex >= 0 ? rows[rowIndex][5] : "")
     ];
 
     if (rowIndex >= 0) {
