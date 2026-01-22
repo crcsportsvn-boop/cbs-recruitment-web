@@ -426,16 +426,6 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     if (hasPrev) setSelectedCandidate(filteredCandidates[currentIndex - 1]);
   }
 
-  // Keyboard navigation
-  useEffect(() => {
-    if (!selectedCandidate) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === "ArrowRight") handleNext();
-        if (e.key === "ArrowLeft") handlePrev();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedCandidate, currentIndex, filteredCandidates]); 
 
   return (
     <div className="space-y-4 p-4 bg-white rounded-lg shadow min-h-[500px]">
@@ -749,7 +739,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                                   
                                   {viewMode === 'stock' ? (
                                      <DropdownMenuItem onClick={() => handleReactivate(c)}>
-                                         Reactivate (Tái tục)
+                                         Rehire
                                      </DropdownMenuItem>
                                   ) : viewMode === 'rejected' ? (
                                      <DropdownMenuItem onClick={() => handleWithdrawToScreen(c)}>
