@@ -300,9 +300,7 @@ export default function Reports({ lang, user }: ReportProps) {
   const jobCounts = useMemo(() => {
     const allCodes = new Set<string>();
     
-    // Add from ACTIVE_JOBS
-    ACTIVE_JOBS.forEach(j => allCodes.add(j.id));
-    
+    // Only count jobs from actual data (Sheet + Candidates), not hardcoded ACTIVE_JOBS
     // Add from jobs sheet (normalize empty to "Unknown")
     jobs.forEach(j => {
       const code = j.jobCode?.trim() || "Unknown";
@@ -335,7 +333,7 @@ export default function Reports({ lang, user }: ReportProps) {
 
   const uniqueJobCodes = useMemo(() => {
       const allCodes = new Set<string>();
-      ACTIVE_JOBS.forEach(j => allCodes.add(j.id));
+      // Only show jobs from actual data, not hardcoded templates
       jobs.forEach(j => {
         const code = j.jobCode?.trim() || "Unknown";
         allCodes.add(code);
