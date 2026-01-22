@@ -632,7 +632,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                    {visibleColumns.source && <TableCell className="text-sm text-gray-600">{c.source}</TableCell>}
                    
                    {visibleColumns.status && <TableCell>
-                      <Badge variant="outline" className={showRejected ? "border-red-200 text-red-700 bg-red-50" : "border-blue-200 text-blue-700 bg-blue-50"}>
+                      <Badge variant="outline" className={viewMode === 'rejected' ? "border-red-200 text-red-700 bg-red-50" : "border-blue-200 text-blue-700 bg-blue-50"}>
                         {c.status}
                       </Badge>
                    </TableCell>}
@@ -870,7 +870,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                {/* Action Footer */}
                <div className="flex justify-between items-center pt-4 border-t">
                   <div className="flex gap-2">
-                     {!showRejected && (
+                     {viewMode === 'active' && (
                          <>
                             <Button variant="destructive" size="sm" onClick={() => handleRejectClick(selectedCandidate)}>
                                 {t.actionReject}
