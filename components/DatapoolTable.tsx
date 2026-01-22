@@ -12,6 +12,13 @@ import { Search, Eye, EyeOff, Settings, Check, MoreHorizontal, User, Calendar, M
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import RehireModal from "@/components/RehireModal";
+import { parse, isAfter, parseISO } from "date-fns";
+
+interface JobData {
+    jobCode: string;
+    status: string;
+    stopDate: string;
+}
 
 interface Candidate {
   id: string; 
@@ -99,6 +106,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
 
   // Actions / Modals
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [jobs, setJobs] = useState<Record<string, JobData>>({});
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   
   // Decline Logic
@@ -114,10 +122,24 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   const fetchCandidates = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/candidates");
-      if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
+      const [candRes, jobRes] = await Promise.all([
+        fetch("/api/candidates"),
+        fetch("/api/jobs")
+      ]);
       
+      if (!candRes.ok) throw new Error("Failed to fetch candidates");
+      const data = await candRes.json();
+      const jobData = await jobRes.json();
+      
+      // Process Jobs into Map
+      const jobMap: Record<string, JobData> = {};
+      if (jobData.jobs) {
+          jobData.jobs.forEach((j: any) => {
+              jobMap[j.jobCode] = { jobCode: j.jobCode, status: j.status, stopDate: j.stopDate };
+          });
+      }
+      setJobs(jobMap);
+
       const formatted = data.candidates.map((c: any) => ({
         id: c.id,
         name: c.fullName,
@@ -205,14 +227,31 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
       (scoreFilter === "low" && c.matchScore < 5);
 
     // View Mode (Show/Hide Rejected)
-    // View Mode
-    const isRejected = c.status === "Rejected";
-    const isStock = c.notes?.includes("Stock");
-    
-    let matchesMode = false;
-    if (viewMode === 'rejected') matchesMode = isRejected;
-    else if (viewMode === 'stock') matchesMode = !!isStock;
-    else matchesMode = !isRejected && !isStock; // Active
+    // Check Stops
+    const isNoteStock = c.notes?.includes("Stock");
+    let isStoppedRule = false;
+    const job = jobs[c.jobCode || ""];
+    if (job && job.status === "Stopped" && job.stopDate && c.timestamp) {
+        try {
+             // c.timestamp is "dd/MM/yyyy..."
+             const cDate = parse(c.timestamp, 'dd/MM/yyyy HH:mm:ss', new Date());
+             const sDate = parseISO(job.stopDate);
+             if (isAfter(cDate, sDate)) isStoppedRule = true;
+        } catch (e) {}
+    }
+    const isStock = isNoteStock || isStoppedRule;
+
+    // View Mode Filter
+    if (viewMode === 'active') {
+        if (isStock) return false;
+        if (c.status === 'Rejected') return false;
+    }
+    if (viewMode === 'rejected') {
+         if (c.status !== 'Rejected') return false;
+    }
+    if (viewMode === 'stock') {
+        if (!isStock) return false;
+    }
 
     // Date Range Filter
     let matchesDate = true;

@@ -66,3 +66,17 @@ Quy trình tuyển dụng đi qua các bước sau trên Kanban:
 - Cột **AE (Ngày HR PV)** là cột mới được chèn vào, đẩy các cột sau lùi lại 1 vị trí so với phiên bản cũ.
 - Hệ thống App tự động map vào đúng cột này khi update trạng thái.
 - Không được tự ý xóa hoặc đổi thứ tự cột trên Google Sheet để tránh lỗi lệch dữ liệu.
+
+## 5. Bảng Quản Lý Job (Jobs) [Mới]
+
+- **Sheet Name**: `Jobs`
+- **Range**: `A2:F`
+
+| Cột   | Index | Tên Trường | Ghi Chú              |
+| :---- | :---- | :--------- | :------------------- |
+| **A** | 0     | `jobCode`  | Mã Job (Unique)      |
+| **B** | 1     | `title`    | Tên vị trí           |
+| **C** | 2     | `group`    | Nhóm (HO / Store)    |
+| **D** | 3     | `status`   | `Hiring` / `Stopped` |
+| **E** | 4     | `stopDate` | Ngày dừng (ISO 8601) |
+| **F** | 5     | `reason`   | Lý do dừng           |

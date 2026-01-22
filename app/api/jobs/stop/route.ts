@@ -1,89 +1,84 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 
-export const dynamic = 'force-dynamic';
-
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w"; 
-const SHEET_NAME = "Datapool";
+const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
+const SHEET_NAME = "Jobs"; // Using Jobs Sheet
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Get OAuth tokens (User Context)
+    const { jobCode, reason, title, group } = await req.json();
+
+    if (!jobCode || !reason) {
+      return NextResponse.json({ error: "Missing jobCode or reason" }, { status: 400 });
+    }
+
     const tokensCookie = req.cookies.get("google_tokens");
     if (!tokensCookie) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Not authenticated", redirect: "/api/auth/login" },
+        { status: 401 }
+      );
     }
 
     const tokens = JSON.parse(tokensCookie.value);
-    const { jobCode, reason } = await req.json();
-
-    if (!jobCode || !reason) {
-        return NextResponse.json({ error: "Missing jobCode or reason" }, { status: 400 });
-    }
-
-    // 2. Setup OAuth2 Client
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET
     );
     oauth2Client.setCredentials(tokens);
-
     const sheets = google.sheets({ version: "v4", auth: oauth2Client });
 
-    // 3. Read Job Codes (Column E)
-    // Range E2:E to skip header
-    const readRes = await sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME}!E2:E`,
-    });
-
-    const rows = readRes.data.values || [];
-    
-    // 4. Find matching rows
-    // 4. Find matching rows
-    const dataToUpdate: { range: string; values: string[][] }[] = [];
-    const updateValue = `Stock - ${reason}`;
-
-    rows.forEach((row, index) => {
-        // row[0] is the value of Column E
-        if (row[0] && row[0].toString().trim() === jobCode.toString().trim()) {
-            // Row Index calculation:
-            // Valid data starts at Row 2.
-            // Array index 0 -> Row 2
-            // Array index N -> Row N+2
-            const rowIndex = index + 2; 
-            
-            // Column Z (Notes) is 25th letter (A=0 ... Z=25) ?? 
-            // Wait, Z is the 26th letter.
-            // A=1, Z=26.
-            // Wait, in A1 notation, Z is just 'Z'.
-            
-            dataToUpdate.push({
-                range: `${SHEET_NAME}!Z${rowIndex}`,
-                values: [[updateValue]]
-            });
-        }
-    });
-
-    if (dataToUpdate.length === 0) {
-        return NextResponse.json({ message: "No candidates found for this Job Code" });
+    // 1. Read Jobs Sheet to find row
+    let rows: any[] = [];
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEET_NAME}!A2:F`,
+        });
+        rows = response.data.values || [];
+    } catch (e) {
+        // assume empty if fail
     }
 
-    // 5. Execute Batch Update
-    await sheets.spreadsheets.values.batchUpdate({
-        spreadsheetId: SPREADSHEET_ID,
-        requestBody: {
-            data: dataToUpdate,
-            valueInputOption: "USER_ENTERED"
-        }
-    });
+    const rowIndex = rows.findIndex((r) => r[0] === jobCode);
+    const stopDate = new Date().toISOString(); 
+    // Format: ISO string or readable? User might prefer readable. But ISO is safer for comparison.
+    // I'll use ISO.
 
-    return NextResponse.json({ success: true, count: dataToUpdate.length });
+    const newRow = [
+        jobCode,
+        title || (rowIndex >= 0 ? rows[rowIndex][1] : ""),
+        group || (rowIndex >= 0 ? rows[rowIndex][2] : "HO"),
+        "Stopped", // Status
+        stopDate,
+        reason
+    ];
+
+    if (rowIndex >= 0) {
+        // Update
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEET_NAME}!A${rowIndex + 2}:F${rowIndex + 2}`,
+            valueInputOption: "USER_ENTERED",
+            requestBody: { values: [newRow] }
+        });
+    } else {
+        // Append
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEET_NAME}!A:F`,
+            valueInputOption: "USER_ENTERED",
+            requestBody: { values: [newRow] }
+        });
+    }
+
+    return NextResponse.json({ success: true, message: `Job ${jobCode} stopped.` });
 
   } catch (error: any) {
     console.error("Stop Job Error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to stop job" },
+      { error: "Failed to stop job", details: error.message },
       { status: 500 }
     );
   }

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Search, EyeOff, Eye, Copy, Check } from "lucide-react";
 import { dictionary, LangType } from "@/lib/dictionary";
+import { ACTIVE_JOBS } from "@/lib/constants";
 
 
 interface Candidate {
@@ -370,38 +371,39 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const handleStopJob = async () => {
     if (selectedJobCode === "all") return;
     
-    // Determine reason
     const finalReason = stopJobReason === "Other" ? stopJobOtherReason : stopJobReason;
     if (!finalReason) {
         alert("Please select or enter a reason");
         return;
     }
 
-    if (!confirm(`Confirm STOP recruitment for Job Code: ${selectedJobCode}? All candidates will move to "Stock".`)) return;
+    if (!confirm(`Confirm STOP recruitment for Job Code: ${selectedJobCode}?`)) return;
 
-    // Optimistic Update Frontend
-    setCandidates(prev => prev.map(c => {
-        if (c.jobCode === selectedJobCode) {
-            return { ...c, notes: "Stock" }; 
-        }
-        return c;
-    }));
+    // Determine Title and Group
+    const jobInfo = ACTIVE_JOBS.find(j => j.id === selectedJobCode);
+    const title = jobInfo?.name || "Unknown";
+    const group = selectedJobCode.startsWith("ST") ? "Store" : "HO";
 
     try {
         const res = await fetch("/api/jobs/stop", {
             method: "POST",
-            body: JSON.stringify({ jobCode: selectedJobCode, reason: finalReason })
+            body: JSON.stringify({ 
+                jobCode: selectedJobCode, 
+                reason: finalReason,
+                title,
+                group
+            })
         });
+        
         if (!res.ok) throw new Error("Failed to stop job");
         
         setIsStopJobModalOpen(false);
         setStopJobReason("");
         setStopJobOtherReason("");
-        setShowStock(true); // Switch to Stock view to show result
+        alert(`Job ${selectedJobCode} stopped successfully. New candidates will be marked as Stock.`);
     } catch (e) {
         console.error(e);
         alert("Failed to stop job on server");
-        fetchCandidates(); // Revert
     }
   };
 
@@ -875,8 +877,8 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
             <DialogHeader>
                 <DialogTitle>Stop Recruitment for {selectedJobCode}</DialogTitle>
                 <p className="text-sm text-gray-500">
-                    This will move all active candidates for this Job Code to the "Stock" view.
-                    They will not appear in the standard process anymore.
+                    This will mark the Job as Stopped. New applicants arriving after this timestamp will be automatically marked as Stock.
+                    Existing candidates remain unaffected.
                 </p>
             </DialogHeader>
             <div className="py-2 space-y-4">
