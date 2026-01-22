@@ -2,6 +2,12 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử thay đổi, cập nhật và các phiên bản của dự án.
 
+### 🐛 Fixed
+
+- **HOTFIX**: Sửa lỗi build TypeScript (`Implicit Any` trên array).
+
+---
+
 ## [v1.1.0] - Job Management Update - 2026-01-22
 
 **Trạng thái**: 🟡 Testing  

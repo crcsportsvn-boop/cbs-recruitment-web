@@ -602,7 +602,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           {/* View Toggles */}
           <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center">
              <Button 
-                variant={(!showRejected && !showStock) ? "white" : "ghost"} 
+                variant={(!showRejected && !showStock) ? "secondary" : "ghost"} 
                 size="sm" 
                 className={`h-7 text-xs ${(!showRejected && !showStock) ? "bg-white shadow-sm" : "text-gray-500"}`}
                 onClick={() => { setShowRejected(false); setShowStock(false); }}
@@ -610,7 +610,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                 Active
              </Button>
              <Button 
-                variant={showRejected ? "white" : "ghost"} 
+                variant={showRejected ? "secondary" : "ghost"} 
                 size="sm" 
                 className={`h-7 text-xs ${showRejected ? "bg-white text-red-600 shadow-sm" : "text-gray-500"}`}
                 onClick={() => { setShowRejected(true); setShowStock(false); }}
@@ -618,7 +618,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                 Rejected
              </Button>
              <Button 
-                variant={showStock ? "white" : "ghost"} 
+                variant={showStock ? "secondary" : "ghost"} 
                 size="sm" 
                 className={`h-7 text-xs ${showStock ? "bg-white text-blue-600 shadow-sm" : "text-gray-500"}`}
                 onClick={() => { setShowRejected(false); setShowStock(true); }}
