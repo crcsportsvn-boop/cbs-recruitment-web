@@ -774,7 +774,11 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                // But usually Stock View might be a single list.
                // For now, I'll keep Kanban columns.
                
-               const colCandidates = filteredCandidates.filter(c => (c.status || "New") === col.id);
+               const colCandidates = filteredCandidates.filter(c => {
+                   const s = c.status || "New";
+                   if (col.id === "Offer") return s === "Offer" || s === "Hired";
+                   return s === col.id;
+               });
                
                // If Stock View, we might want to show Reactivate Button on cards
                
