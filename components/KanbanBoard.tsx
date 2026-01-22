@@ -83,7 +83,11 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [isStopJobModalOpen, setIsStopJobModalOpen] = useState(false);
   const [isRehireModalOpen, setIsRehireModalOpen] = useState(false); // New
+  const [isRehireModalOpen, setIsRehireModalOpen] = useState(false); // New
   const [rehireCandidate, setRehireCandidate] = useState<Candidate | null>(null); // New
+  const [isHiredModalOpen, setIsHiredModalOpen] = useState(false);
+  const [hiredDate, setHiredDate] = useState("");
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   
   // Data for Modals
@@ -203,16 +207,20 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     await updateCandidateAPI(candidate.id, updates);
   };
 
-  const handleHired = async (candidate: Candidate) => {
-      const todayStr = new Date().toLocaleDateString('en-GB');
-      const dateStr = window.prompt("Enter Start Date (dd/mm/yyyy):", todayStr);
-      if (dateStr === null) return; // Cancelled
+  const handleHired = (candidate: Candidate) => {
+      setSelectedCandidate(candidate);
+      setHiredDate(new Date().toLocaleDateString('en-GB'));
+      setIsHiredModalOpen(true);
+  };
 
-      await updateCandidateAPI(candidate.id, {
+  const confirmHired = async () => {
+      if (!selectedCandidate) return;
+      await updateCandidateAPI(selectedCandidate.id, {
           status: "Hired",
-          applyDate: dateStr, // "Paste to AI column" as requested
-          officialDate: dateStr // Also set official date for record
+          applyDate: hiredDate, 
+          officialDate: hiredDate 
       });
+      setIsHiredModalOpen(false);
   };
 
   const handleWithdraw = async (candidate: Candidate) => {
@@ -467,13 +475,14 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     }
   };
 
-  const handleResumeJob = async () => {
+  const handleResumeJob = () => {
       if (selectedJobCode === "all") return;
-      if (!confirm(`Resume Recruitment for ${selectedJobCode}?`)) return;
-      
+      setIsResumeModalOpen(true);
+  };
+
+  const confirmResumeJob = async () => {
       try {
           // Re-enable in Jobs Sheet
-          // We use generic /api/jobs upsert
           await fetch("/api/jobs", {
               method: "POST",
               body: JSON.stringify({
@@ -484,6 +493,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
               })
           });
           fetchCandidates();
+          setIsResumeModalOpen(false);
           alert("Recruitment Resumed.");
       } catch (e) {
           alert("Failed to resume.");
@@ -1034,6 +1044,47 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
             <DialogFooter>
                 <Button variant="outline" onClick={() => setIsStopJobModalOpen(false)}>Cancel</Button>
                 <Button variant="destructive" onClick={handleStopJob}>Confirm Stop</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      </Dialog>
+
+      {/* Hired Modal */}
+      <Dialog open={isHiredModalOpen} onOpenChange={setIsHiredModalOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Confirm Hired</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                <div className="space-y-2">
+                    <Label>Start Date (dd/mm/yyyy)</Label>
+                    <Input 
+                        value={hiredDate}
+                        onChange={(e) => setHiredDate(e.target.value)}
+                        placeholder="dd/mm/yyyy"
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsHiredModalOpen(false)}>{t.btnCancel}</Button>
+                <Button onClick={confirmHired} className="bg-green-600 hover:bg-green-700 text-white">Confirm</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resume Job Modal */}
+      <Dialog open={isResumeModalOpen} onOpenChange={setIsResumeModalOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Resume Recruitment</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+                <p>Are you sure you want to resume recruitment for <strong>{selectedJobCode}</strong>?</p>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsResumeModalOpen(false)}>{t.btnCancel}</Button>
+                <Button onClick={confirmResumeJob} className="bg-blue-600 hover:bg-blue-700 text-white">Confirm Resume</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
