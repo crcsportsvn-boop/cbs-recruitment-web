@@ -61,7 +61,6 @@ const REASONS_EN = {
 };
 
 export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
-  // Re-trigger build
   const t = dictionary[lang].datapoolTable;
   const tKanban = dictionary[lang].kanban; 
   const [candidates, setCandidates] = useState<Candidate[]>([]);
