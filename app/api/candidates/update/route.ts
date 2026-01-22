@@ -19,6 +19,9 @@ export async function POST(req: NextRequest) {
 
     const tokens = JSON.parse(tokensCookie.value);
     const { id, updates } = await req.json(); // id is the Row Index (e.g. 2, 3...)
+    
+    // DEBUG: Log what we're updating
+    console.log("🔍 Update Request - Row:", id, "Updates:", JSON.stringify(updates));
 
     // 2. Setup OAuth2 Client
     const oauth2Client = new google.auth.OAuth2(
@@ -32,20 +35,20 @@ export async function POST(req: NextRequest) {
     // 3. Define Column Mapping (Letter to Field)
     // ONLY fields that need to be updated during Process/Reject
     const COLUMN_MAP: Record<string, string> = {
-      jobCode: "E",       // Column 4 (Job Code)
-      notes: "AK",         // Column 36 (Moved from Z)
-      isPotential: "AA", // Column 26
-      status: "AB",      // Column 27
-      failureReason: "AC", // Column 28
-      testResult: "AD",  // Column 29
-      hrInterviewDate: "AE", // New
-      interviewDate1: "AF",
-      interviewDate2: "AG",
-      offerDate: "AH",
-      startDate: "AI",
-      officialDate: "AJ",
-      rejectedRound: "AL", // Column 37 (Moved from AK)
-      applyDate: "AM",     // Column 38 (New)
+      jobCode: "E",       // Column 5 (Job Code)
+      notes: "AK",         // Column 37 (Moved from Z)
+      isPotential: "AA", // Column 27
+      status: "AB",      // Column 28
+      failureReason: "AC", // Column 29
+      testResult: "AD",  // Column 30
+      hrInterviewDate: "AE", // Column 31
+      interviewDate1: "AF", // Column 32
+      interviewDate2: "AG", // Column 33
+      offerDate: "AH",    // Column 34
+      startDate: "AI",    // Column 35
+      officialDate: "AJ", // Column 36
+      rejectedRound: "AL", // Column 38 (Moved from AK)
+      applyDate: "AM",     // Column 39 (New)
     };
 
     // 4. Prepare Batch Update
@@ -55,11 +58,15 @@ export async function POST(req: NextRequest) {
     for (const [key, value] of Object.entries(updates)) {
       const colLetter = COLUMN_MAP[key];
       if (colLetter) {
+        const cellValue = value === null ? "" : value;
         dataToUpdate.push({
           range: `${SHEET_NAME}!${colLetter}${id}`,
           // Use empty string to clear cell (Google Sheets will treat "" as blank)
-          values: [[value === null ? "" : value]], 
+          values: [[cellValue]], 
         });
+        console.log(`  ✏️  ${key} -> ${colLetter}${id} = "${cellValue}"`);
+      } else {
+        console.log(`  ⚠️  Skipped unmapped field: ${key}`);
       }
     }
 
