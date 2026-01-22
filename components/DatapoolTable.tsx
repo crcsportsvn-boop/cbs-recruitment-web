@@ -147,7 +147,6 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     education: "",
     matchReason: "",
     rejectedRound: "",
-    rejectedRound: "",
     summary: "",
     jobCode: "",
   });
