@@ -634,13 +634,12 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   let reasonLabels = t.reasons.screening;
   
   if (currentStage === "Interview" || currentStage === "Interview2") {
-     reasonKeys = REASONS_EN.interview;
-     reasonLabels = t.reasons.interview;
+      reasonKeys = REASONS_EN.interview;
+      reasonLabels = t.reasons.interview;
   } else if (currentStage === "Offer") {
-     reasonKeys = REASONS_EN.offer;
-     reasonLabels = t.reasons.offer;
+      reasonKeys = REASONS_EN.offer;
+      reasonLabels = t.reasons.offer;
   }
-
 
   return (
     <div className="flex flex-col h-[calc(100vh-220px)] border rounded-lg bg-gray-50 overflow-hidden relative shadow-sm">
