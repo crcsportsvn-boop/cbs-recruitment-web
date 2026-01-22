@@ -527,15 +527,21 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                   )}
                                   
                                   {col.id === "Screening" && (
-                                    <DropdownMenuItem onClick={() => moveStatus(c, "Interview", 1)}>
-                                      Schedule Interview V1
+                                    <DropdownMenuItem onClick={() => moveStatus(c, "HR Interview", "HR")}>
+                                      Schedule HR Interview
+                                    </DropdownMenuItem>
+                                  )}
+
+                                  {col.id === "HR Interview" && (
+                                    <DropdownMenuItem onClick={() => moveStatus(c, "Interview", "L1")}>
+                                      Schedule Manager L1
                                     </DropdownMenuItem>
                                   )}
 
                                   {col.id === "Interview" && (
                                     <>
-                                      <DropdownMenuItem onClick={() => moveStatus(c, "Interview2", 2)}>
-                                        Schedule Interview V2
+                                      <DropdownMenuItem onClick={() => moveStatus(c, "Interview2", "L2")}>
+                                        Schedule Manager L2
                                       </DropdownMenuItem>
                                        <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
                                         Make Offer
@@ -598,7 +604,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                   parseInt(c.matchScore) >= 5 ? "bg-yellow-500" : "bg-gray-500"
                                 }`}>
                                   Score: {c.matchScore}
-                                </Badge>
+                               </Badge>
                              )}
                            </div>
 
@@ -667,7 +673,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       <Dialog open={isInterviewModalOpen} onOpenChange={setIsInterviewModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t.modalInterviewTitle} (V{interviewRound})</DialogTitle>
+            <DialogTitle>{t.modalInterviewTitle} ({interviewType})</DialogTitle>
           </DialogHeader>
            <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
