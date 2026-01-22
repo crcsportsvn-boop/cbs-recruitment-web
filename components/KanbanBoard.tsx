@@ -798,7 +798,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                       <Card key={c.id} className="hover:shadow-md transition-all duration-200 group bg-white border-l-4" style={{ borderLeftColor: parseInt(c.matchScore) >= 8 ? '#22c55e' : parseInt(c.matchScore) >= 5 ? '#eab308' : '#6b7280' }}>
                         <CardContent className="p-3 space-y-2">
                            <div className="flex justify-between items-start">
-                              <h4 className="font-semibold text-sm text-[#B91C1C] leading-snug" title={c.fullName}>{c.fullName}</h4>
+                              <h4 className="font-bold text-[13px] text-[#B91C1C] leading-snug" title={c.fullName}>{c.fullName}</h4>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" className="h-6 w-6 p-0 -mt-1 -mr-2 hover:bg-gray-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
