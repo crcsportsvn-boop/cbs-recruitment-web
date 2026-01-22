@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import RehireModal from "@/components/RehireModal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -70,7 +71,9 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   // Modal State
   const [isInterviewModalOpen, setIsInterviewModalOpen] = useState(false);
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
-  const [isStopJobModalOpen, setIsStopJobModalOpen] = useState(false); // New
+  const [isStopJobModalOpen, setIsStopJobModalOpen] = useState(false);
+  const [isRehireModalOpen, setIsRehireModalOpen] = useState(false); // New
+  const [rehireCandidate, setRehireCandidate] = useState<Candidate | null>(null); // New
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   
   // Data for Modals
@@ -402,19 +405,19 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     }
   };
 
-  const handleReactivateCandidate = async (candidate: Candidate) => {
-     if (!confirm(`Reactivate candidate ${candidate.fullName}? This will move them to Screening.`)) return;
+  const handleReactivateCandidate = (candidate: Candidate) => {
+      setRehireCandidate(candidate);
+      setIsRehireModalOpen(true);
+  };
 
-     // Optimistic
-     setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, notes: "", status: "Screening" } : c));
-     
-     // API
-     await updateCandidateAPI(candidate.id, { notes: "Stock-Reactivated", status: "Screening" }); 
-     // Note: API should clear 'notes' column ideally or set to something else. 
-     // Sending specific value "Stock-Reactivated" or empty string depending on backend handler.
-     // For now I'll send empty string via separate custom endpoint or just update updateCandidateAPI to handle notes clear.
-     // updateCandidateAPI handles generic updates.
-     await updateCandidateAPI(candidate.id, { notes: "", status: "Screening" });
+  const confirmRehire = async (jobCode: string) => {
+      if (!rehireCandidate) return;
+
+      // Optimistic
+      setCandidates(prev => prev.map(c => c.id === rehireCandidate.id ? { ...c, status: "Screening", jobCode: jobCode, notes: "" } : c));
+      
+      // API
+      await updateCandidateAPI(rehireCandidate.id, { status: "Screening", jobCode: jobCode, notes: "" });
   };
 
   // --- FILTERING ---
@@ -604,7 +607,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
              <Button 
                 variant={(!showRejected && !showStock) ? "secondary" : "ghost"} 
                 size="sm" 
-                className={`h-7 text-xs ${(!showRejected && !showStock) ? "bg-white shadow-sm" : "text-gray-500"}`}
+                className={`h-7 text-xs ${(!showRejected && !showStock) ? "bg-green-100 text-green-700 hover:bg-green-200 shadow-sm" : "text-gray-500"}`}
                 onClick={() => { setShowRejected(false); setShowStock(false); }}
              >
                 Active
@@ -630,8 +633,8 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         </div>
 
         {/* Board Columns */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden p-3" style={{ transform: "rotateX(180deg)" }}>
-           <div className="flex gap-3 h-full min-w-max" style={{ transform: "rotateX(180deg)" }}>
+        <div className="flex-1 overflow-hidden p-3" style={{ transform: "rotateX(180deg)" }}>
+           <div className="flex w-full h-full gap-2" style={{ transform: "rotateX(180deg)" }}>
             {COLUMNS.map((col) => {
                // Hide columns in Stock View except 'New' or just show List?
                // User wants "appearance like Show Rejected" -> likely means in Table? 

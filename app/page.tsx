@@ -5,6 +5,7 @@ import Image from "next/image";
 import CandidateInputForm from "@/components/CandidateInputForm";
 import KanbanBoard from "@/components/KanbanBoard";
 import DatapoolTable from "@/components/DatapoolTable";
+import Reports from "@/components/Reports";
 import ScrollTopButton from "@/components/ScrollTopButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -260,11 +261,8 @@ function HomeContent() {
                  <DatapoolTable lang={lang} user={user} />
             </TabsContent>
 
-            <TabsContent value="reports">
-                <div className="text-center p-10 text-muted-foreground bg-white rounded-lg shadow">
-                <h2 className="text-lg font-medium">Reporting Dashboard</h2>
-                <p>Tính năng báo cáo đang được phát triển.</p>
-                </div>
+            <TabsContent value="reports" className="w-full h-full min-h-[600px] animate-in fade-in slide-in-from-right-10 duration-300">
+                <Reports lang={lang} user={user} />
             </TabsContent>
             
             <TabsContent value="settings">

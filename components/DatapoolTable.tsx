@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { Search, Eye, EyeOff, Settings, Check, MoreHorizontal, User, Calendar, MapPin, GraduationCap, ChevronLeft, ChevronRight, Briefcase, FileText, Wrench, Award } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import RehireModal from "@/components/RehireModal";
 
 interface Candidate {
   id: string; 
@@ -39,6 +40,7 @@ interface Candidate {
   workHistory?: string;
   skills?: string;
   certification?: string;
+  jobCode?: string;
 }
 
 interface DatapoolTableProps {
@@ -59,7 +61,11 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [scoreFilter, setScoreFilter] = useState("all");
-  const [showRejected, setShowRejected] = useState(false);
+  const [viewMode, setViewMode] = useState<'active' | 'rejected' | 'stock'>('active');
+  const [isRehireModalOpen, setIsRehireModalOpen] = useState(false);
+  const [rehireCandidate, setRehireCandidate] = useState<Candidate | null>(null);
+
+  const uniqueJobCodes = Array.from(new Set(candidates.map(c => c.jobCode).filter(Boolean))) as string[];
   
   // Column Filters
   const [colFilters, setColFilters] = useState({
@@ -138,7 +144,9 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         jobFunction: c.jobFunction,
         workHistory: c.workHistory,
         skills: c.skills,
-        certification: c.certification
+
+        certification: c.certification,
+        jobCode: c.jobCode
       }));
       setCandidates(formatted);
     } catch (err) {
@@ -197,9 +205,14 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
       (scoreFilter === "low" && c.matchScore < 5);
 
     // View Mode (Show/Hide Rejected)
+    // View Mode
     const isRejected = c.status === "Rejected";
-    const isNew = c.status === "New";
-    const matchesMode = showRejected ? isRejected : isNew;
+    const isStock = c.notes?.includes("Stock");
+    
+    let matchesMode = false;
+    if (viewMode === 'rejected') matchesMode = isRejected;
+    else if (viewMode === 'stock') matchesMode = !!isStock;
+    else matchesMode = !isRejected && !isStock; // Active
 
     // Date Range Filter
     let matchesDate = true;
@@ -306,6 +319,21 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
      if (selectedCandidate?.id === candidateToReject.id && nextCandidate) {
          setSelectedCandidate(nextCandidate);
      }
+      if (selectedCandidate?.id === candidateToReject.id && nextCandidate) {
+          setSelectedCandidate(nextCandidate);
+      }
+  };
+
+  const handleReactivate = (c: Candidate) => {
+      setRehireCandidate(c);
+      setIsRehireModalOpen(true);
+  };
+
+  const confirmRehire = async (jobCode: string) => {
+      if (!rehireCandidate) return;
+      // Optimistic
+      setCandidates(prev => prev.map(c => c.id === rehireCandidate.id ? { ...c, status: "Screening", jobCode: jobCode, notes: "" } : c));
+      await updateCandidateAPI(rehireCandidate.id, { status: "Screening", jobCode: jobCode, notes: "" });
   };
 
   // Navigation Logic for Modal
@@ -362,13 +390,33 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
           </Select>
 
           {/* Toggle View Mode */}
-          <Button 
-            className={`gap-2 min-w-[140px] transition-colors ${showRejected ? 'bg-[#B91C1C] hover:bg-[#991b1b] text-white' : 'bg-white text-gray-700 border hover:bg-gray-100'}`}
-            onClick={() => setShowRejected(!showRejected)}
-          >
-             {showRejected ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-             {showRejected ? t.btnHideRejected : t.btnShowRejected}
-          </Button>
+          {/* View Toggles */}
+          <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center">
+             <Button 
+                variant={viewMode === 'active' ? "secondary" : "ghost"} 
+                size="sm" 
+                className={`h-7 text-xs ${viewMode === 'active' ? "bg-green-100 text-green-700 hover:bg-green-200 shadow-sm" : "text-gray-500"}`}
+                onClick={() => setViewMode('active')}
+             >
+                Active
+             </Button>
+             <Button 
+                variant={viewMode === 'rejected' ? "secondary" : "ghost"} 
+                size="sm" 
+                className={`h-7 text-xs ${viewMode === 'rejected' ? "bg-white text-red-600 shadow-sm" : "text-gray-500"}`}
+                onClick={() => setViewMode('rejected')}
+             >
+                Rejected
+             </Button>
+             <Button 
+                variant={viewMode === 'stock' ? "secondary" : "ghost"} 
+                size="sm" 
+                className={`h-7 text-xs ${viewMode === 'stock' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500"}`}
+                onClick={() => setViewMode('stock')}
+             >
+                Stock
+             </Button>
+          </div>
 
           {/* Column Selector */}
           <DropdownMenu>
@@ -439,8 +487,8 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
               {visibleColumns.status && <TableHead>{t.colStatus}</TableHead>}
               {visibleColumns.education && <TableHead>{t.colEducation}</TableHead>}
               {visibleColumns.matchReason && <TableHead>{t.colMatchReason}</TableHead>}
-              {(showRejected && visibleColumns.rejectedRound) && <TableHead>{t.colRejectedRound}</TableHead>}
-              {(showRejected && visibleColumns.potential) && <TableHead className="text-center">{t.colPotential}</TableHead>}
+              {(viewMode === 'rejected' && visibleColumns.rejectedRound) && <TableHead>{t.colRejectedRound}</TableHead>}
+              {(viewMode === 'rejected' && visibleColumns.potential) && <TableHead className="text-center">{t.colPotential}</TableHead>}
               {visibleColumns.summary && <TableHead className="w-[200px]">{t.colSummary}</TableHead>}
               {visibleColumns.actions && <TableHead className="text-right">{t.colActions}</TableHead>}
             </TableRow>
@@ -532,8 +580,8 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                {visibleColumns.status && <TableHead className="p-1"><Input placeholder="Status..." className="h-7 text-xs bg-white" value={colFilters.status} onChange={(e)=>setColFilters({...colFilters, status: e.target.value})}/></TableHead>}
                {visibleColumns.education && <TableHead className="p-1"><Input placeholder="School/Degree..." className="h-7 text-xs bg-white" value={colFilters.education} onChange={(e)=>setColFilters({...colFilters, education: e.target.value})}/></TableHead>}
                {visibleColumns.matchReason && <TableHead className="p-1"><Input placeholder="Reason..." className="h-7 text-xs bg-white" value={colFilters.matchReason} onChange={(e)=>setColFilters({...colFilters, matchReason: e.target.value})}/></TableHead>}
-               {(showRejected && visibleColumns.rejectedRound) && <TableHead className="p-1"><Input placeholder="Round..." className="h-7 text-xs bg-white" value={colFilters.rejectedRound} onChange={(e)=>setColFilters({...colFilters, rejectedRound: e.target.value})}/></TableHead>}
-               {(showRejected && visibleColumns.potential) && <TableHead className="p-1 font-normal text-xs text-gray-400 text-center">-</TableHead>}
+               {(viewMode === 'rejected' && visibleColumns.rejectedRound) && <TableHead className="p-1"><Input placeholder="Round..." className="h-7 text-xs bg-white" value={colFilters.rejectedRound} onChange={(e)=>setColFilters({...colFilters, rejectedRound: e.target.value})}/></TableHead>}
+               {(viewMode === 'rejected' && visibleColumns.potential) && <TableHead className="p-1 font-normal text-xs text-gray-400 text-center">-</TableHead>}
                {visibleColumns.summary && <TableHead className="p-1"><Input placeholder="Summary..." className="h-7 text-xs bg-white" value={colFilters.summary} onChange={(e)=>setColFilters({...colFilters, summary: e.target.value})}/></TableHead>}
                {visibleColumns.actions && <TableHead></TableHead>}
             </TableRow>
@@ -547,7 +595,8 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
             ) : filteredCandidates.length === 0 ? (
                <TableRow>
                 <TableCell colSpan={12} className="h-24 text-center text-gray-500">
-                   {showRejected ? "No rejected candidates." : "No new candidates."}
+
+                   {viewMode === 'rejected' ? "No rejected candidates." : viewMode === 'stock' ? "No stock candidates." : "No active candidates."}
                 </TableCell>
               </TableRow>
             ) : (
@@ -591,11 +640,11 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                    {visibleColumns.education && <TableCell className="text-sm text-gray-600">{c.education || c.degree || "-"}</TableCell>}
                    {visibleColumns.matchReason && <TableCell className="text-xs text-gray-500 max-w-[150px] truncate" title={c.matchReason}>{c.matchReason || "-"}</TableCell>}
 
-                   {(showRejected && visibleColumns.rejectedRound) && <TableCell className="text-sm text-gray-600">
+                   {(viewMode === 'rejected' && visibleColumns.rejectedRound) && <TableCell className="text-sm text-gray-600">
                       {c.rejectedRound || "-"}
                    </TableCell>}
 
-                   {(showRejected && visibleColumns.potential) && <TableCell className="text-center">
+                   {(viewMode === 'rejected' && visibleColumns.potential) && <TableCell className="text-center">
                       {c.isPotential && <Check className="h-5 w-5 text-yellow-500 mx-auto" />}
                    </TableCell>}
 
@@ -620,7 +669,11 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   
-                                  {showRejected ? (
+                                  {viewMode === 'stock' ? (
+                                     <DropdownMenuItem onClick={() => handleReactivate(c)}>
+                                         Reactivate (Tái tục)
+                                     </DropdownMenuItem>
+                                  ) : viewMode === 'rejected' ? (
                                      <DropdownMenuItem onClick={() => handleWithdrawToScreen(c)}>
                                          {t.actionWithdraw}
                                      </DropdownMenuItem>
@@ -842,6 +895,15 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         </DialogContent>
       </Dialog>
       
+      {/* Rehire Modal */}
+     <RehireModal 
+       isOpen={isRehireModalOpen}
+       onClose={() => setIsRehireModalOpen(false)}
+       candidate={rehireCandidate}
+       availableJobCodes={uniqueJobCodes}
+       onConfirm={confirmRehire}
+     />
+      
       {/* Decline Modal */}
       <Dialog open={isDeclineModalOpen} onOpenChange={setIsDeclineModalOpen}>
         <DialogContent>
@@ -896,3 +958,4 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     </div>
   );
 }
+

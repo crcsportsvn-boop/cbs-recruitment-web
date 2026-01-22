@@ -4,7 +4,8 @@ Tài liệu này ghi lại toàn bộ lịch sử thay đổi, cập nhật và 
 
 ### 🐛 Fixed
 
-- **HOTFIX**: Sửa lỗi build TypeScript (`Implicit Any` trên array).
+- **HOTFIX 2**: Sửa lỗi Type Validation UI (`Button Variant mismatch`).
+- **HOTFIX 1**: Sửa lỗi build TypeScript (`Implicit Any` trên array).
 
 ---
 
