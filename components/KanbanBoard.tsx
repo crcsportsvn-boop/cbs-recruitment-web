@@ -636,8 +636,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   if (currentStage === "Interview" || currentStage === "Interview2") {
      reasonKeys = REASONS_EN.interview;
      reasonLabels = t.reasons.interview;
-  }
-  if (currentStage === "Offer") {
+  } else if (currentStage === "Offer") {
      reasonKeys = REASONS_EN.offer;
      reasonLabels = t.reasons.offer;
   }
