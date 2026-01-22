@@ -299,9 +299,21 @@ export default function Reports({ lang, user }: ReportProps) {
   // Job Status Counts
   const jobCounts = useMemo(() => {
     const allCodes = new Set<string>();
+    
+    // Add from ACTIVE_JOBS
     ACTIVE_JOBS.forEach(j => allCodes.add(j.id));
-    jobs.forEach(j => j.jobCode && allCodes.add(j.jobCode));
-    candidates?.forEach(c => c.jobCode && allCodes.add(c.jobCode));
+    
+    // Add from jobs sheet (normalize empty to "Unknown")
+    jobs.forEach(j => {
+      const code = j.jobCode?.trim() || "Unknown";
+      allCodes.add(code);
+    });
+    
+    // Add from candidates (normalize empty to "Unknown")
+    candidates?.forEach(c => {
+      const code = c.jobCode?.trim() || "Unknown";
+      allCodes.add(code);
+    });
 
     const stopped = jobs.filter(j => j.status === "Stopped").length;
     const totalUnique = allCodes.size;
@@ -324,8 +336,14 @@ export default function Reports({ lang, user }: ReportProps) {
   const uniqueJobCodes = useMemo(() => {
       const allCodes = new Set<string>();
       ACTIVE_JOBS.forEach(j => allCodes.add(j.id));
-      jobs.forEach(j => j.jobCode && allCodes.add(j.jobCode));
-      candidates?.forEach(c => c.jobCode && allCodes.add(c.jobCode));
+      jobs.forEach(j => {
+        const code = j.jobCode?.trim() || "Unknown";
+        allCodes.add(code);
+      });
+      candidates?.forEach(c => {
+        const code = c.jobCode?.trim() || "Unknown";
+        allCodes.add(code);
+      });
       return Array.from(allCodes).sort();
   }, [jobs, candidates]);
 

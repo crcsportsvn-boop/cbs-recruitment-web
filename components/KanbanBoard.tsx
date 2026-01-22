@@ -487,10 +487,10 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       if (!rehireCandidate) return;
 
       // Optimistic
-      setCandidates(prev => prev.map(c => c.id === rehireCandidate.id ? { ...c, status: "Screening", jobCode: jobCode, notes: "" } : c));
+      setCandidates(prev => prev.map(c => c.id === rehireCandidate.id ? { ...c, status: "Screening", jobCode: jobCode, notes: "", applyDate: "" } : c));
       
       // API
-      await updateCandidateAPI(rehireCandidate.id, { status: "Screening", jobCode: jobCode, notes: "" });
+      await updateCandidateAPI(rehireCandidate.id, { status: "Screening", jobCode: jobCode, notes: "", applyDate: "" });
   };
 
   // --- FILTERING ---

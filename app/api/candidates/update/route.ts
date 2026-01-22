@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
       offerDate: "AH",
       startDate: "AI",
       officialDate: "AJ",
-      rejectedRound: "AL" // Column 37 (Moved from AK)
+      rejectedRound: "AL", // Column 37 (Moved from AK)
+      applyDate: "AM",     // Column 38 (New)
     };
 
     // 4. Prepare Batch Update
