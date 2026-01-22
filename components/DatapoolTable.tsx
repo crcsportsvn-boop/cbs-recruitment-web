@@ -199,18 +199,6 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     }
   };
 
-  // Helper: Update Candidate via API
-  const updateCandidateAPI = async (id: string, updates: any) => {
-    try {
-      await fetch("/api/candidates/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, updates }),
-      });
-    } catch (error) {
-      console.error("Failed to update candidate:", error);
-    }
-  };
 
   // Handle Rehire (Stock → Active)
   const handleReactivate = (candidate: Candidate) => {
@@ -425,17 +413,6 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
       }
   };
 
-  const handleReactivate = (c: Candidate) => {
-      setRehireCandidate(c);
-      setIsRehireModalOpen(true);
-  };
-
-  const confirmRehire = async (jobCode: string) => {
-      if (!rehireCandidate) return;
-      // Optimistic
-      setCandidates(prev => prev.map(c => c.id === rehireCandidate.id ? { ...c, status: "Screening", jobCode: jobCode, notes: "" } : c));
-      await updateCandidateAPI(rehireCandidate.id, { status: "Screening", jobCode: jobCode, notes: "" });
-  };
 
   // Navigation Logic for Modal
   const currentIndex = selectedCandidate ? filteredCandidates.findIndex(c => c.id === selectedCandidate.id) : -1;
