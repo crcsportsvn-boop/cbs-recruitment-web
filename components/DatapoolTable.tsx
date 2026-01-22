@@ -466,7 +466,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
               <SelectItem value="all">{t.filterAll}</SelectItem>
               <SelectItem value="high">High (&ge; 8)</SelectItem>
               <SelectItem value="medium">Medium (5-7)</SelectItem>
-              <SelectItem value="low">Low (&lt; 5)</SelectItem>
+              <SelectItem value="low">Low (< 5)</SelectItem>
             </SelectContent>
           </Select>
 
@@ -507,6 +507,9 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuCheckboxItem checked={visibleColumns.jobCode} onCheckedChange={(c) => setVisibleColumns(p => ({...p, jobCode: !!c}))}>
+                 Job Code
+              </DropdownMenuCheckboxItem>
               <DropdownMenuCheckboxItem checked={visibleColumns.potential} onCheckedChange={(c) => setVisibleColumns(p => ({...p, potential: !!c}))}>
                  {t.colPotential}
               </DropdownMenuCheckboxItem>
@@ -540,6 +543,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
           <TableHeader>
             <TableRow className="bg-gray-100/50">
               {visibleColumns.received && <TableHead className="w-[100px]">{t.colReceived}</TableHead>}
+              {visibleColumns.jobCode && <TableHead className="w-[100px]">Job Code</TableHead>}
               {visibleColumns.candidate && <TableHead>
                   <div className="flex items-center gap-2">
                       {t.colCandidate}
@@ -619,6 +623,15 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                         </div>
                    </div>
                </TableHead>}
+               {visibleColumns.jobCode && <TableHead className="p-1">
+                   <Select value={colFilters.jobCode} onValueChange={(v) => setColFilters({...colFilters, jobCode: v})}>
+                       <SelectTrigger className="h-7 text-xs bg-white w-full"><SelectValue placeholder="All" /></SelectTrigger>
+                       <SelectContent>
+                           <SelectItem value="all">All</SelectItem>
+                           {uniqueJobCodes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                       </SelectContent>
+                   </Select>
+               </TableHead>}
                {visibleColumns.candidate && <TableHead className="p-1"><Input placeholder="Name/Email..." className="h-7 text-xs bg-white" value={colFilters.candidate} onChange={(e)=>setColFilters({...colFilters, candidate: e.target.value})}/></TableHead>}
                {visibleColumns.position && <TableHead className="p-1"><Input placeholder="Position..." className="h-7 text-xs bg-white" value={colFilters.position} onChange={(e)=>setColFilters({...colFilters, position: e.target.value})}/></TableHead>}
                
@@ -657,8 +670,28 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                    </Select>
                </TableHead>}
                
-               {visibleColumns.source && <TableHead className="p-1"><Input placeholder="Source..." className="h-7 text-xs bg-white" value={colFilters.source} onChange={(e)=>setColFilters({...colFilters, source: e.target.value})}/></TableHead>}
-               {visibleColumns.status && <TableHead className="p-1"><Input placeholder="Status..." className="h-7 text-xs bg-white" value={colFilters.status} onChange={(e)=>setColFilters({...colFilters, status: e.target.value})}/></TableHead>}
+               {visibleColumns.source && <TableHead className="p-1">
+                   <Select value={colFilters.source} onValueChange={(v) => setColFilters({...colFilters, source: v})}>
+                       <SelectTrigger className="h-7 text-xs bg-white w-full"><SelectValue placeholder="All" /></SelectTrigger>
+                       <SelectContent>
+                           <SelectItem value="all">All</SelectItem>
+                           {Array.from(new Set(candidates.map(c => c.source).filter(Boolean))).sort().map(s => (
+                               <SelectItem key={s} value={s!}>{s}</SelectItem>
+                           ))}
+                       </SelectContent>
+                   </Select>
+               </TableHead>}
+               {visibleColumns.status && <TableHead className="p-1">
+                   <Select value={colFilters.status} onValueChange={(v) => setColFilters({...colFilters, status: v})}>
+                       <SelectTrigger className="h-7 text-xs bg-white w-full"><SelectValue placeholder="All" /></SelectTrigger>
+                       <SelectContent>
+                           <SelectItem value="all">All</SelectItem>
+                           {["New", "Screening", "HR Interview", "Interview", "Interview2", "Offer", "Hired", "Rejected"].map(s => (
+                               <SelectItem key={s} value={s}>{s}</SelectItem>
+                           ))}
+                       </SelectContent>
+                   </Select>
+               </TableHead>}
                {visibleColumns.education && <TableHead className="p-1"><Input placeholder="School/Degree..." className="h-7 text-xs bg-white" value={colFilters.education} onChange={(e)=>setColFilters({...colFilters, education: e.target.value})}/></TableHead>}
                {visibleColumns.matchReason && <TableHead className="p-1"><Input placeholder="Reason..." className="h-7 text-xs bg-white" value={colFilters.matchReason} onChange={(e)=>setColFilters({...colFilters, matchReason: e.target.value})}/></TableHead>}
                {(viewMode === 'rejected' && visibleColumns.rejectedRound) && <TableHead className="p-1"><Input placeholder="Round..." className="h-7 text-xs bg-white" value={colFilters.rejectedRound} onChange={(e)=>setColFilters({...colFilters, rejectedRound: e.target.value})}/></TableHead>}
@@ -689,6 +722,10 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                 >
                   {visibleColumns.received && <TableCell className="font-medium text-xs text-gray-500">
                     {c.timestamp ? c.timestamp.split(" ")[0] : "-"}
+                  </TableCell>}
+
+                  {visibleColumns.jobCode && <TableCell className="text-xs text-gray-600 font-medium">
+                    {c.jobCode}
                   </TableCell>}
                   
                   {visibleColumns.candidate && <TableCell>
@@ -752,7 +789,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                                   
                                   {viewMode === 'stock' ? (
                                      <DropdownMenuItem onClick={() => handleReactivate(c)}>
-                                         Reactivate (Tái tục)
+                                         Rehire
                                      </DropdownMenuItem>
                                   ) : viewMode === 'rejected' ? (
                                      <DropdownMenuItem onClick={() => handleWithdrawToScreen(c)}>

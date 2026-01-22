@@ -498,6 +498,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       
       // API
       await updateCandidateAPI(rehireCandidate.id, { status: "Screening", jobCode: jobCode, notes: "", applyDate: newApplyDate });
+      fetchCandidates();
   };
 
   // --- FILTERING ---
