@@ -79,10 +79,10 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const uniqueJobCodes = Array.from(new Set(candidates.map(c => c.jobCode).filter(Boolean))) as string[];
 
   // Modal State
+  // Modal State
   const [isInterviewModalOpen, setIsInterviewModalOpen] = useState(false);
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [isStopJobModalOpen, setIsStopJobModalOpen] = useState(false);
-  const [isRehireModalOpen, setIsRehireModalOpen] = useState(false); // New
   const [isRehireModalOpen, setIsRehireModalOpen] = useState(false); // New
   const [rehireCandidate, setRehireCandidate] = useState<Candidate | null>(null); // New
   const [isHiredModalOpen, setIsHiredModalOpen] = useState(false);
