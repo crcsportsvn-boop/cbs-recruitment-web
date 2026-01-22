@@ -486,11 +486,18 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const confirmRehire = async (jobCode: string) => {
       if (!rehireCandidate) return;
 
+      // Determine correct applyDate logic (Same as DatapoolTable)
+      let newApplyDate = "";
+      const targetJob = jobs[jobCode];
+      if (targetJob && targetJob.status === "Stopped" && targetJob.stopDate) {
+          newApplyDate = targetJob.stopDate; 
+      }
+
       // Optimistic
-      setCandidates(prev => prev.map(c => c.id === rehireCandidate.id ? { ...c, status: "Screening", jobCode: jobCode, notes: "", applyDate: "" } : c));
+      setCandidates(prev => prev.map(c => c.id === rehireCandidate.id ? { ...c, status: "Screening", jobCode: jobCode, notes: "", applyDate: newApplyDate } : c));
       
       // API
-      await updateCandidateAPI(rehireCandidate.id, { status: "Screening", jobCode: jobCode, notes: "", applyDate: "" });
+      await updateCandidateAPI(rehireCandidate.id, { status: "Screening", jobCode: jobCode, notes: "", applyDate: newApplyDate });
   };
 
   // --- FILTERING ---

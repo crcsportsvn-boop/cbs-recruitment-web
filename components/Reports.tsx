@@ -479,9 +479,9 @@ export default function Reports({ lang, user }: ReportProps) {
                    <Table>
                        <TableHeader>
                            <TableRow className="bg-gray-50">
-                               <TableHead className="w-[12%] min-w-[100px]">{t.jobCode}</TableHead>
-                               <TableHead className="w-[20%] min-w-[200px]">{t.jobTitle}</TableHead>
-                               <TableHead className="text-center font-bold min-w-[50px]">{t.count}</TableHead>
+                               <TableHead className="w-[100px] min-w-[100px]">{t.jobCode}</TableHead>
+                               <TableHead className="w-[250px] min-w-[200px]">{t.jobTitle}</TableHead>
+                               <TableHead className="text-center font-bold w-[60px]">{t.count}</TableHead>
                                <TableHead className="text-center text-green-600 min-w-[60px]">Active</TableHead>
                                <TableHead className="text-center text-gray-500 min-w-[60px]">Stock</TableHead>
                                <TableHead className="text-center text-red-500 min-w-[60px]">Reject</TableHead>
@@ -495,7 +495,13 @@ export default function Reports({ lang, user }: ReportProps) {
                        <TableBody>
                            {Object.entries(stats.jobStats).sort((a,b) => b[1].total - a[1].total).map(([jobCode, stat]: [string, any]) => {
                                const jobInfo = jobMap[jobCode];
-                               const title = jobInfo?.title || ACTIVE_JOBS.find(j=>j.id===jobCode)?.name || "Unknown";
+                               let title = jobInfo?.title && jobInfo.title !== "Unknown" ? jobInfo.title : (ACTIVE_JOBS.find(j=>j.id===jobCode)?.name || "Unknown");
+                               if (title === "Unknown") {
+                                   // Fallback to finding position from candidates
+                                   const cand = candidates.find(c => c.jobCode === jobCode);
+                                   if (cand?.positionRaw) title = cand.positionRaw;
+                               }
+                               
                                return (
                                    <TableRow key={jobCode}>
                                        <TableCell className="font-medium">{jobCode}</TableCell>
@@ -521,8 +527,8 @@ export default function Reports({ lang, user }: ReportProps) {
                    <Table>
                        <TableHeader>
                            <TableRow className="bg-gray-50">
-                               <TableHead className="w-[15%] min-w-[120px]">Source</TableHead>
-                               <TableHead className="text-center font-bold min-w-[50px]">{t.count}</TableHead>
+                               <TableHead className="w-[350px] min-w-[300px]">Source</TableHead>
+                               <TableHead className="text-center font-bold w-[60px]">{t.count}</TableHead>
                                <TableHead className="text-center text-green-600 min-w-[60px]">Active</TableHead>
                                <TableHead className="text-center text-gray-500 min-w-[60px]">Stock</TableHead>
                                <TableHead className="text-center text-red-500 min-w-[60px]">Reject</TableHead>

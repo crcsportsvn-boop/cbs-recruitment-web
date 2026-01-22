@@ -79,10 +79,11 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   const [colFilters, setColFilters] = useState({
      dateFrom: "",
      dateTo: "",
+     jobCode: "all",
      candidate: "",
      position: "",
-     source: "",
-     status: "",
+     source: "all",
+     status: "all",
      education: "",
      matchReason: "",
      rejectedRound: "",
@@ -92,6 +93,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   // Column Visibility
   const [visibleColumns, setVisibleColumns] = useState({
     received: true,
+    jobCode: true,
     candidate: true,
     position: true,
     score: true,
@@ -324,10 +326,11 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     // Column Filters
     const matchesColFilters = 
         matchesDate &&
+        (colFilters.jobCode === "all" || c.jobCode === colFilters.jobCode) &&
         (colFilters.candidate === "" || c.name.toLowerCase().includes(colFilters.candidate.toLowerCase()) || c.email.toLowerCase().includes(colFilters.candidate.toLowerCase())) &&
         (colFilters.position === "" || c.position?.toLowerCase().includes(colFilters.position.toLowerCase())) &&
-        (colFilters.source === "" || c.source?.toLowerCase().includes(colFilters.source.toLowerCase())) &&
-        (colFilters.status === "" || c.status?.toLowerCase().includes(colFilters.status.toLowerCase())) &&
+        (colFilters.source === "all" || c.source === colFilters.source) &&
+        (colFilters.status === "all" || c.status === colFilters.status) &&
         (colFilters.education === "" || c.education?.toLowerCase().includes(colFilters.education.toLowerCase()) || c.degree?.toLowerCase().includes(colFilters.education.toLowerCase())) &&
         (colFilters.matchReason === "" || c.matchReason?.toLowerCase().includes(colFilters.matchReason.toLowerCase())) &&
         (colFilters.rejectedRound === "" || c.rejectedRound?.toLowerCase().includes(colFilters.rejectedRound.toLowerCase())) &&
