@@ -626,19 +626,21 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     return matchesSearch && matchesScore && matchesDate;
   });
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return <div className="flex items-center justify-center h-full">Loading...</div>;
+  }
 
   // Determine current decline reasons
   const currentStage = selectedCandidate?.status || "New";
   let reasonKeys = REASONS_EN.screening;
   let reasonLabels = t.reasons.screening;
-  
+
   if (currentStage === "Interview" || currentStage === "Interview2") {
-      reasonKeys = REASONS_EN.interview;
-      reasonLabels = t.reasons.interview;
+    reasonKeys = REASONS_EN.interview;
+    reasonLabels = t.reasons.interview;
   } else if (currentStage === "Offer") {
-      reasonKeys = REASONS_EN.offer;
-      reasonLabels = t.reasons.offer;
+    reasonKeys = REASONS_EN.offer;
+    reasonLabels = t.reasons.offer;
   }
 
   return (
