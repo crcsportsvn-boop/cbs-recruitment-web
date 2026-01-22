@@ -4,6 +4,9 @@ Tài liệu này ghi lại toàn bộ lịch sử thay đổi, cập nhật và 
 
 ### 🐛 Fixed
 
+- **HOTFIX 3**: Đồng bộ Popup Stop Job (Loại bỏ Alert trình duyệt).
+- **HOTFIX 4**: Sửa lỗi Filter Job trong Reports (Chỉ lấy Job Code hợp lệ từ sheet Jobs).
+- **HOTFIX 5**: Giảm font size tên ứng viên (11px) để hiển thị đầy đủ trên 1 dòng.
 - **HOTFIX 2**: Sửa lỗi Type Validation UI (`Button Variant mismatch`).
 - **HOTFIX 1**: Sửa lỗi build TypeScript (`Implicit Any` trên array).
 
@@ -11,13 +14,15 @@ Tài liệu này ghi lại toàn bộ lịch sử thay đổi, cập nhật và 
 
 ## [v1.1.0] - Job Management Update - 2026-01-22
 
-**Trạng thái**: 🟡 Testing  
-**Mô tả**: Bổ sung tính năng quản lý tuyển dụng theo Job Code và chế độ xem lưu trữ (Stock).
+**Trạng thái**: 🟢 Stable  
+**Mô tả**: Bổ sung tính năng quản lý tuyển dụng theo Job Code, hoàn thiện Báo cáo (Reports), và điều chỉnh UI.
 
 ### 🚀 Added
 
-- **Job Code Filter**: Bộ lọc chuyên biệt cho từng mã công việc.
-- **Stop Recruitment**: Tính năng ngưng tuyển dụng, chuyển toàn bộ ứng viên của Job sang kho lưu trữ (Stock).
+- **Reports Tab**: Xem thống kê phễu tuyển dụng, số lượng ứng viên theo Job/Nguồn/Nhóm.
+- **Job Code Filter**: Bộ lọc chuyên biệt cho từng mã công việc từ danh sách Jobs chính thức.
+- **Stop Recruitment**: Tính năng ngưng tuyển dụng v2 (Validate lý do, không dùng trình duyệt alert).
+- **Kanban Grouping**: Nhóm trạng thái "Hired" vào cột "Offer" để quản lý gọn gàng hơn.
 - **Stock View**: Chế độ xem riêng cho các hồ sơ tạm ngưng tuyển.
 - **Reactivate**: Chức năng tái tục quy trình tuyển dụng cho ứng viên trong kho Stock.
 

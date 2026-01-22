@@ -150,26 +150,63 @@ Nơi theo dõi tiến độ phỏng vấn của các ứng viên đang được 
 ### Các tính năng:
 
 - **Giao diện Kanban**: Các cột tương ứng với các bước tuyển dụng:
-  - **New**: Ứng viên mới (62 ứng viên trong ảnh)
-  - **Screening**: Đang sàng lọc
-  - **Interview Round 1**: Phỏng vấn vòng 1
-  - **Interview Round 2**: Phỏng vấn vòng 2
-  - **Offer / Hired**: Đã gửi offer hoặc tuyển dụng
-- **Bộ lọc**:
-  - **Tìm kiếm**: Tìm ứng viên theo tên/email
-  - **Lọc theo vị trí**: Dropdown chọn vị trí cụ thể
-  - **Lọc theo ngày**: Chọn khoảng thời gian From/To
-  - **Show Rejected CVs**: Nút toggle để hiện/ẩn CV đã bị loại
+  - **New**: Ứng viên mới.
+  - **Screening**: Đang sàng lọc.
+  - **Interview Round 1**: Phỏng vấn vòng 1.
+  - **Interview Round 2**: Phỏng vấn vòng 2.
+  - **Offer / Hired**: Đã gửi offer hoặc đã tuyển dụng chính thức (Nhóm chung).
+- **Bộ lọc Job Code**:
+  - Chọn mã Job cụ thể để xem ứng viên của Job đó.
+  - Có thể thực hiện **Stop Recruitment** (Ngưng tuyển) cho Job đang chọn.
+  - **Stock View**: Xem danh sách ứng viên của các Job đã ngưng tuyển.
 - **Chuyển trạng thái**:
-  - **Kéo và Thả**: Nhấn giữ thẻ ứng viên và kéo sang cột mong muốn
-  - Hệ thống tự động cập nhật trạng thái vào Google Sheet
+  - **Kéo và Thả**: Nhấn giữ thẻ ứng viên và kéo sang cột mong muốn.
+  - Hệ thống tự động cập nhật trạng thái vào Google Sheet.
 - **Loại ứng viên (Reject/Decline)**:
-  - Trên mỗi thẻ có nút "Decline"
-  - Chọn lý do loại và có thể đánh dấu "Potential Candidate"
+  - Trên mỗi thẻ có nút "Decline".
+  - Chọn lý do loại và có thể đánh dấu "Potential Candidate".
 
 ---
 
-## 7. Đăng Xuất (Logout)
+## 7. Tab 4: Báo Cáo (Reports)
+
+Nơi xem thống kê tổng quan về hiệu quả tuyển dụng.
+
+### Các biểu đồ chính:
+
+1.  **Phễu Tuyển Dụng (Recruitment Funnel)**:
+    - Hiển thị tỷ lệ chuyển đổi qua từng vòng (New -> Screening -> Interview -> Offer -> Hired).
+    - Giúp nhận biết vòng nào đang bị rớt nhiều ứng viên nhất.
+2.  **Thống Kê Ứng Viên**:
+    - Số lượng ứng viên Active, Hired, Rejected, và Stock.
+3.  **Bộ Lọc Nâng Cao**:
+    - **Job Code**: Xem báo cáo riêng cho từng vị trí.
+    - **Source**: So sánh hiệu quả các nguồn (LinkedIn vs TopCV...).
+    - **Status**: Lọc theo Job đang tuyển (Hiring) hoặc đã dừng (Stopped).
+
+---
+
+## 8. Quản Lý Job & Stock (Mới)
+
+### Tính năng Ngưng Tuyển (Stop Job):
+
+1.  Tại màn hình Kanban, chọn một **Job Code** cụ thể.
+2.  Nhấn nút **"Stop Recruitment"** (Màu đỏ).
+3.  Chọn lý do dừng (Đủ người, Thay đổi kế hoạch...).
+4.  Hệ thống sẽ:
+    - Đánh dấu Job là **Stopped**.
+    - Chuyển toàn bộ ứng viên mới (nếu có sau này) vào kho **Stock**.
+    - Ẩn Job khỏi danh sách lọc mặc định để gọn giao diện.
+
+### Kho Lưu Trữ (Stock):
+
+- Là nơi chứa hồ sơ của các Job đã đóng hoặc tạm dừng.
+- Để xem lại: Chọn filter **"Stock View"** hoặc filter Job đã dừng trong Reports.
+- Có thể **Reactivate** (Kích hoạt lại) ứng viên từ kho Stock nếu Job mở lại.
+
+---
+
+## 9. Đăng Xuất (Logout)
 
 ![Menu đăng xuất](./assets/logout_menu.png)
 
