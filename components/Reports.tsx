@@ -59,15 +59,18 @@ export default function Reports({ lang, user }: ReportProps) {
   const [filterSource, setFilterSource] = useState("all");
   const [filterGroup, setFilterGroup] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const canChangeGroup = user?.role && (user.role.toLowerCase().includes("admin") || user.role.toLowerCase().includes("manager"));
 
   // Default Group Filter
   useEffect(() => {
-    if (user?.role && user.role.toLowerCase().includes("store")) {
-         setFilterGroup("Store");
-    } else {
-         setFilterGroup("HO");
+    if (!canChangeGroup && user?.role) {
+        if (user.role.toLowerCase().includes("store")) setFilterGroup("Store");
+        else setFilterGroup("HO");
     }
-  }, [user]);
+  }, [user, canChangeGroup]);
 
   const t = {
     vi: {
@@ -95,7 +98,11 @@ export default function Reports({ lang, user }: ReportProps) {
         stL2: "PV Vòng 2",
         stOffer: "Offer",
         stHired: "Nhận Việc",
-        status: "Trạng thái Job"
+        status: "Trạng thái Job",
+        hiringJobs: "Job Đang Tuyển",
+        closedJobs: "Job Đã Đóng",
+        dateFrom: "Từ Ngày",
+        dateTo: "Đến Ngày"
     },
     en: {
         total: "Total Candidates",
@@ -122,7 +129,11 @@ export default function Reports({ lang, user }: ReportProps) {
         stL2: "Round 2",
         stOffer: "Offer",
         stHired: "Hired",
-        status: "Job Status"
+        status: "Job Status",
+        hiringJobs: "Hiring Jobs",
+        closedJobs: "Closed Jobs",
+        dateFrom: "From Date",
+        dateTo: "To Date"
     }
   }[lang];
 
@@ -192,9 +203,24 @@ export default function Reports({ lang, user }: ReportProps) {
         const status = job?.status || "Hiring";
         if (filterStatus !== "all" && status !== filterStatus) return false;
 
+        // Date Filter
+        if (dateFrom || dateTo) {
+            try {
+                const cDate = parse(c.timestamp || "", 'dd/MM/yyyy HH:mm:ss', new Date());
+                if (dateFrom) {
+                    const from = new Date(dateFrom); from.setHours(0,0,0,0);
+                    if (cDate < from) return false;
+                }
+                if (dateTo) {
+                    const to = new Date(dateTo); to.setHours(23,59,59,999);
+                    if (cDate > to) return false;
+                }
+            } catch (e) {}
+        }
+
         return true;
     });
-  }, [candidates, filterGroup, filterJob, filterSource, filterStatus, jobMap]);
+  }, [candidates, filterGroup, filterJob, filterSource, filterStatus, jobMap, dateFrom, dateTo]);
 
   const stats = useMemo(() => {
       let total = 0, active = 0, stock = 0, rejected = 0;
@@ -252,6 +278,16 @@ export default function Reports({ lang, user }: ReportProps) {
       return { total, active, stock, rejected, stageCounts, jobStats, sourceStats };
   }, [filteredCandidates, jobMap]);
 
+  // Job Status Counts
+  const jobCounts = useMemo(() => {
+      const stopped = jobs.filter(j => j.status === "Stopped").length;
+      // Merge unique jobs from candidates + active jobs constant
+      // Simplification: Use ACTIVE_JOBS constant as base
+      const totalDefined = ACTIVE_JOBS.length;
+      const hiring = Math.max(0, totalDefined - stopped);
+      return { hiring, stopped };
+  }, [jobs]);
+
   const funnelData = STAGES.map((stage, index) => {
       const val = stats.stageCounts[stage] || 0;
       const prevVal = index > 0 ? stats.stageCounts[STAGES[index-1]] : val;
@@ -284,8 +320,8 @@ export default function Reports({ lang, user }: ReportProps) {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-gray-500">Group</label>
-                        <Select value={filterGroup} onValueChange={setFilterGroup}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
+                        <Select value={filterGroup} onValueChange={setFilterGroup} disabled={!canChangeGroup}>
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">{t.all}</SelectItem>
                                 <SelectItem value="HO">{t.groupHO}</SelectItem>
@@ -324,16 +360,33 @@ export default function Reports({ lang, user }: ReportProps) {
                             </SelectContent>
                         </Select>
                     </div>
+                    {/* Date Filters */}
+                    <div className="flex gap-2 col-span-2 md:col-span-2">
+                        <div className="flex-1 space-y-1">
+                            <label className="text-xs font-medium text-gray-500">{t.dateFrom}</label>
+                            <input type="date" className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" 
+                                value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                            <label className="text-xs font-medium text-gray-500">{t.dateTo}</label>
+                            <input type="date" className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" 
+                                value={dateTo} onChange={e => setDateTo(e.target.value)} />
+                        </div>
+                    </div>
                 </div>
             </CardContent>
         </Card>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-white border-l-4 border-l-blue-600 shadow-sm"><CardContent className="pt-6"><div className="text-sm font-medium text-gray-500 uppercase">{t.total}</div><div className="text-3xl font-bold text-gray-800">{stats.total}</div></CardContent></Card>
-        <Card className="bg-white border-l-4 border-l-green-500 shadow-sm"><CardContent className="pt-6"><div className="text-sm font-medium text-gray-500 uppercase">{t.active}</div><div className="text-3xl font-bold text-green-600">{stats.active}</div></CardContent></Card>
-        <Card className="bg-white border-l-4 border-l-gray-400 shadow-sm"><CardContent className="pt-6"><div className="text-sm font-medium text-gray-500 uppercase">{t.stock}</div><div className="text-3xl font-bold text-gray-600">{stats.stock}</div></CardContent></Card>
-         <Card className="bg-white border-l-4 border-l-red-500 shadow-sm"><CardContent className="pt-6"><div className="text-sm font-medium text-gray-500 uppercase">{t.rejected}</div><div className="text-3xl font-bold text-red-500">{stats.rejected}</div></CardContent></Card>
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <Card className="bg-white border-l-4 border-l-blue-600 shadow-sm"><CardContent className="pt-6"><div className="text-sm font-medium text-gray-500 uppercase">{t.total}</div><div className="text-2xl font-bold text-gray-800">{stats.total}</div></CardContent></Card>
+        <Card className="bg-white border-l-4 border-l-green-500 shadow-sm"><CardContent className="pt-6"><div className="text-sm font-medium text-gray-500 uppercase">{t.active}</div><div className="text-2xl font-bold text-green-600">{stats.active}</div></CardContent></Card>
+        <Card className="bg-white border-l-4 border-l-gray-400 shadow-sm"><CardContent className="pt-6"><div className="text-sm font-medium text-gray-500 uppercase">{t.stock}</div><div className="text-2xl font-bold text-gray-600">{stats.stock}</div></CardContent></Card>
+        <Card className="bg-white border-l-4 border-l-red-500 shadow-sm"><CardContent className="pt-6"><div className="text-sm font-medium text-gray-500 uppercase">{t.rejected}</div><div className="text-2xl font-bold text-red-500">{stats.rejected}</div></CardContent></Card>
+        
+        {/* New Job Status Cards */}
+        <Card className="bg-blue-50 border-l-4 border-l-blue-400 shadow-sm"><CardContent className="pt-6"><div className="text-sm font-medium text-blue-600 uppercase">{t.hiringJobs}</div><div className="text-2xl font-bold text-blue-800">{jobCounts.hiring}</div></CardContent></Card>
+        <Card className="bg-gray-50 border-l-4 border-l-gray-500 shadow-sm"><CardContent className="pt-6"><div className="text-sm font-medium text-gray-500 uppercase">{t.closedJobs}</div><div className="text-2xl font-bold text-gray-700">{jobCounts.stopped}</div></CardContent></Card>
       </div>
 
       {/* Funnel Chart */}

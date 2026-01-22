@@ -13,6 +13,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { MoreHorizontal, Search, EyeOff, Eye, Copy, Check } from "lucide-react";
 import { dictionary, LangType } from "@/lib/dictionary";
 import { ACTIVE_JOBS } from "@/lib/constants";
+import { parse, isAfter, parseISO } from "date-fns";
+
+interface JobData {
+    jobCode: string;
+    status: string;
+    stopDate: string;
+}
 
 
 interface Candidate {
@@ -55,7 +62,8 @@ const REASONS_EN = {
 export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const t = dictionary[lang].kanban;
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [jobs, setJobs] = useState<Record<string, JobData>>({});
+  const [loading, setLoading] = useState(false);
   
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -107,15 +115,52 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   }, []);
 
   const fetchCandidates = async () => {
-    /** ... same ... */
     try {
-      const res = await fetch("/api/candidates");
-      const data = await res.json();
-      if (data.candidates) {
-        setCandidates(data.candidates);
+      setLoading(true);
+      const [candRes, jobRes] = await Promise.all([
+        fetch("/api/candidates"),
+        fetch("/api/jobs")
+      ]);
+      
+      if (!candRes.ok) throw new Error("Failed");
+      const data = await candRes.json();
+      const jobData = await jobRes.json();
+
+      // Jobs Map
+      const jobMap: Record<string, JobData> = {};
+      if (jobData.jobs) {
+          jobData.jobs.forEach((j: any) => {
+              jobMap[j.jobCode] = { jobCode: j.jobCode, status: j.status, stopDate: j.stopDate };
+          });
       }
-    } catch (error) {
-      console.error("Failed to fetch candidates", error);
+      setJobs(jobMap);
+
+      const formatted = data.candidates.map((c: any) => ({
+        // ... mapping remains same, assuming API returns same structure
+        id: c.id,
+        fullName: c.fullName,
+        positionRaw: c.positionRaw,
+        status: c.status || "New",
+        matchScore: c.matchScore,
+        cvLink: c.cvLink,
+        email: c.email || "",
+        matchReason: c.matchReason || "",
+        notes: c.notes || "",
+        jobCode: c.jobCode,
+        timestamp: c.timestamp,
+        log: c.log || "",
+        offerDate: c.offerDate,
+        hrInterviewDate: c.hrInterviewDate,
+        interviewDate1: c.interviewDate1,
+        interviewDate2: c.interviewDate2,
+        testResult: c.testResult,
+        failureReason: c.failureReason,
+        isPotential: c.isPotential,
+        rejectedRound: c.rejectedRound,
+      }));
+      setCandidates(formatted);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -400,11 +445,32 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         setIsStopJobModalOpen(false);
         setStopJobReason("");
         setStopJobOtherReason("");
+        fetchCandidates(); // Refresh to update Stock view
         alert(`Job ${selectedJobCode} stopped successfully. New candidates will be marked as Stock.`);
     } catch (e) {
         console.error(e);
         alert("Failed to stop job on server");
     }
+  };
+
+  const handleResumeJob = async () => {
+      if (selectedJobCode === "all") return;
+      if (!confirm(`Resume Recruitment for ${selectedJobCode}?`)) return;
+      
+      try {
+          // Re-enable in Jobs Sheet
+          // We use generic /api/jobs upsert
+          await fetch("/api/jobs", {
+              method: "POST",
+              body: JSON.stringify({
+                  jobs: [{ jobCode: selectedJobCode, status: "Hiring", stopDate: "" }]
+              })
+          });
+          fetchCandidates();
+          alert("Recruitment Resumed.");
+      } catch (e) {
+          alert("Failed to resume.");
+      }
   };
 
   const handleReactivateCandidate = (candidate: Candidate) => {
@@ -424,7 +490,18 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
   // --- FILTERING ---
   const filteredCandidates = candidates.filter(c => {
-    const isStock = c.notes?.includes("Stock");
+    const isNoteStock = c.notes?.includes("Stock");
+    let isStoppedRule = false;
+    const job = jobs[c.jobCode || ""];
+    if (job && job.status === "Stopped" && job.stopDate && c.timestamp) {
+        try {
+             // c.timestamp is "dd/MM/yyyy..."
+             const cDate = parse(c.timestamp, 'dd/MM/yyyy HH:mm:ss', new Date());
+             const sDate = parseISO(job.stopDate);
+             if (isAfter(cDate, sDate)) isStoppedRule = true;
+        } catch (e) {}
+    }
+    const isStock = isNoteStock || isStoppedRule;
     
     // 1. View Logic
     if (showStock) {
@@ -549,9 +626,15 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
-                            <DropdownMenuItem className="text-red-600" onClick={() => setIsStopJobModalOpen(true)}>
-                                Stop Recruitment
-                            </DropdownMenuItem>
+                            {jobs[selectedJobCode]?.status === "Stopped" ? (
+                                <DropdownMenuItem className="text-green-600" onClick={handleResumeJob}>
+                                    Continue Recruitment
+                                </DropdownMenuItem>
+                            ) : (
+                                <DropdownMenuItem className="text-red-600" onClick={() => setIsStopJobModalOpen(true)}>
+                                    Stop Recruitment
+                                </DropdownMenuItem>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 )}
@@ -677,7 +760,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                 <DropdownMenuContent align="end">
                                   {showStock ? (
                                      <DropdownMenuItem onClick={() => handleReactivateCandidate(c)}>
-                                        Reactivate (Tái tục)
+                                        Rehire
                                      </DropdownMenuItem>
                                   ) : (
                                     <>
