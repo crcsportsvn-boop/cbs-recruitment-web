@@ -283,7 +283,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         (colFilters.rejectedRound === "" || c.rejectedRound?.toLowerCase().includes(colFilters.rejectedRound.toLowerCase())) &&
         (colFilters.summary === "" || c.summary?.toLowerCase().includes(colFilters.summary.toLowerCase()));
 
-    return matchesSearch && matchesScore && matchesMode && matchesColFilters;
+    return matchesSearch && matchesScore && matchesColFilters;
   });
 
   // Actions
