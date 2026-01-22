@@ -1047,8 +1047,6 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
             </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      </Dialog>
 
       {/* Hired Modal */}
       <Dialog open={isHiredModalOpen} onOpenChange={setIsHiredModalOpen}>
