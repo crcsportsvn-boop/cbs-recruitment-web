@@ -14,18 +14,50 @@ export async function GET(req: NextRequest) {
     }
 
     const tokens = JSON.parse(tokensCookie);
-    const accessToken = tokens.access_token;
+    // const accessToken = tokens.access_token; // Don't just extract access_token, use everything
 
-    if (!accessToken) {
+    if (!tokens) { // Basic check
        return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
     }
 
-    const oauth2Client = new google.auth.OAuth2();
-    oauth2Client.setCredentials({ access_token: accessToken });
+    // Initialize with Client ID/Secret to enable Refresh capability
+    const REDIRECT_URI = process.env.NODE_ENV === "production"
+      ? "https://cbs-recruitment-web.vercel.app/api/auth/callback"
+      : "http://localhost:3000/api/auth/callback";
 
-    // 1. Get User Info from Google
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      REDIRECT_URI
+    );
+    
+    oauth2Client.setCredentials(tokens);
+
+    // 1. Get User Info from Google (Auto-refresh should happen here if expired)
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
-    const userInfo = await oauth2.userinfo.get();
+    
+    let userInfo;
+    try {
+        userInfo = await oauth2.userinfo.get();
+    } catch (err) {
+        // If refresh fails or token is completely invalid
+        console.error("Auth Token Check Failed", err);
+        return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
+    }
+
+    // Check if tokens were refreshed (access_token changed)
+    const newCredentials = oauth2Client.credentials;
+    if (newCredentials.access_token && newCredentials.access_token !== tokens.access_token) {
+        // Update cookie with new tokens (merging with old to keep refresh_token if new one doesn't have it)
+        const mergedTokens = { ...tokens, ...newCredentials };
+        cookies().set("google_tokens", JSON.stringify(mergedTokens), {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 60 * 60 * 24 * 365, // 1 year
+            path: "/",
+        });
+    }
+
     const email = userInfo.data.email;
     const googleId = userInfo.data.id; // "Extract ID" requested by user
 

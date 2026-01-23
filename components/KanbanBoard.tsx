@@ -204,6 +204,36 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
        updates.testResult = todayStr;
     }
 
+    // --- CLEANUP LOGIC FOR BACKWARD MOVES ---
+    // If we move to a stage, we must clear dates of SUBSEQUENT stages to avoid dirty data in reports.
+    // Hierarchy: New -> Screening -> HR Interview -> Interview -> Interview2 -> Offer
+    
+    const STAGE_ORDER = ["New", "Screening", "HR Interview", "Interview", "Interview2", "Offer", "Hired"];
+    const targetIdx = STAGE_ORDER.indexOf(targetStatus);
+    const currentIdx = STAGE_ORDER.indexOf(candidate.status);
+
+    // If moving backward (or even sideways to same stage, though unlikely), ensure future fields are empty
+    // Actually, we should ALWAYS ensure fields *after* the target stage are cleared, 
+    // just in case they were set previously (e.g. rehire or accidental forward move).
+    
+    if (targetIdx !== -1) {
+        // If target is BEFORE Offer (i.e. index < 5), clear Offer Date
+        if (targetIdx < 5) updates.offerDate = ""; 
+        
+        // If target is BEFORE Interview2 (i.e. index < 4), clear Interview2 Date
+        if (targetIdx < 4) updates.interviewDate2 = "";
+
+        // If target is BEFORE Interview (L1) (i.e. index < 3), clear Interview1 Date
+        if (targetIdx < 3) updates.interviewDate1 = "";
+
+        // If target is BEFORE HR Interview (i.e. index < 2), clear HR Date
+        if (targetIdx < 2) updates.hrInterviewDate = "";
+
+        // If target is BEFORE Screening (i.e. New) (i.e. index < 1), clear TestResult
+        if (targetIdx < 1) updates.testResult = "";
+    }
+    // -----------------------------------------
+
     await updateCandidateAPI(candidate.id, updates);
   };
 
