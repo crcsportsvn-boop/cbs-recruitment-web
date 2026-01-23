@@ -43,6 +43,7 @@ function HomeContent() {
   };
 
   const [user, setUser] = useState<any>(null);
+  const [loggingIn, setLoggingIn] = useState(true);
 
   useEffect(() => {
     // ... logic fetch user giữ nguyên ...
@@ -53,7 +54,12 @@ function HomeContent() {
           setUser(data.user);
         }
       })
-      .catch(err => console.error("Auth check failed", err));
+      .catch(err => console.error("Auth check failed", err))
+      .finally(() => {
+          // Add a small artificial delay for smoothness if it's too fast (optional, but requested for "Experience")
+          // But usually better to just show content. Let's keep it snappy but animated.
+           setLoggingIn(false);
+      });
   }, []);
 
   const t = {
@@ -64,7 +70,8 @@ function HomeContent() {
       tabProcess: "Quy Trình Tuyển Dụng",
       tabReport: "Báo Cáo",
       tabConfig: "Cấu Hình",
-      footer: "© 2026 CBS Vietnam - Recruitment Portal"
+      footer: "© 2026 CBS Vietnam - Recruitment Portal",
+      verifying: "Đang xác thực bảo mật..."
     },
     en: {
       title: "Recruitment Portal",
@@ -73,11 +80,12 @@ function HomeContent() {
       tabProcess: "Recruitment Process",
       tabReport: "Reports",
       tabConfig: "Settings",
-      footer: "© 2026 CBS Vietnam - All rights reserved"
+      footer: "© 2026 CBS Vietnam - All rights reserved",
+      verifying: "Verifying credentials..."
     }
   };
 
-  // 1. Unauthorized View (Login Prompt)
+  // 1. Unauthorized View (Login Prompt) OR Loading View
   if (!user) {
     return (
       <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 font-sans relative">
@@ -94,25 +102,43 @@ function HomeContent() {
             </Button>
         </div>
 
-        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full border border-gray-100 text-center">
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full border border-gray-100 text-center relative overflow-hidden">
             <div className="mb-6 flex justify-center">
                 <Image src="/cbs-logo.png" alt="CBS Logo" width={180} height={60} className="object-contain" priority />
             </div>
             <h1 className="text-2xl font-bold mb-4 text-[#B91C1C]">{t[lang].title}</h1>
-            <p className="text-gray-500 mb-8">{lang === 'vi' ? 'Vui lòng đăng nhập bằng tài khoản nội bộ.' : 'Please sign in with your internal account.'}</p>
             
-            <Button 
-            onClick={() => window.location.href = "/api/auth/login"}
-            className="w-full h-12 text-lg bg-[#EE2E24] hover:bg-[#D5261C] text-white flex items-center justify-center gap-3 relative shadow-md transition-all"
-            > 
-            <svg className="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-            </svg>
-            Sign in with Google
-            </Button>
+            {loggingIn ? (
+                // Loading Animation State (Maps to Login View)
+                <div className="py-8 flex flex-col items-center justify-center animate-in fade-in duration-500">
+                    <div className="relative w-12 h-12 mb-4">
+                         <div className="absolute inset-0 border-4 border-gray-100 rounded-full"></div>
+                         <div className="absolute inset-0 border-4 border-[#B91C1C] rounded-full border-t-transparent animate-spin"></div>
+                    </div>
+                    <p className="text-gray-500 font-medium animate-pulse">{t[lang].verifying}</p>
+                </div>
+            ) : (
+                // Login Button State
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <p className="text-gray-500 mb-8">{lang === 'vi' ? 'Vui lòng đăng nhập bằng tài khoản nội bộ.' : 'Please sign in with your internal account.'}</p>
+                    
+                    <Button 
+                    onClick={() => {
+                        setLoggingIn(true); // Show loading immediately on click
+                        window.location.href = "/api/auth/login";
+                    }}
+                    className="w-full h-12 text-lg bg-[#EE2E24] hover:bg-[#D5261C] text-white flex items-center justify-center gap-3 relative shadow-md transition-all hover:shadow-lg active:scale-[0.98]"
+                    > 
+                    <svg className="w-5 h-5 bg-white rounded-full p-0.5" viewBox="0 0 24 24">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                    </svg>
+                    Sign in with Google
+                    </Button>
+                </div>
+            )}
         </div>
         <footer className="mt-8 text-sm text-gray-400">
             {t[lang].footer}
