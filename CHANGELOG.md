@@ -2,7 +2,54 @@
 
 Tài liệu này ghi lại toàn bộ lịch sử thay đổi, cập nhật và các phiên bản của dự án.
 
+---
+
+## [v1.2.0] - UX Enhancement & Jobs Schema Update - 2026-01-23
+
+**Trạng thái**: 🟢 Stable  
+**Mô tả**: Cải thiện trải nghiệm người dùng với điều hướng bàn phím, tự động cuộn, và cập nhật cấu trúc dữ liệu Jobs.
+
+### 🚀 Added
+
+- **Keyboard Navigation (Datapool)**:
+  - Hỗ trợ phím mũi tên trái/phải (← →) để chuyển đổi nhanh giữa các ứng viên trong modal chi tiết.
+  - Tăng tốc độ xem xét hồ sơ, không cần dùng chuột.
+
+- **Auto Scroll to Top**:
+  - Tự động cuộn lên đầu trang khi chuyển ứng viên (Next/Prev/Reject/Process).
+  - Đảm bảo luôn xem thông tin quan trọng nhất (tên, điểm AI) ngay lập tức.
+
+- **Position ID Column (Jobs Sheet)**:
+  - Bổ sung cột Position ID (Cột A) vào bảng Jobs để quản lý chi tiết hơn.
+  - Cập nhật toàn bộ API đọc/ghi Jobs để tương thích với cấu trúc mới.
+
+- **Dynamic Quick Select (Candidate Input)**:
+  - Quick Select giờ lấy dữ liệu trực tiếp từ Google Sheet Jobs (thay vì hardcode).
+  - Chỉ hiển thị các Job đang tuyển (Status = "Hiring" hoặc trống).
+  - Format hiển thị: `Position Name (JobCode_PositionID)`.
+
+### 🛠 Changed
+
+- **Jobs API Schema**:
+  - Dịch chuyển các cột: JobCode từ A→B, Title từ B→C, Group từ C→D, v.v.
+  - Cập nhật logic trong `/api/jobs` và `/api/jobs/stop` để khớp với cấu trúc mới.
+
 ### 🐛 Fixed
+
+- **Datapool Scroll Issue**:
+  - Sửa lỗi thanh cuộn không tự động nhảy lên đầu khi chuyển ứng viên.
+  - Áp dụng `key={candidateId}` để force re-render modal, đảm bảo scroll reset 100%.
+
+- **Quick Select Reset Bug**:
+  - Sửa lỗi không thể chọn lại cùng một Job sau khi xóa input.
+  - Thêm logic reset state khi người dùng chỉnh sửa thủ công.
+
+- **Loading Animation**:
+  - Thêm animation chờ đăng nhập mượt mà hơn với spinner và text "Đang xác thực bảo mật...".
+
+---
+
+### 🐛 Fixed (Previous Hotfixes)
 
 - **HOTFIX 3**: Đồng bộ Popup Stop Job (Loại bỏ Alert trình duyệt).
 - **HOTFIX 4**: Sửa lỗi Filter Job trong Reports (Chỉ lấy Job Code hợp lệ từ sheet Jobs).

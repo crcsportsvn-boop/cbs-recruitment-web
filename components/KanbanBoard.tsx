@@ -17,6 +17,9 @@ import { parse, isAfter, parseISO } from "date-fns";
 
 interface JobData {
     jobCode: string;
+    positionId?: string;
+    title?: string;
+    group?: string;
     status: string;
     stopDate: string;
 }
@@ -131,11 +134,18 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       const data = await candRes.json();
       const jobData = await jobRes.json();
 
-      // Jobs Map
+      // Jobs Map - Store complete job info including title and positionId
       const jobMap: Record<string, JobData> = {};
       if (jobData.jobs) {
           jobData.jobs.forEach((j: any) => {
-              jobMap[j.jobCode] = { jobCode: j.jobCode, status: j.status, stopDate: j.stopDate };
+              jobMap[j.jobCode] = { 
+                  jobCode: j.jobCode, 
+                  positionId: j.positionId,
+                  title: j.title,
+                  group: j.group,
+                  status: j.status, 
+                  stopDate: j.stopDate 
+              };
           });
       }
       setJobs(jobMap);
@@ -470,10 +480,10 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         return;
     }
 
-    // Determine Title and Group
-    const jobInfo = ACTIVE_JOBS.find(j => j.id === selectedJobCode);
-    const title = jobInfo?.name || "Unknown";
-    const group = selectedJobCode.startsWith("ST") ? "Store" : "HO";
+    // Get Title and Group from Jobs API data (not hardcoded ACTIVE_JOBS)
+    const jobInfo = jobs[selectedJobCode];
+    const title = jobInfo?.title || "Unknown";
+    const group = jobInfo?.group || (selectedJobCode.startsWith("ST") ? "Store" : "HO");
 
     try {
         const res = await fetch("/api/jobs/stop", {
