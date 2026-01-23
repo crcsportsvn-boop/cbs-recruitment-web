@@ -318,6 +318,17 @@ export default function Reports({ lang, user }: ReportProps) {
     return { hiring, stopped };
   }, [candidates, jobMap]);
 
+  const funnelData = STAGES.map((stage, index) => {
+      const val = stats.stageCounts[stage] || 0;
+      const prevVal = index > 0 ? stats.stageCounts[STAGES[index-1]] : val;
+      const rate = prevVal > 0 ? Math.round((val / prevVal) * 100) : 0;
+      const totalNew = stats.stageCounts["New"] || 1;
+      const totalRate = Math.round((val / totalNew) * 100);
+      const label = t[STAGE_KEYS[stage] as keyof typeof t] || stage;
+
+      return { name: label, fullStage: stage, value: val, rate, totalRate };
+  });
+
   const uniqueJobCodes = useMemo(() => {
       const allCodes = new Set<string>();
       // Use candidates as primary source + Jobs Sheet if needed? 
