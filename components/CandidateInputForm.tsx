@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -123,11 +123,33 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
     }
   };
 
+  // State for Dynamic Jobs
+  const [activeJobs, setActiveJobs] = useState<any[]>([]);
+
+  // Fetch Jobs on Mount
+  useEffect(() => {
+    fetch("/api/jobs")
+        .then(res => res.json())
+        .then(data => {
+            if (data.jobs) {
+                // Filter: Status is Empty or "Hiring"
+                const valid = data.jobs.filter((j: any) => !j.status || j.status === "Hiring");
+                setActiveJobs(valid);
+            }
+        })
+        .catch(err => console.error("Failed to fetch jobs", err));
+  }, []);
+
   const handleQuickJobSelect = (value: string) => {
-    const job = ACTIVE_JOBS.find((j) => j.id === value);
+    // Value is jobCode
+    const job = activeJobs.find((j) => j.jobCode === value);
     if (job) {
-      setValue("jobTitle", `${job.name} (${job.id}_${job.positionId})`);
-      setValue("requirements", job.requirements.join("\n"));
+      // Format: Position Name + (Jobcode_PositionID)
+      // If positionId is missing, maybe handle gracefully? User said (Jobcode_PositionID).
+      const pid = job.positionId || "N/A";
+      setValue("jobTitle", `${job.title} (${job.jobCode}_${pid})`);
+      // Requirements are not in the new Sheet structure, so we leave it blank or default
+      setValue("requirements", ""); 
     }
   };
 
@@ -171,13 +193,13 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
               <div className="flex justify-between items-center">
                  <Label htmlFor="jobTitle">{t.jobLabel} <span className="text-red-500">*</span></Label>
                  <Select onValueChange={handleQuickJobSelect}>
-                    <SelectTrigger className="w-[180px] h-8 text-xs">
+                    <SelectTrigger className="w-[280px] h-8 text-xs truncate">
                       <SelectValue placeholder={t.jobPlaceholder} />
                     </SelectTrigger>
                     <SelectContent>
-                      {ACTIVE_JOBS.map((job) => (
-                        <SelectItem key={job.id} value={job.id}>
-                          {job.name}
+                      {activeJobs.map((job) => (
+                        <SelectItem key={job.jobCode} value={job.jobCode}>
+                           {job.title} ({job.jobCode}_{job.positionId || '?'})
                         </SelectItem>
                       ))}
                     </SelectContent>

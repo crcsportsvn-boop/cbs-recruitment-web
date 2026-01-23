@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { dictionary, LangType } from "@/lib/dictionary";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -545,6 +545,27 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   const handlePrev = () => {
     if (hasPrev) setSelectedCandidate(filteredCandidates[currentIndex - 1]);
   };
+
+  // Keyboard Navigation & Auto Scroll
+  const detailRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!selectedCandidate) return;
+      if (e.key === "ArrowRight") handleNext();
+      if (e.key === "ArrowLeft") handlePrev();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedCandidate, currentIndex, filteredCandidates]); // Re-bind when index/list changes to ensure handleNext uses fresh state
+
+  // Auto-scroll to top when selectedCandidate changes
+  useEffect(() => {
+      if (selectedCandidate && detailRef.current) {
+          detailRef.current.scrollTop = 0;
+      }
+  }, [selectedCandidate]);
 
   return (
     <div className="space-y-4 p-4 bg-white rounded-lg shadow min-h-[500px]">

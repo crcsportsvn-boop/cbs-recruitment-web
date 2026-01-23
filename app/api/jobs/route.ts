@@ -29,12 +29,13 @@ export async function GET(req: NextRequest) {
 
       const rows = response.data.values || [];
       const jobs = rows.map((row) => ({
-        jobCode: row[0] || "",
-        title: row[1] || "",
-        group: row[2] || "HO", // Default to HO
-        status: row[3] || "Hiring",
-        stopDate: row[4] || "",
-        reason: row[5] || "",
+        positionId: row[0] || "",
+        jobCode: row[1] || "",
+        title: row[2] || "",
+        group: row[3] || "HO", // Default to HO
+        status: row[4] || "Hiring",
+        stopDate: row[5] || "",
+        reason: row[6] || "",
       }));
 
       return NextResponse.json({ jobs });
@@ -82,14 +83,23 @@ export async function POST(req: NextRequest) {
         // Assume empty if fail
     }
 
-    const rowIndex = rows.findIndex((r) => r[0] === jobCode);
+    const rowIndex = rows.findIndex((r) => r[1] === jobCode); // Check Column B (Index 1) for JobCode
+    
+    // We don't have positionId in the POST body? Currently creating new jobs via API might not support it yet unless we add it. 
+    // Assuming we want to preserve existing positionId if updating, or empty if new.
+    // If updating, get existing row[0].
+    
+    const existingPositionId = rowIndex >= 0 ? rows[rowIndex][0] : "";
+    const displayPositionId = existingPositionId || ""; // Or generate one? For now leave blank or preserve.
+
     const newRow = [
-        jobCode,
-        title || (rowIndex >= 0 ? rows[rowIndex][1] : ""),
-        group || (rowIndex >= 0 ? rows[rowIndex][2] : "HO"),
-        status !== undefined ? status : (rowIndex >= 0 ? rows[rowIndex][3] : "Hiring"),
-        stopDate !== undefined ? stopDate : (rowIndex >= 0 ? rows[rowIndex][4] : ""),
-        reason !== undefined ? reason : (rowIndex >= 0 ? rows[rowIndex][5] : "")
+        displayPositionId, // A: Position ID
+        jobCode,           // B: JobCode
+        title || (rowIndex >= 0 ? rows[rowIndex][2] : ""), // C: Title
+        group || (rowIndex >= 0 ? rows[rowIndex][3] : "HO"), // D: Group
+        status !== undefined ? status : (rowIndex >= 0 ? rows[rowIndex][4] : "Hiring"), // E: Status
+        stopDate !== undefined ? stopDate : (rowIndex >= 0 ? rows[rowIndex][5] : ""), // F: StopDate
+        reason !== undefined ? reason : (rowIndex >= 0 ? rows[rowIndex][6] : "") // G: Reason
     ];
 
     if (rowIndex >= 0) {

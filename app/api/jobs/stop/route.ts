@@ -41,18 +41,20 @@ export async function POST(req: NextRequest) {
         // assume empty if fail
     }
 
-    const rowIndex = rows.findIndex((r) => r[0] === jobCode);
+    const rowIndex = rows.findIndex((r) => r[1] === jobCode); // Check Col B
     const stopDate = new Date().toISOString(); 
-    // Format: ISO string or readable? User might prefer readable. But ISO is safer for comparison.
-    // I'll use ISO.
+    
+    // Preserve Position ID if exists
+    const existingPositionId = rowIndex >= 0 ? rows[rowIndex][0] : "";
 
     const newRow = [
-        jobCode,
-        title || (rowIndex >= 0 ? rows[rowIndex][1] : ""),
-        group || (rowIndex >= 0 ? rows[rowIndex][2] : "HO"),
-        "Stopped", // Status
-        stopDate,
-        reason
+        existingPositionId, // A: Position ID
+        jobCode,            // B: JobCode
+        title || (rowIndex >= 0 ? rows[rowIndex][2] : ""), // C: Title
+        group || (rowIndex >= 0 ? rows[rowIndex][3] : "HO"), // D: Group
+        "Stopped",          // E: Status
+        stopDate,           // F: StopDate
+        reason              // G: Reason
     ];
 
     if (rowIndex >= 0) {
