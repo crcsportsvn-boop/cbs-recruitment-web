@@ -796,6 +796,25 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
         </div>
 
+        {/* Job Status Indicator - Top Right */}
+        {selectedJobCode !== "all" && jobs[selectedJobCode] && (
+          <div className="absolute top-3 right-3 flex items-center gap-2 bg-white px-3 py-1.5 rounded-md shadow-sm border z-10">
+            <span className="text-xs font-semibold text-gray-700">{selectedJobCode}</span>
+            <span className="text-xs text-gray-400">:</span>
+            <span className={`text-xs font-medium ${
+              jobs[selectedJobCode].status === "Hiring" 
+                ? "text-green-600" 
+                : jobs[selectedJobCode].status === "Stopped" 
+                  ? "text-red-600" 
+                  : "text-gray-600"
+            }`}>
+              {jobs[selectedJobCode].status === "Hiring" ? "Hiring Job" : 
+               jobs[selectedJobCode].status === "Stopped" ? "Closed" : 
+               jobs[selectedJobCode].status || "Unknown"}
+            </span>
+          </div>
+        )}
+
         {/* Board Columns */}
         <div className="flex-1 overflow-hidden p-3" style={{ transform: "rotateX(180deg)" }}>
            <div className="flex w-full h-full gap-2" style={{ transform: "rotateX(180deg)" }}>

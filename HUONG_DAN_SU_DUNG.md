@@ -212,23 +212,126 @@ Nơi xem thống kê tổng quan về hiệu quả tuyển dụng.
 
 ---
 
-## 8. Quản Lý Job & Stock (Mới)
+## 8. Quản Lý Job & Stock (Job Management & Stock)
 
-### Tính năng Ngưng Tuyển (Stop Job):
+### 8.1. Tính năng Ngưng Tuyển (Stop Recruitment)
 
-1.  Tại màn hình Kanban, chọn một **Job Code** cụ thể.
-2.  Nhấn nút **"Stop Recruitment"** (Màu đỏ).
-3.  Chọn lý do dừng (Đủ người, Thay đổi kế hoạch...).
-4.  Hệ thống sẽ:
-    - Đánh dấu Job là **Stopped**.
-    - Chuyển toàn bộ ứng viên mới (nếu có sau này) vào kho **Stock**.
-    - Ẩn Job khỏi danh sách lọc mặc định để gọn giao diện.
+**Mục đích:** Tạm dừng tuyển dụng cho một vị trí cụ thể khi đã đủ người hoặc thay đổi kế hoạch.
 
-### Kho Lưu Trữ (Stock):
+**Các bước thực hiện:**
 
-- Là nơi chứa hồ sơ của các Job đã đóng hoặc tạm dừng.
-- Để xem lại: Chọn filter **"Stock View"** hoặc filter Job đã dừng trong Reports.
-- Có thể **Reactivate** (Kích hoạt lại) ứng viên từ kho Stock nếu Job mở lại.
+1. **Truy cập Tab Process (Kanban)**
+   - Click vào tab "Recruitment Process"
+
+2. **Chọn Job cần dừng**
+   - Tại dropdown "Filter by Job", chọn mã Job cụ thể (ví dụ: "123")
+   - Hệ thống sẽ hiển thị chỉ các ứng viên của Job đó
+
+3. **Nhấn nút Stop Recruitment**
+   - Tìm nút **"Stop Recruitment"** (màu đỏ) phía trên bảng Kanban
+   - Click vào nút này
+
+4. **Điền thông tin dừng tuyển**
+   - Cửa sổ "Stop Recruitment for [JobCode]" xuất hiện
+   - Chọn lý do từ dropdown:
+     - Headcount reduction (Cắt giảm biên chế)
+     - Position filled (Đã tuyển đủ)
+     - Budget constraints (Hạn chế ngân sách)
+     - Strategic change (Thay đổi chiến lược)
+     - Other (Khác)
+   - Nếu chọn "Other", nhập lý do cụ thể vào ô text
+
+5. **Xác nhận**
+   - Click nút **"Confirm Stop"** (màu đỏ)
+   - Hệ thống sẽ:
+     - Cập nhật Status = "Stopped" trong Google Sheet Jobs
+     - Lưu ngày dừng (Stop Date) và lý do (Reason)
+     - Tự động chuyển các ứng viên mới (nếu có) vào kho Stock
+
+**Kết quả:**
+
+- ✅ Job được đánh dấu "Stopped"
+- ✅ Không còn hiển thị trong danh sách Job đang tuyển
+- ✅ Ứng viên hiện tại giữ nguyên trạng thái
+- ✅ Ứng viên mới sẽ tự động vào Stock
+
+![Stop Recruitment Demo](./assets/stop_recruitment.png)
+
+---
+
+### 8.2. Kho Lưu Trữ (Stock View)
+
+**Stock là gì?**
+
+- Kho chứa hồ sơ ứng viên của các Job đã tạm dừng tuyển dụng
+- Ứng viên trong Stock không bị xóa, chỉ tạm "đóng băng"
+- Có thể kích hoạt lại (Rehire) khi Job mở lại
+
+**Cách xem Stock:**
+
+1. **Chuyển sang Stock View**
+   - Tại tab Process (Kanban)
+   - Tìm toggle/button **"Stock View"** hoặc filter "Show Stock"
+   - Click để chuyển sang chế độ xem Stock
+
+2. **Nội dung Stock View**
+   - Hiển thị danh sách ứng viên theo từng Job đã dừng
+   - Mỗi card ứng viên có badge "Stock" màu xám
+   - Thông tin hiển thị: Tên, Vị trí, AI Score, Ngày nhận
+
+---
+
+### 8.3. Tính năng Rehire (Tái Tuyển)
+
+**Mục đích:** Kích hoạt lại ứng viên từ Stock khi Job mở lại hoặc chuyển sang Job khác.
+
+**Các bước thực hiện:**
+
+1. **Vào Stock View**
+   - Làm theo hướng dẫn mục 8.2 để xem danh sách Stock
+
+2. **Chọn ứng viên cần Rehire**
+   - Tìm card ứng viên muốn kích hoạt lại
+   - Click vào **nút 3 chấm (⋮)** ở góc phải card
+
+3. **Click Rehire**
+   - Trong menu dropdown, chọn **"Rehire"**
+   - Cửa sổ "Rehire Candidate" xuất hiện
+
+4. **Chọn Job mới**
+   - Dropdown "Select New Job" hiển thị danh sách Jobs đang tuyển (Status = "Hiring")
+   - Chọn Job phù hợp với ứng viên
+   - Hệ thống tự động điền thông tin Job (Title, Group)
+
+5. **Xác nhận Rehire**
+   - Click nút **"Confirm Rehire"**
+   - Hệ thống sẽ:
+     - Cập nhật JobCode mới cho ứng viên
+     - Chuyển trạng thái về "New"
+     - Di chuyển ứng viên từ Stock về cột "New" trong Kanban
+     - Xóa note "Stock" khỏi hồ sơ
+
+**Kết quả:**
+
+- ✅ Ứng viên được "hồi sinh" với Job mới
+- ✅ Xuất hiện trong Kanban của Job mới
+- ✅ Sẵn sàng cho quy trình phỏng vấn
+
+![Rehire Feature Demo](./assets/rehire_modal.png)
+
+---
+
+### 8.4. Tiếp Tục Tuyển (Resume Recruitment)
+
+**Khi nào dùng:** Job đã dừng nhưng cần mở lại do nhu cầu thay đổi.
+
+**Các bước:**
+
+1. Tại tab Process, chọn Job đã "Stopped" từ filter
+2. Click nút **"Resume Recruitment"** (màu xanh)
+3. Xác nhận trong dialog
+4. Hệ thống cập nhật Status = "Hiring" trong Sheet
+5. Job xuất hiện lại trong danh sách đang tuyển
 
 ---
 
