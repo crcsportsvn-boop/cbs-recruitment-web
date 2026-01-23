@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     try {
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!A2:F`,
+            range: `${SHEET_NAME}!A2:G`,
         });
         rows = response.data.values || [];
     } catch (e) {
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         // Update
         await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!A${rowIndex + 2}:F${rowIndex + 2}`,
+            range: `${SHEET_NAME}!A${rowIndex + 2}:G${rowIndex + 2}`,
             valueInputOption: "USER_ENTERED",
             requestBody: { values: [newRow] }
         });
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
         // Append
         await sheets.spreadsheets.values.append({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!A:F`,
+            range: `${SHEET_NAME}!A:G`,
             valueInputOption: "USER_ENTERED",
             requestBody: { values: [newRow] }
         });
