@@ -198,6 +198,8 @@ Nơi theo dõi tiến độ phỏng vấn của các ứng viên đang được 
 
 Nơi xem thống kê tổng quan về hiệu quả tuyển dụng.
 
+![Giao diện Reports](./assets/reports_dashboard.png)
+
 ### Các biểu đồ chính:
 
 1.  **Phễu Tuyển Dụng (Recruitment Funnel)**:

@@ -748,19 +748,19 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
             </Select>
           </div>
 
-          {/* Date Filter */}
-          <div className="flex items-center gap-2 bg-white px-2 rounded border h-9">
-            <span className="text-xs text-gray-500 font-medium whitespace-nowrap">From:</span>
+          {/* Date Filter - Compact */}
+          <div className="flex items-center gap-1 bg-white px-2 rounded border h-9">
+            <span className="text-xs text-gray-500 font-medium">From:</span>
             <Input 
               type="date" 
-              className="h-7 w-[105px] text-xs border-0 focus-visible:ring-0 p-1"
+              className="h-7 w-[95px] text-xs border-0 focus-visible:ring-0 p-1"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
             />
-            <span className="text-xs text-gray-500 font-medium whitespace-nowrap">To:</span>
+            <span className="text-xs text-gray-500 font-medium">To:</span>
             <Input 
               type="date" 
-              className="h-7 w-[105px] text-xs border-0 focus-visible:ring-0 p-1"
+              className="h-7 w-[95px] text-xs border-0 focus-visible:ring-0 p-1"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
             />
@@ -794,26 +794,30 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
              </Button>
           </div>
 
+          {/* Job Status Indicator - Inline */}
+          {selectedJobCode !== "all" && jobs[selectedJobCode] && (
+            <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center">
+              <div className="flex items-center gap-1.5 px-2 h-7 bg-white rounded shadow-sm">
+                <span className="text-xs font-semibold text-gray-700">{selectedJobCode}</span>
+                <span className="text-xs text-gray-400">:</span>
+                <span className={`text-xs font-medium ${
+                  jobs[selectedJobCode].status === "Hiring" 
+                    ? "text-green-600" 
+                    : jobs[selectedJobCode].status === "Stopped" 
+                      ? "text-red-600" 
+                      : "text-gray-600"
+                }`}>
+                  {jobs[selectedJobCode].status === "Hiring" ? "Hiring" : 
+                   jobs[selectedJobCode].status === "Stopped" ? "Closed" : 
+                   jobs[selectedJobCode].status || "Unknown"}
+                </span>
+              </div>
+            </div>
+          )}
+
         </div>
 
-        {/* Job Status Indicator - Top Right */}
-        {selectedJobCode !== "all" && jobs[selectedJobCode] && (
-          <div className="absolute top-3 right-3 flex items-center gap-2 bg-white px-3 py-1.5 rounded-md shadow-sm border z-10">
-            <span className="text-xs font-semibold text-gray-700">{selectedJobCode}</span>
-            <span className="text-xs text-gray-400">:</span>
-            <span className={`text-xs font-medium ${
-              jobs[selectedJobCode].status === "Hiring" 
-                ? "text-green-600" 
-                : jobs[selectedJobCode].status === "Stopped" 
-                  ? "text-red-600" 
-                  : "text-gray-600"
-            }`}>
-              {jobs[selectedJobCode].status === "Hiring" ? "Hiring Job" : 
-               jobs[selectedJobCode].status === "Stopped" ? "Closed" : 
-               jobs[selectedJobCode].status || "Unknown"}
-            </span>
-          </div>
-        )}
+
 
         {/* Board Columns */}
         <div className="flex-1 overflow-hidden p-3" style={{ transform: "rotateX(180deg)" }}>
