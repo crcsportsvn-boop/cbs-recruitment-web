@@ -1276,7 +1276,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         open={!!selectedCandidate}
         onOpenChange={(open) => !open && setSelectedCandidate(null)}
       >
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent key={selectedCandidate?.id} className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between">
               <DialogTitle>Candidate Profile</DialogTitle>

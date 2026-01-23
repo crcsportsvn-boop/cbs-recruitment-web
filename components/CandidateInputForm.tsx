@@ -125,6 +125,7 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
 
   // State for Dynamic Jobs
   const [activeJobs, setActiveJobs] = useState<any[]>([]);
+  const [quickSelectValue, setQuickSelectValue] = useState("");
 
   // Fetch Jobs on Mount
   useEffect(() => {
@@ -141,13 +142,14 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
   }, []);
 
   const handleQuickJobSelect = (value: string) => {
+    setQuickSelectValue(value);
     // Value is jobCode
     const job = activeJobs.find((j) => j.jobCode === value);
     if (job) {
       // Format: Position Name + (Jobcode_PositionID)
       // If positionId is missing, maybe handle gracefully? User said (Jobcode_PositionID).
       const pid = job.positionId || "N/A";
-      setValue("jobTitle", `${job.title} (${job.jobCode}_${pid})`);
+      setValue("jobTitle", `${job.title} (${job.jobCode}_${pid})`, { shouldValidate: true });
       // Requirements are not in the new Sheet structure, so we leave it blank or default
       setValue("requirements", ""); 
     }
@@ -192,7 +194,7 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
             <div className="space-y-2 md:col-span-2">
               <div className="flex justify-between items-center">
                  <Label htmlFor="jobTitle">{t.jobLabel} <span className="text-red-500">*</span></Label>
-                 <Select onValueChange={handleQuickJobSelect}>
+                 <Select value={quickSelectValue} onValueChange={handleQuickJobSelect}>
                     <SelectTrigger className="w-[280px] h-8 text-xs truncate">
                       <SelectValue placeholder={t.jobPlaceholder} />
                     </SelectTrigger>
@@ -209,7 +211,9 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
               <Input
                 id="jobTitle"
                 placeholder={t.jobInputPlaceholder}
-                {...register("jobTitle")}
+                {...register("jobTitle", {
+                    onChange: () => setQuickSelectValue(""), // Reset select when typing manually
+                })}
               />
               {errors.jobTitle && (
                 <p className="text-red-500 text-sm">{errors.jobTitle.message}</p>
