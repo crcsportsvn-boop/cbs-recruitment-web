@@ -331,25 +331,12 @@ export default function Reports({ lang, user }: ReportProps) {
 
   const uniqueJobCodes = useMemo(() => {
       const allCodes = new Set<string>();
-      // Use candidates as primary source + Jobs Sheet if needed? 
-      // User said "chỉ đếm trên datapool", so for Filter we should also prioritize Datapool
+      // Strictly from Datapool as requested ("chỉ đếm trên datapool")
       candidates.forEach(c => {
           if (c.jobCode?.trim()) allCodes.add(c.jobCode.trim());
       });
-      // Optionally also add from Jobs if we want to show jobs with 0 candidates? 
-      // User said "Only count on datapool", but usually filter *might* want to allow filtering for New Jobs. 
-      // But user specifically said "filter ... hiển thị sai" in context of "vì lẽ đếm đến". 
-      // I'll stick to candidates + Jobs Sheet union for Filter, but Counts are strict.
-      // Actually, if the user deleted all Jobs in Sheet, we rely on Candidates.
-      // If user adds a New Job, they want to filter for it? 
-      // Let's include Jobs sheet codes in Filter but ensure we prioritize user instruction for "Counts".
-      // But for "Filter List", showing all available options is usually better.
-      jobs.forEach(j => {
-         if (j.jobCode?.trim()) allCodes.add(j.jobCode.trim());
-      });
-
       return Array.from(allCodes).sort();
-  }, [jobs, candidates]);
+  }, [candidates]);
 
   const uniqueSources = useMemo(() => Array.from(new Set(candidates.map(c => c.source || "Unknown"))).sort(), [candidates]);
 
@@ -398,18 +385,26 @@ export default function Reports({ lang, user }: ReportProps) {
                             <SelectContent>
                                 <SelectItem value="all">{t.all}</SelectItem>
                                 {uniqueJobCodes.map(code => {
+                                    // Determine Display Name
+                                    // 1. Check Candidate (Datapool) for Position Name - Primary Preference if available? 
+                                    // Actually, usually Job Table is "Master". But user complains about Job Table being empty/wrong.
+                                    // Let's get Candidate Position first.
+                                    const cand = candidates.find(c => c.jobCode === code);
+                                    let rawName = cand?.positionRaw || "Unknown";
+
+                                    // 2. If Job Table has a VALID title, override it (Canonical Name).
+                                    // But if Job Table title is empty or "Unknown", keep Candidate Name.
                                     const jobMeta = jobs.find(j => j.jobCode === code);
-                                    // Prioritize title from Jobs sheet, fallback to ACTIVE_JOBS, then code
-                                    let rawName = jobMeta?.title && jobMeta.title !== "Unknown" ? jobMeta.title : (ACTIVE_JOBS.find(j => j.id === code)?.name || "Unknown");
-                                    
-                                    if (rawName === "Unknown") {
-                                         const cand = candidates.find(c => c.jobCode === code);
-                                         if (cand?.positionRaw) rawName = cand.positionRaw;
+                                    if (jobMeta?.title && jobMeta.title.trim() !== "" && jobMeta.title !== "Unknown") {
+                                        rawName = jobMeta.title;
+                                    } else if (rawName === "Unknown") {
+                                        // 3. Fallback to Constants only if both Candidate and Job Table failed
+                                        rawName = ACTIVE_JOBS.find(j => j.id === code)?.name || "Unknown";
                                     }
+
                                     if (rawName === "Unknown") rawName = code;
 
                                     const isStopped = jobMeta?.status === "Stopped";
-                                    // Full name as requested
                                     return <SelectItem key={code} value={code} className={isStopped ? "text-red-500" : ""}>{code} - {rawName}</SelectItem>
                                 })}
                             </SelectContent>
