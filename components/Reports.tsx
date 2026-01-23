@@ -296,50 +296,49 @@ export default function Reports({ lang, user }: ReportProps) {
       return { total, active, stock, rejected, stageCounts, jobStats, sourceStats };
   }, [filteredCandidates, jobMap]);
 
-  // Job Status Counts
+  // Job Status Counts (Based on Datapool as primary source)
   const jobCounts = useMemo(() => {
-    const allCodes = new Set<string>();
-    
-    // Only count jobs from actual data (Sheet + Candidates), not hardcoded ACTIVE_JOBS
-    // Add from jobs sheet (normalize empty to "Unknown")
-    jobs.forEach(j => {
-      const code = j.jobCode?.trim() || "Unknown";
-      allCodes.add(code);
-    });
-    
-    // Add from candidates (normalize empty to "Unknown")
+    const candidateJobCodes = new Set<string>();
     candidates?.forEach(c => {
-      const code = c.jobCode?.trim() || "Unknown";
-      allCodes.add(code);
+        if (c.jobCode && c.jobCode.trim()) candidateJobCodes.add(c.jobCode.trim());
     });
+    
+    let hiring = 0;
+    let stopped = 0;
 
-    const stopped = jobs.filter(j => j.status === "Stopped").length;
-    const totalUnique = allCodes.size;
-    const hiring = Math.max(0, totalUnique - stopped);
+    candidateJobCodes.forEach(code => {
+        const job = jobMap[code];
+        if (job && job.status === "Stopped") {
+            stopped++;
+        } else {
+            hiring++;
+        }
+    });
       
     return { hiring, stopped };
-  }, [jobs, candidates]);
-
-  const funnelData = STAGES.map((stage, index) => {
-      const val = stats.stageCounts[stage] || 0;
-      const prevVal = index > 0 ? stats.stageCounts[STAGES[index-1]] : val;
-      const rate = prevVal > 0 ? Math.round((val / prevVal) * 100) : 0;
-      const totalNew = stats.stageCounts["New"] || 1;
-      const totalRate = Math.round((val / totalNew) * 100);
-      const label = t[STAGE_KEYS[stage] as keyof typeof t] || stage;
-
-      return { name: label, fullStage: stage, value: val, rate, totalRate };
-  });
+  }, [candidates, jobMap]);
 
   const uniqueJobCodes = useMemo(() => {
       const allCodes = new Set<string>();
-      // Only show jobs from Jobs sheet, not from candidates history
-      jobs.forEach(j => {
-        const code = j.jobCode?.trim();
-        if (code) allCodes.add(code);
+      // Use candidates as primary source + Jobs Sheet if needed? 
+      // User said "chỉ đếm trên datapool", so for Filter we should also prioritize Datapool
+      candidates.forEach(c => {
+          if (c.jobCode?.trim()) allCodes.add(c.jobCode.trim());
       });
+      // Optionally also add from Jobs if we want to show jobs with 0 candidates? 
+      // User said "Only count on datapool", but usually filter *might* want to allow filtering for New Jobs. 
+      // But user specifically said "filter ... hiển thị sai" in context of "vì lẽ đếm đến". 
+      // I'll stick to candidates + Jobs Sheet union for Filter, but Counts are strict.
+      // Actually, if the user deleted all Jobs in Sheet, we rely on Candidates.
+      // If user adds a New Job, they want to filter for it? 
+      // Let's include Jobs sheet codes in Filter but ensure we prioritize user instruction for "Counts".
+      // But for "Filter List", showing all available options is usually better.
+      jobs.forEach(j => {
+         if (j.jobCode?.trim()) allCodes.add(j.jobCode.trim());
+      });
+
       return Array.from(allCodes).sort();
-  }, [jobs]);
+  }, [jobs, candidates]);
 
   const uniqueSources = useMemo(() => Array.from(new Set(candidates.map(c => c.source || "Unknown"))).sort(), [candidates]);
 

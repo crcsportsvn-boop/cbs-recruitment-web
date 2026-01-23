@@ -404,9 +404,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           "text/plain": textBlob 
       })];
       
-      navigator.clipboard.write(data).then(() => {
-          // alert("Copied email template to clipboard!");
-      }).catch(err => {
+      navigator.clipboard.write(data).catch(err => {
           console.error("Failed to copy:", err);
       });
   };
@@ -429,7 +427,6 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       }
     } catch (error) {
       console.error("Update failed", error);
-      // alert(`Failed to update candidate: ${error instanceof Error ? error.message : "Unknown error"}`);
       fetchCandidates(); // Revert
     }
   };
