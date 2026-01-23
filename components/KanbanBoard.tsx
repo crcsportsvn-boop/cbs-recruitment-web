@@ -405,10 +405,9 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       })];
       
       navigator.clipboard.write(data).then(() => {
-          alert("Copied email template to clipboard!");
+          // alert("Copied email template to clipboard!");
       }).catch(err => {
           console.error("Failed to copy:", err);
-          alert("Failed to copy. Please use Chrome/Edge.");
       });
   };
 
@@ -430,7 +429,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       }
     } catch (error) {
       console.error("Update failed", error);
-      alert(`Failed to update candidate: ${error instanceof Error ? error.message : "Unknown error"}`);
+      // alert(`Failed to update candidate: ${error instanceof Error ? error.message : "Unknown error"}`);
       fetchCandidates(); // Revert
     }
   };
@@ -490,9 +489,8 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           });
           fetchCandidates();
           setIsResumeModalOpen(false);
-          alert("Recruitment Resumed.");
       } catch (e) {
-          alert("Failed to resume.");
+          console.error("Failed to resume", e);
       }
   };
 
@@ -1092,7 +1090,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         isOpen={isRehireModalOpen}
         onClose={() => setIsRehireModalOpen(false)}
         candidate={rehireCandidate}
-        availableJobCodes={uniqueJobCodes}
+        availableJobCodes={Object.keys(jobs).sort()}
         onConfirm={confirmRehire}
       />
 

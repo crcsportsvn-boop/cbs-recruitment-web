@@ -24,10 +24,7 @@ export default function RehireModal({ isOpen, onClose, candidate, availableJobCo
   }, [isOpen, candidate]);
 
   const handleConfirm = async () => {
-    if (!selectedJob) {
-        alert("Please select a job code");
-        return;
-    }
+    if (!selectedJob) return;
     await onConfirm(selectedJob);
     onClose();
   };
@@ -72,7 +69,7 @@ export default function RehireModal({ isOpen, onClose, candidate, availableJobCo
 
         <DialogFooter>
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleConfirm} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button onClick={handleConfirm} disabled={!selectedJob} className="bg-blue-600 hover:bg-blue-700 text-white">
                 Rehire
             </Button>
         </DialogFooter>

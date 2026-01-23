@@ -270,9 +270,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
       );
     } catch (error) {
       console.error("Update failed", error);
-      alert(
-        `Failed to update candidate: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
+      // alert(`Failed to update candidate: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 

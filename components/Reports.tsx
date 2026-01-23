@@ -390,11 +390,17 @@ export default function Reports({ lang, user }: ReportProps) {
                                 {uniqueJobCodes.map(code => {
                                     const jobMeta = jobs.find(j => j.jobCode === code);
                                     // Prioritize title from Jobs sheet, fallback to ACTIVE_JOBS, then code
-                                    const rawName = jobMeta?.title || ACTIVE_JOBS.find(j => j.id === code)?.name || code;
+                                    let rawName = jobMeta?.title && jobMeta.title !== "Unknown" ? jobMeta.title : (ACTIVE_JOBS.find(j => j.id === code)?.name || "Unknown");
+                                    
+                                    if (rawName === "Unknown") {
+                                         const cand = candidates.find(c => c.jobCode === code);
+                                         if (cand?.positionRaw) rawName = cand.positionRaw;
+                                    }
+                                    if (rawName === "Unknown") rawName = code;
+
                                     const isStopped = jobMeta?.status === "Stopped";
-                                    // Truncate name
-                                    const name = rawName.length > 25 ? rawName.substring(0,25)+"..." : rawName;
-                                    return <SelectItem key={code} value={code} className={isStopped ? "text-red-500" : ""}>{code} - {name}</SelectItem>
+                                    // Full name as requested
+                                    return <SelectItem key={code} value={code} className={isStopped ? "text-red-500" : ""}>{code} - {rawName}</SelectItem>
                                 })}
                             </SelectContent>
                         </Select>

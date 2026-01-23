@@ -117,7 +117,7 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
       
     } catch (error: any) {
       console.error(error);
-      alert(`Lỗi upload: ${error.message}`);
+      // alert(`Lỗi upload: ${error.message}`);
       setUploadProgress({ current: 0, total: 0 });
     } finally {
       setLoading(false);
