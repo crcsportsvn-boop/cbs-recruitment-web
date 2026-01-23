@@ -777,138 +777,182 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                
                // If Stock View, we might want to show Reactivate Button on cards
                
-               return (
-              <div key={col.id} className={`w-[220px] flex flex-col rounded-lg border border-gray-200/60 shadow-sm ${col.color}`}>
-                {/* Column Header */}
-                <div className="flex justify-between items-center p-3 border-b bg-white/60 rounded-t-lg backdrop-blur-sm sticky top-0">
-                  <h3 className="font-bold text-sm text-gray-700 truncate" title={col.title}>{col.title}</h3>
-                  <Badge variant="secondary" className="bg-white/80 h-5 text-[10px] px-2 shadow-sm">
-                    {colCandidates.length}
-                  </Badge>
-                </div>
+                // If Stock View, we might want to show Reactivate Button on cards
+                
+                return (
+               <div 
+                   key={col.id} 
+                   className={`w-[220px] flex flex-col rounded-lg border border-gray-200/60 shadow-sm ${col.color} transition-colors duration-200`}
+                   onDragOver={(e) => {
+                       e.preventDefault(); // Allow drop
+                       e.currentTarget.classList.add("ring-2", "ring-[#B91C1C]/20");
+                   }}
+                   onDragLeave={(e) => {
+                       e.currentTarget.classList.remove("ring-2", "ring-[#B91C1C]/20");
+                   }}
+                   onDrop={(e) => {
+                       e.preventDefault();
+                       e.currentTarget.classList.remove("ring-2", "ring-[#B91C1C]/20");
+                       const candJson = e.dataTransfer.getData("candidate");
+                       if (candJson) {
+                           try {
+                               const cand = JSON.parse(candJson);
+                               if (cand.status !== col.id) {
+                                   // Identify type for Interview status
+                                   let type: "HR" | "L1" | "L2" | undefined;
+                                   if (col.id === "HR Interview") type = "HR";
+                                   else if (col.id === "Interview") type = "L1";
+                                   else if (col.id === "Interview2") type = "L2";
+                                   
+                                   moveStatus(cand, col.id, type);
+                               }
+                           } catch (err) {
+                               console.error("Drop Error", err);
+                           }
+                       }
+                   }}
+               >
+                 {/* Column Header */}
+                 <div className="flex justify-between items-center p-3 border-b bg-white/60 rounded-t-lg backdrop-blur-sm sticky top-0">
+                   <h3 className="font-bold text-sm text-gray-700 truncate" title={col.title}>{col.title}</h3>
+                   <Badge variant="secondary" className="bg-white/80 h-5 text-[10px] px-2 shadow-sm">
+                     {colCandidates.length}
+                   </Badge>
+                 </div>
 
-                {/* Cards Container */}
-                <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-gray-300">
-                  {colCandidates.map((c) => (
-                      <Card key={c.id} className="hover:shadow-md transition-all duration-200 group bg-white border-l-4" style={{ borderLeftColor: parseInt(c.matchScore) >= 8 ? '#22c55e' : parseInt(c.matchScore) >= 5 ? '#eab308' : '#6b7280' }}>
-                        <CardContent className="p-3 space-y-2">
-                           <div className="flex justify-between items-start">
-                              <h4 className="font-bold text-[11px] text-[#B91C1C] leading-snug" title={c.fullName}>{c.fullName}</h4>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-6 w-6 p-0 -mt-1 -mr-2 hover:bg-gray-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <MoreHorizontal className="h-4 w-4 text-gray-500" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  {showStock ? (
-                                     <DropdownMenuItem onClick={() => handleReactivateCandidate(c)}>
-                                        Rehire
-                                     </DropdownMenuItem>
-                                  ) : (
-                                    <>
-                                        {/* Standard Actions */}
-                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => window.open(c.cvLink, "_blank")}>
-                                            {t.actionDetail} (CV)
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        
-                                        {col.id === "New" && (
-                                            <DropdownMenuItem onClick={() => moveStatus(c, "Screening")}>
-                                            Pass Screening
-                                            </DropdownMenuItem>
-                                        )}
-                                        {col.id === "Screening" && (
-                                            <DropdownMenuItem onClick={() => moveStatus(c, "HR Interview", "HR")}>
-                                            Schedule HR Interview
-                                            </DropdownMenuItem>
-                                        )}
-                                        {col.id === "HR Interview" && (
-                                            <DropdownMenuItem onClick={() => moveStatus(c, "Interview", "L1")}>
-                                            Schedule Manager L1
-                                            </DropdownMenuItem>
-                                        )}
-                                        {col.id === "Interview" && (
-                                            <>
-                                            <DropdownMenuItem onClick={() => moveStatus(c, "Interview2", "L2")}>
-                                                Schedule Manager L2
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
-                                                Make Offer
-                                            </DropdownMenuItem>
-                                            </>
-                                        )}
-                                        {col.id === "Interview2" && (
-                                            <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
-                                            Make Offer
-                                            </DropdownMenuItem>
-                                        )}
-                                        {col.id === "Offer" && (
-                                            <DropdownMenuItem className="text-green-600 font-bold" onClick={() => handleHired(c)}>
-                                                Hired
-                                            </DropdownMenuItem>
-                                        )}
+                 {/* Cards Container */}
+                 <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-gray-300">
+                   {colCandidates.map((c) => (
+                       <div
+                           draggable
+                           onDragStart={(e) => {
+                               e.dataTransfer.setData("candidate", JSON.stringify(c));
+                               e.dataTransfer.effectAllowed = "move";
+                               // Optional: Set drag image or styling
+                           }}
+                           key={c.id} 
+                           className="cursor-grab active:cursor-grabbing"
+                        >
+                       <Card className="hover:shadow-md transition-all duration-200 group bg-white border-l-4" style={{ borderLeftColor: parseInt(c.matchScore) >= 8 ? '#22c55e' : parseInt(c.matchScore) >= 5 ? '#eab308' : '#6b7280' }}>
+                         <CardContent className="p-3 space-y-2">
+                            <div className="flex justify-between items-start">
+                               <h4 className="font-bold text-[11px] text-[#B91C1C] leading-snug" title={c.fullName}>{c.fullName}</h4>
+                               <DropdownMenu>
+                                 <DropdownMenuTrigger asChild>
+                                   <Button variant="ghost" className="h-6 w-6 p-0 -mt-1 -mr-2 hover:bg-gray-100 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                     <MoreHorizontal className="h-4 w-4 text-gray-500" />
+                                   </Button>
+                                 </DropdownMenuTrigger>
+                                 <DropdownMenuContent align="end">
+                                   {showStock ? (
+                                      <DropdownMenuItem onClick={() => handleReactivateCandidate(c)}>
+                                         Rehire
+                                      </DropdownMenuItem>
+                                   ) : (
+                                     <>
+                                         {/* Standard Actions */}
+                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                         <DropdownMenuItem onClick={() => window.open(c.cvLink, "_blank")}>
+                                             {t.actionDetail} (CV)
+                                         </DropdownMenuItem>
+                                         <DropdownMenuSeparator />
+                                         
+                                         {col.id === "New" && (
+                                             <DropdownMenuItem onClick={() => moveStatus(c, "Screening")}>
+                                             Pass Screening
+                                             </DropdownMenuItem>
+                                         )}
+                                         {col.id === "Screening" && (
+                                             <DropdownMenuItem onClick={() => moveStatus(c, "HR Interview", "HR")}>
+                                             Schedule HR Interview
+                                             </DropdownMenuItem>
+                                         )}
+                                         {col.id === "HR Interview" && (
+                                             <DropdownMenuItem onClick={() => moveStatus(c, "Interview", "L1")}>
+                                             Schedule Manager L1
+                                             </DropdownMenuItem>
+                                         )}
+                                         {col.id === "Interview" && (
+                                             <>
+                                             <DropdownMenuItem onClick={() => moveStatus(c, "Interview2", "L2")}>
+                                                 Schedule Manager L2
+                                             </DropdownMenuItem>
+                                             <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
+                                                 Make Offer
+                                             </DropdownMenuItem>
+                                             </>
+                                         )}
+                                         {col.id === "Interview2" && (
+                                             <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
+                                             Make Offer
+                                             </DropdownMenuItem>
+                                         )}
+                                         {col.id === "Offer" && (
+                                             <DropdownMenuItem className="text-green-600 font-bold" onClick={() => handleHired(c)}>
+                                                 Hired
+                                             </DropdownMenuItem>
+                                         )}
 
-                                        {/* Withdraw Logic */}
-                                        {col.id !== "New" && (
-                                            <>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => handleWithdraw(c)}>
-                                                {t.actionWithdraw}
-                                            </DropdownMenuItem>
-                                            </>
-                                        )}
-                                        
-                                        {/* Recovery logic only for Rejected, not for Stock (Stock has Reactivate) */}
-                                        {col.id === "Rejected" && (
-                                            <>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => handleWithdraw(c)}>
-                                                Recover to Previous
-                                            </DropdownMenuItem>
-                                            </>
-                                        )}
+                                         {/* Withdraw Logic */}
+                                         {col.id !== "New" && (
+                                             <>
+                                             <DropdownMenuSeparator />
+                                             <DropdownMenuItem onClick={() => handleWithdraw(c)}>
+                                                 {t.actionWithdraw}
+                                             </DropdownMenuItem>
+                                             </>
+                                         )}
+                                         
+                                         {/* Recovery logic only for Rejected, not for Stock (Stock has Reactivate) */}
+                                         {col.id === "Rejected" && (
+                                             <>
+                                             <DropdownMenuSeparator />
+                                             <DropdownMenuItem onClick={() => handleWithdraw(c)}>
+                                                 Recover to Previous
+                                             </DropdownMenuItem>
+                                             </>
+                                         )}
 
-                                        <DropdownMenuSeparator />
-                                        {col.id !== "Rejected" && (
-                                            <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeclineClick(c)}>
-                                            {t.actionDecline}
-                                            </DropdownMenuItem>
-                                        )}
-                                    </>
-                                  )}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                           </div>
+                                         <DropdownMenuSeparator />
+                                         {col.id !== "Rejected" && (
+                                             <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeclineClick(c)}>
+                                             {t.actionDecline}
+                                             </DropdownMenuItem>
+                                         )}
+                                     </>
+                                   )}
+                                 </DropdownMenuContent>
+                               </DropdownMenu>
+                            </div>
 
-                           <div className="space-y-1">
-                               <p className="text-[11px] text-gray-600 font-medium">{c.jobCode}</p>
-                               {c.positionId && <p className="text-[10px] text-gray-400 leading-tight">{c.positionId}</p>}
-                               <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 block w-fit max-w-full whitespace-normal break-words" title={c.positionRaw}>
-                               {c.positionRaw}
-                               </span>
-                               {/* Show Stock Reason */}
-                               {showStock && c.notes && <p className="text-[10px] text-blue-600 italic">{c.notes}</p>}
-                           </div>
-                           
-                           <div className="flex items-center justify-between pt-1 border-t border-gray-100 mt-1">
-                             <div className="text-[9px] text-gray-400">
-                               {c.timestamp ? c.timestamp.split(" ")[0] : ""}
-                             </div>
-                             
-                             {(col.id === "New" || showStock) && (
-                               <Badge className={`h-5 text-[10px] px-1.5 ${
-                                  parseInt(c.matchScore) >= 8 ? "bg-green-500" : 
-                                  parseInt(c.matchScore) >= 5 ? "bg-yellow-500" : "bg-gray-500"
-                                }`}>
-                                  Score: {c.matchScore}
-                               </Badge>
-                             )}
-                           </div>
+                            <div className="space-y-1">
+                                <p className="text-[11px] text-gray-600 font-medium">{c.jobCode}</p>
+                                {c.positionId && <p className="text-[10px] text-gray-400 leading-tight">{c.positionId}</p>}
+                                <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 block w-fit max-w-full whitespace-normal break-words" title={c.positionRaw}>
+                                {c.positionRaw}
+                                </span>
+                                {/* Show Stock Reason */}
+                                {showStock && c.notes && <p className="text-[10px] text-blue-600 italic">{c.notes}</p>}
+                            </div>
+                            
+                            <div className="flex items-center justify-between pt-1 border-t border-gray-100 mt-1">
+                              <div className="text-[9px] text-gray-400">
+                                {c.timestamp ? c.timestamp.split(" ")[0] : ""}
+                              </div>
+                              
+                              {(col.id === "New" || showStock) && (
+                                <Badge className={`h-5 text-[10px] px-1.5 ${
+                                   parseInt(c.matchScore) >= 8 ? "bg-green-500" : 
+                                   parseInt(c.matchScore) >= 5 ? "bg-yellow-500" : "bg-gray-500"
+                                 }`}>
+                                   Score: {c.matchScore}
+                                </Badge>
+                              )}
+                            </div>
 
-                        </CardContent>
-                      </Card>
+                         </CardContent>
+                       </Card>
+                       </div>
                     ))}
                 </div>
               </div>
