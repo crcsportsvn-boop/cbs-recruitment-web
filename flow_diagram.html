@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recruitment Process Flow</title>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+    </script>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f4f4f4;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+      }
+      .mermaid {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mermaid">
+      flowchart TD %% Global Styles classDef input
+      fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#01579b; classDef
+      datapool fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:#fbc02d;
+      classDef process
+      fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#2e7d32; classDef
+      outcome fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#7b1fa2;
+      classDef stock
+      fill:#eceff1,stroke:#455a64,stroke-width:2px,stroke-dasharray: 5
+      5,color:#455a64; classDef action
+      fill:#fff,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5; %% Subgraphs
+      subgraph S_INPUT [🔍 NGUỒN ỨNG VIÊN] direction TB Input_Auto([📧 Email Tự
+      Động]) Input_Manual([✍️ Nhập Tay/Input Tab]) end subgraph S_DATAPOOL [📂
+      KHO DỮ LIỆU (DATAPOOL)] direction TB DP_Core[("Datapool<br />(AI Scoring,
+      Summary)")] end subgraph S_PROCESS [🚀 QUY TRÌNH PHỎNG VẤN (KANBAN)]
+      direction TB P_New(New) --> P_Screen(Test/Screen) P_Screen --> P_HR(HR
+      Interview) P_HR --> P_M1(Manager L1) P_M1 --> P_M2(Manager L2) P_M2 -->
+      P_Offer(Offer) end subgraph S_OUTCOME [🏆 KẾT QUẢ] O_Hired{{🎉 HIRED}}
+      O_Rejected{{❌ REJECTED}} end subgraph S_STOCK [📦 KHO LƯU TRỮ (STOCK)]
+      Stock_Pool[("Stock<br />(Ứng viên Job đã dừng)")] Action_Stop[⛔ Stop Job]
+      Action_Rehire[🔄 Rehire] end %% Flow Connections Input_Auto --> DP_Core
+      Input_Manual --> DP_Core DP_Core -->|Proceed| P_New DP_Core -->|Reject|
+      O_Rejected P_Offer -->|Accept| O_Hired P_Offer -->|Decline| O_Rejected
+      P_Screen -->|Fail| O_Rejected P_HR -->|Fail| O_Rejected P_M1 -->|Fail|
+      O_Rejected P_M2 -->|Fail| O_Rejected %% Stock Logic Action_Stop
+      -.->|Chuyển Job sang Stopped| Stock_Pool P_New -.->|Job bị Stop|
+      Stock_Pool Stock_Pool -.->|Kích hoạt lại| Action_Rehire Action_Rehire
+      -->|Ứng tuyển Job mới| P_New %% Styling class Input_Auto,Input_Manual
+      input; class DP_Core datapool; class P_New,P_Screen,P_HR,P_M1,P_M2,P_Offer
+      process; class O_Hired,O_Rejected outcome; class
+      Stock_Pool,Action_Stop,Action_Rehire stock;
+    </div>
+  </body>
+</html>

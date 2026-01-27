@@ -1,0 +1,60 @@
+{
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    // Bắt buộc sử dụng === thay vì ==
+    "eqeqeq": ["error", "always"],
+
+    // Không cho phép biến chưa sử dụng
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
+
+    // Không cho phép console.log trong production
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+
+    // Không cho phép any type (khuyến khích strong typing)
+    "@typescript-eslint/no-explicit-any": "warn",
+
+    // Bắt buộc return type cho functions
+    "@typescript-eslint/explicit-function-return-type": "off",
+
+    // Không cho phép promise không được handle
+    "@typescript-eslint/no-floating-promises": "off",
+
+    // Bắt buộc sử dụng const cho biến không reassign
+    "prefer-const": "error",
+
+    // Không cho phép duplicate imports
+    "no-duplicate-imports": "error",
+
+    // Bắt buộc curly braces cho if/else/for/while
+    "curly": ["error", "all"],
+
+    // Giới hạn phức tạp của function (optional - có thể điều chỉnh)
+    "complexity": ["warn", 15],
+
+    // Bắt buộc spacing nhất quán
+    "object-curly-spacing": ["error", "always"],
+    "array-bracket-spacing": ["error", "never"],
+
+    // React specific
+    "react/jsx-no-duplicate-props": "error",
+    "react/jsx-key": "error",
+    "react/no-array-index-key": "warn",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn"
+  },
+  "overrides": [
+    {
+      // Cho phép any trong các file API routes
+      "files": ["app/api/**/*.ts"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off"
+      }
+    }
+  ]
+}
