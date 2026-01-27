@@ -330,11 +330,12 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
       const firstPart = dateStr.split(" ")[0];
       if (!firstPart) return null;
       const parts = firstPart.split("/"); // "21/01/2026"
-      if (parts.length === 3) {
+      const [day, month, year] = parts;
+      if (parts.length === 3 && day && month && year) {
         return new Date(
-          parseInt(parts[2]),
-          parseInt(parts[1]) - 1,
-          parseInt(parts[0]),
+          parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day),
         );
       }
     } catch (e) {
