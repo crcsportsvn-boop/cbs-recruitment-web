@@ -262,7 +262,10 @@ export default function Reports({ lang, user }: ReportProps) {
 
               // Cumulative Funnel
               for (let i = 0; i <= rank; i++) {
-                  stageCounts[STAGES[i]]++;
+                  const s = STAGES[i];
+                  if (s && stats.stageCounts[s] !== undefined) {
+                      stats.stageCounts[s]++;
+                  }
               }
           }
 
@@ -287,8 +290,8 @@ export default function Reports({ lang, user }: ReportProps) {
           if (state !== "Stock") {
              const s = currentStage;
              if (STAGES.includes(s)) {
-                 jobStats[job].stages[s]++;
-                 sourceStats[src].stages[s]++;
+                 if (jobStats[job] && jobStats[job].stages[s] !== undefined) jobStats[job].stages[s]++;
+                 if (sourceStats[src] && sourceStats[src].stages[s] !== undefined) sourceStats[src].stages[s]++;
              }
           }
       });
