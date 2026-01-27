@@ -631,10 +631,16 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
          let cDate;
          if (c.applyDate) {
              cDate = new Date(c.applyDate); 
-         } else if (c.timestamp) {
-             const parts = c.timestamp.split(" ")[0].split("/");
-             if (parts.length === 3) cDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-         }
+          } else if (c.timestamp) {
+             const firstPart = c.timestamp.split(" ")[0];
+             if (firstPart) {
+                 const parts = firstPart.split("/");
+                 const [day, month, year] = parts;
+                 if (parts.length === 3 && day && month && year) {
+                     cDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                 }
+             }
+          }
 
          if (cDate) {
             cDate.setHours(0,0,0,0);
