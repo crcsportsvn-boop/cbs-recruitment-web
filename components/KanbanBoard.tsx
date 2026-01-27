@@ -360,7 +360,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                      `Greetings from CBS VN.\n\n` +
                      `Thank you for your interest in a possible job opportunity with us. After exploring your qualifications, we are pleased to invite you to join an offline interview with the following details:\n\n` +
                      `Applied Position:  ${selectedCandidate.positionRaw}\n` +
-                     `Date & time:       ${interviewDetails.time}, ${new Date(interviewDetails.date).toLocaleDateString('en-GB')}\n` +
+                     `Date & time:       ${interviewDetails.time}, ${new Date(interviewDetails.date || new Date()).toLocaleDateString('en-GB')}\n` +
                      `Venue:             ${interviewDetails.venue}\n` +
                      `Meet with:         ${interviewDetails.interviewer}\n\n` +
                      `Please confirm your attendance by replying to this email. Should you need any assistance, do not hesitate to contact me via ${senderPhone} (${senderName}).\n\n` +
