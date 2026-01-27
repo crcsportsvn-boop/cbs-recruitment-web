@@ -373,7 +373,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     }
 
     // Update API
-    const dateObj = new Date(interviewDetails.date);
+    const dateObj = new Date(interviewDetails.date || new Date());
     const dateStr = dateObj.toLocaleDateString('en-GB'); 
     const timeStr = interviewDetails.time;
     const fullDate = `${dateStr} ${timeStr}`;
@@ -401,7 +401,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       if (!selectedCandidate) return;
       const senderName = user?.config?.displayName || user?.name || "HR Team";
       const senderPhone = user?.config?.phoneNumber || "";
-      const dateStr = new Date(interviewDetails.date).toLocaleDateString('en-GB'); // dd/MM/yyyy
+      const dateStr = new Date(interviewDetails.date || new Date()).toLocaleDateString('en-GB'); // dd/MM/yyyy
 
       // Rich Text HTML logic
       const htmlContent = `
