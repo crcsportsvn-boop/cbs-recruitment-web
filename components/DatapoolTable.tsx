@@ -543,10 +543,12 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   const hasPrev = currentIndex > 0;
 
   const handleNext = () => {
-    if (hasNext) setSelectedCandidate(filteredCandidates[currentIndex + 1]);
+    const next = filteredCandidates[currentIndex + 1];
+    if (hasNext && next) setSelectedCandidate(next);
   };
   const handlePrev = () => {
-    if (hasPrev) setSelectedCandidate(filteredCandidates[currentIndex - 1]);
+    const prev = filteredCandidates[currentIndex - 1];
+    if (hasPrev && prev) setSelectedCandidate(prev);
   };
 
   // Keyboard Navigation & Auto Scroll
