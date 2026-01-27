@@ -263,8 +263,8 @@ export default function Reports({ lang, user }: ReportProps) {
               // Cumulative Funnel
               for (let i = 0; i <= rank; i++) {
                   const s = STAGES[i];
-                  if (s && stats.stageCounts[s] !== undefined) {
-                      stats.stageCounts[s]++;
+                  if (s && stageCounts[s] !== undefined) {
+                      stageCounts[s]++;
                   }
               }
           }
