@@ -320,7 +320,13 @@ export default function Reports({ lang, user }: ReportProps) {
 
   const funnelData = STAGES.map((stage, index) => {
       const val = stats.stageCounts[stage] || 0;
-      const prevVal = index > 0 ? stats.stageCounts[STAGES[index-1]] : val;
+      let prevVal = val;
+      if (index > 0) {
+        const prevStage = STAGES[index - 1];
+        if (prevStage) {
+            prevVal = stats.stageCounts[prevStage] || 0;
+        }
+      }
       const rate = prevVal > 0 ? Math.round((val / prevVal) * 100) : 0;
       const totalNew = stats.stageCounts["New"] || 1;
       const totalRate = Math.round((val / totalNew) * 100);
@@ -457,7 +463,7 @@ export default function Reports({ lang, user }: ReportProps) {
                         <XAxis dataKey="name" />
                         <YAxis />
                         <Tooltip content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
+                                if (active && payload && payload.length && payload[0]) {
                                 const d = payload[0].payload;
                                 return (
                                     <div className="bg-white p-2 border rounded shadow-md text-sm">
