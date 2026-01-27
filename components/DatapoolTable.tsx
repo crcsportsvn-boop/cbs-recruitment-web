@@ -327,7 +327,9 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   const parseDate = (dateStr?: string) => {
     if (!dateStr) return null;
     try {
-      const parts = dateStr.split(" ")[0].split("/"); // "21/01/2026"
+      const firstPart = dateStr.split(" ")[0];
+      if (!firstPart) return null;
+      const parts = firstPart.split("/"); // "21/01/2026"
       if (parts.length === 3) {
         return new Date(
           parseInt(parts[2]),
