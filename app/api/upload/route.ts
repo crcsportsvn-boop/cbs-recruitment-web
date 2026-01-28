@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     let positionId = "";
     let cleanPosition = jobTitle;
 
-    if (match) {
+    if (match && match[1] && match[2]) {
       jobCode = match[1].trim();
       positionId = match[2].trim();
       // Remove (JobCode_PositionID) from position name
