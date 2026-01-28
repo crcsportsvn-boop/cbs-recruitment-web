@@ -77,19 +77,30 @@ export async function POST(req: NextRequest) {
       cleanPosition = jobTitle.replace(/\s*\([^)]+\)\s*/, "").trim();
     }
 
-    // 3. Generate new filename with format:
-    // [Date] - [Position] (JobCode_PositionID) - [Source] - [OriginalFilename]
+    // 3. Clean and format Skills/Requirements for filename
+    // Remove special characters that are invalid in filenames
+    const cleanSkills = requirements 
+      ? requirements
+          .replace(/[<>:"/\\|?*]/g, '') // Remove invalid filename chars
+          .replace(/\n/g, ' ') // Replace newlines with spaces
+          .replace(/\s+/g, ' ') // Collapse multiple spaces
+          .trim()
+          .substring(0, 100) // Limit length to 100 chars
+      : "N/A";
+
+    // 4. Generate new filename with format:
+    // [Date] - [Position] (JobCode_PositionID) - [Source] - [Skills] - [OriginalFilename]
     const currentDate = new Date().toLocaleDateString("en-GB"); // DD/MM/YYYY
     const fileExtension = filename.substring(filename.lastIndexOf("."));
     const baseFilename = filename.substring(0, filename.lastIndexOf("."));
 
     let newFilename: string;
     if (jobCode && positionId) {
-      // Full format with all metadata
-      newFilename = `${currentDate} - ${cleanPosition} (${jobCode}_${positionId}) - ${source} - ${baseFilename}${fileExtension}`;
+      // Full format with all metadata including Skills
+      newFilename = `${currentDate} - ${cleanPosition} (${jobCode}_${positionId}) - ${source} - ${cleanSkills} - ${baseFilename}${fileExtension}`;
     } else {
       // Fallback if no job code found
-      newFilename = `${currentDate} - ${cleanPosition} - ${source} - ${baseFilename}${fileExtension}`;
+      newFilename = `${currentDate} - ${cleanPosition} - ${source} - ${cleanSkills} - ${baseFilename}${fileExtension}`;
     }
 
     // 4. Prepare File Stream
