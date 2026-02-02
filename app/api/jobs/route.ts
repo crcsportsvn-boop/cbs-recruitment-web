@@ -147,38 +147,82 @@ export async function POST(req: NextRequest) {
 
     const { role } = await getUserRole(oauth2Client, req);
 
-    let targetSpreadsheetId = SPREADSHEET_ID_HO;
-    let targetSheetName = SHEET_NAME_HO;
+    // First, check BOTH sheets to find where the job already exists
+    let foundInHO = false;
+    let foundInST = false;
+    let hoRows: any[] = [];
+    let stRows: any[] = [];
+    let hoRowIndex = -1;
+    let stRowIndex = -1;
 
-    // Routing Logic
-    if (role === "ST_Recruiter") {
+    // Check HO Sheet
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID_HO,
+            range: `${SHEET_NAME_HO}!A2:G`,
+        });
+        hoRows = response.data.values || [];
+        hoRowIndex = hoRows.findIndex((r) => r[1] === jobCode);
+        foundInHO = hoRowIndex >= 0;
+    } catch (e) {
+        console.warn("Failed to read HO Jobs sheet", e);
+    }
+
+    // Check Store Sheet
+    if (SPREADSHEET_ID_ST) {
+        try {
+            const response = await sheets.spreadsheets.values.get({
+                spreadsheetId: SPREADSHEET_ID_ST,
+                range: `${SHEET_NAME_ST}!A2:G`,
+            });
+            stRows = response.data.values || [];
+            stRowIndex = stRows.findIndex((r) => r[1] === jobCode);
+            foundInST = stRowIndex >= 0;
+        } catch (e) {
+            console.warn("Failed to read Store Job sheet", e);
+        }
+    }
+
+    // Determine target based on where job exists
+    let targetSpreadsheetId: string;
+    let targetSheetName: string;
+    let rows: any[];
+    let rowIndex: number;
+    let existingGroup: string = "";
+
+    if (foundInST) {
+        // Job exists in Store sheet -> update Store
         targetSpreadsheetId = SPREADSHEET_ID_ST;
         targetSheetName = SHEET_NAME_ST;
-    } else if (role === "Manager") {
-        // Check group to decide destination
-        if (group === "Store" || jobCode.startsWith("ST")) {
-             targetSpreadsheetId = SPREADSHEET_ID_ST;
-             targetSheetName = SHEET_NAME_ST;
+        rows = stRows;
+        rowIndex = stRowIndex;
+        existingGroup = stRows[stRowIndex]?.[3] || "Store";
+    } else if (foundInHO) {
+        // Job exists in HO sheet -> update HO
+        targetSpreadsheetId = SPREADSHEET_ID_HO;
+        targetSheetName = SHEET_NAME_HO;
+        rows = hoRows;
+        rowIndex = hoRowIndex;
+        existingGroup = hoRows[hoRowIndex]?.[3] || "HO";
+    } else {
+        // Job doesn't exist anywhere - create new based on role or group
+        if (role === "ST_Recruiter" || group === "Store") {
+            targetSpreadsheetId = SPREADSHEET_ID_ST;
+            targetSheetName = SHEET_NAME_ST;
+            rows = stRows;
+            existingGroup = "Store";
+        } else {
+            targetSpreadsheetId = SPREADSHEET_ID_HO;
+            targetSheetName = SHEET_NAME_HO;
+            rows = hoRows;
+            existingGroup = "HO";
         }
+        rowIndex = -1; // Will append
     }
 
     if (!targetSpreadsheetId) {
         return NextResponse.json({ error: "Target Sheet ID not configured" }, { status: 500 });
     }
-
-    // 1. Read existing to find index
-    let rows: any[] = [];
-    try {
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: targetSpreadsheetId,
-            range: `${targetSheetName}!A2:G`,
-        });
-        rows = response.data.values || [];
-    } catch (e) {
-        // Assume empty if fail
-    }
-
-    const rowIndex = rows.findIndex((r) => r[1] === jobCode); // Check Column B (Index 1) for JobCode
     
     const existingPositionId = rowIndex >= 0 ? rows[rowIndex][0] : "";
     const displayPositionId = existingPositionId || ""; 
@@ -187,7 +231,7 @@ export async function POST(req: NextRequest) {
         displayPositionId, // A: Position ID
         jobCode,           // B: JobCode
         title || (rowIndex >= 0 ? rows[rowIndex][2] : ""), // C: Title
-        group || (rowIndex >= 0 ? rows[rowIndex][3] : (role === "ST_Recruiter" ? "Store" : "HO")), // D: Group (Default based on role if missing)
+        group || existingGroup, // D: Group (Preserve existing or use provided)
         status !== undefined ? status : (rowIndex >= 0 ? rows[rowIndex][4] : "Hiring"), // E: Status
         stopDate !== undefined ? stopDate : (rowIndex >= 0 ? rows[rowIndex][5] : ""), // F: StopDate
         reason !== undefined ? reason : (rowIndex >= 0 ? rows[rowIndex][6] : "") // G: Reason

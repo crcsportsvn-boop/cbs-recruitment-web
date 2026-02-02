@@ -29,6 +29,7 @@ interface Candidate {
   officialDate?: string;
   rejectedRound?: string;
   applyDate?: string; // YYYY-MM-DD HH:mm:ss
+  dataSource?: string; // 'HO' or 'ST' - from API
 }
 
 interface JobData {
@@ -213,7 +214,8 @@ export default function Reports({ lang, user }: ReportProps) {
         const jobCode = c.jobCode || "Unknown";
         const job = jobMap[jobCode];
         
-        const group = job?.group || (jobCode.startsWith("ST") ? "Store" : "HO");
+        // Priority: 1. dataSource from API, 2. job.group, 3. infer from jobCode
+        const group = c.dataSource === "ST" ? "Store" : (c.dataSource === "HO" ? "HO" : (job?.group || (jobCode.startsWith("ST") ? "Store" : "HO")));
         if (filterGroup !== "all" && group !== filterGroup) return false;
         if (filterJob !== "all" && jobCode !== filterJob) return false;
         if (filterSource !== "all" && (c.source || "Unknown") !== filterSource) return false;
