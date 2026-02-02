@@ -148,6 +148,7 @@ function HomeContent() {
   }
 
   const isHO = user.role === 'HO_Recruiter';
+  const isStore = user.role === 'ST_Recruiter';
   const isAdmin = user.role === 'Admin' || user.role === 'Manager';
   const isGuest = user.role === 'Guest' || !user.role;
 
@@ -247,7 +248,7 @@ function HomeContent() {
       )}
 
       {/* Authorized Content */}
-      {(isHO || isAdmin) && (
+      {(isHO || isStore || isAdmin) && (
         <div className="container mx-auto py-10 px-4 flex-1">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <div className="flex justify-center mb-8 sticky top-20 z-30 bg-gray-50 pb-4">

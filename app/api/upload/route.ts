@@ -3,18 +3,21 @@ import { google } from "googleapis";
 import { Readable } from "stream";
 
 // Configuration
-// Hardcode the correct folder ID to override any env var issues
-// Google Drive Folder ID (HO)
-const FOLDER_ID_INPUT =
+const FOLDER_ID_INPUT_HO =
   process.env.GOOGLE_DRIVE_INPUT_FOLDER_ID_HO ||
   "1L23vAO-hvrXPxE-VFTAzGzA0_kyb_wGN";
-const SPREADSHEET_ID =
+const SPREADSHEET_ID_HO =
   process.env.GOOGLE_SHEET_ID_HO ||
   "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
+  
+const FOLDER_ID_INPUT_ST = process.env.GOOGLE_DRIVE_INPUT_FOLDER_ID_ST || "";
+const SPREADSHEET_ID_ST = process.env.GOOGLE_SHEET_ID_ST || "";
+
 const SHEET_NAME = "Vị trí tuyển dụng";
 const SCOPES = [
   "https://www.googleapis.com/auth/drive",
   "https://www.googleapis.com/auth/spreadsheets",
+  "https://www.googleapis.com/auth/userinfo.email", 
 ];
 
 export async function POST(req: NextRequest) {
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     const tokens = JSON.parse(tokensCookie.value);
 
-    // 2. Authenticate with Google using OAuth tokens
+    // 2. Authenticate with Google using OAuth tokens (as User)
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
@@ -57,6 +60,68 @@ export async function POST(req: NextRequest) {
     );
 
     oauth2Client.setCredentials(tokens);
+
+    // 2.1 Get User Email
+    const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+    const userInfo = await oauth2.userinfo.get();
+    const email = userInfo.data.email || "";
+
+    // 2.2 Determine Role (using Service Account to read User_view)
+    let role = "Guest";
+    let targetFolderId = FOLDER_ID_INPUT_HO;
+    let targetSpreadsheetId = SPREADSHEET_ID_HO;
+
+    try {
+        let credentials;
+        if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+        try {
+            credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+        } catch (e) {
+            console.error("Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON", e);
+        }
+        }
+
+        if (!credentials) {
+        credentials = {
+            client_email: process.env.GOOGLE_CLIENT_EMAIL,
+            private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+        };
+        }
+
+        const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+        });
+
+        const sheetsAdmin = google.sheets({ version: "v4", auth });
+        const response = await sheetsAdmin.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID_HO,
+        range: "User_view!A:B",
+        });
+
+        const rows = response.data.values || [];
+        const userRow = rows.find((r) => r[0]?.toString().toLowerCase() === email.toLowerCase());
+        
+        if (userRow) {
+            role = userRow[1] || "User";
+        }
+    } catch (roleError) {
+        console.error("Failed to determine role from User_view, defaulting to HO", roleError);
+    }
+
+    // 2.3 Switch Destination based on Role
+    if (role === "ST_Recruiter") {
+        targetFolderId = FOLDER_ID_INPUT_ST;
+        targetSpreadsheetId = SPREADSHEET_ID_ST;
+        // Fallback for ST if IDs are missing (should not happen if config is correct)
+        if (!targetFolderId || !targetSpreadsheetId) { 
+            console.warn("ST_Recruiter detected but missing ST config, falling back to HO");
+            targetFolderId = FOLDER_ID_INPUT_HO;
+            targetSpreadsheetId = SPREADSHEET_ID_HO;
+        }
+    }
+
+    console.log(`Uploading for ${email} (${role}) to Sheet: ${targetSpreadsheetId}, Folder: ${targetFolderId}`);
 
     const drive = google.drive({ version: "v3", auth: oauth2Client });
     const sheets = google.sheets({ version: "v4", auth: oauth2Client });
@@ -113,7 +178,7 @@ export async function POST(req: NextRequest) {
     const driveResponse = await drive.files.create({
       requestBody: {
         name: newFilename, // Use renamed file
-        parents: [FOLDER_ID_INPUT],
+        parents: [targetFolderId], // Use dynamic folder ID
       },
       media: {
         mimeType: file.type,
@@ -133,7 +198,7 @@ export async function POST(req: NextRequest) {
     ];
 
     await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId: targetSpreadsheetId, // Use dynamic sheet ID
       range: `${SHEET_NAME}!A:C`,
       valueInputOption: "USER_ENTERED",
       insertDataOption: "INSERT_ROWS",
@@ -147,14 +212,15 @@ export async function POST(req: NextRequest) {
       fileId: driveResponse.data.id,
       link: driveResponse.data.webViewLink,
       sheetUpdated: true,
+      target: role === "ST_Recruiter" ? "Store" : "HO"
     });
   } catch (error: any) {
     console.error("Upload Error Details:", {
       message: error.message,
       stack: error.stack,
       credentials_exist: !!process.env.GOOGLE_SERVICE_ACCOUNT_JSON,
-      folder_id: FOLDER_ID_INPUT,
-      spreadsheet_id: SPREADSHEET_ID,
+      folder_id: FOLDER_ID_INPUT_HO,
+      spreadsheet_id: SPREADSHEET_ID_HO,
     });
 
     return NextResponse.json(
@@ -167,3 +233,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
