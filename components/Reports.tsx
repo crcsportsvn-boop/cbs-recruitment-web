@@ -69,7 +69,7 @@ export default function Reports({ lang, user }: ReportProps) {
   // Default Group Filter
   useEffect(() => {
     if (!canChangeGroup && user?.role) {
-        if (user.role.toLowerCase().includes("store")) setFilterGroup("Store");
+        if (user.role === "ST_Recruiter") setFilterGroup("Store");
         else setFilterGroup("HO");
     }
   }, [user, canChangeGroup]);
