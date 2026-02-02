@@ -9,6 +9,47 @@ const SHEET_NAME_HO = "Jobs";
 const SPREADSHEET_ID_ST = process.env.GOOGLE_SHEET_ID_ST || "1GvIdlI4VTa0h4UeRjh6YjKV_SmhOU8OSbwSGGlvGTRs";
 const SHEET_NAME_ST = "Job";
 
+// Helper to determine user role
+async function getUserRole(oauth2Client: any): Promise<string> {
+    try {
+        // Get user email
+        const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+        const userInfo = await oauth2.userinfo.get();
+        const email = userInfo.data.email || "";
+
+        // Use Service Account to read User_view sheet
+        let serviceAuth;
+        const saJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+        if (saJson) {
+            const creds = JSON.parse(saJson);
+            serviceAuth = new google.auth.GoogleAuth({
+                credentials: creds,
+                scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+            });
+        } else {
+            serviceAuth = new google.auth.GoogleAuth({
+                credentials: {
+                    client_email: process.env.GOOGLE_CLIENT_EMAIL,
+                    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+                },
+                scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+            });
+        }
+
+        const sheets = google.sheets({ version: "v4", auth: serviceAuth });
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID_HO,
+            range: "User_view!A:B",
+        });
+        const rows = response.data.values || [];
+        const userRow = rows.find((r: any) => r[0]?.toLowerCase() === email.toLowerCase());
+        return userRow?.[1] || "Unknown";
+    } catch (e) {
+        console.error("Failed to get user role:", e);
+        return "Unknown";
+    }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { jobCode, reason, title, group } = await req.json();
@@ -33,6 +74,10 @@ export async function POST(req: NextRequest) {
     oauth2Client.setCredentials(tokens);
     const sheets = google.sheets({ version: "v4", auth: oauth2Client });
 
+    // Get user role for routing decision
+    const userRole = await getUserRole(oauth2Client);
+    console.log("User role:", userRole);
+
     // Check BOTH sheets to find where the job exists
     let foundInHO = false;
     let foundInST = false;
@@ -45,7 +90,6 @@ export async function POST(req: NextRequest) {
     try {
         console.log("=== STOP JOB DEBUG ===");
         console.log("Looking for jobCode:", jobCode);
-        console.log("Checking HO Sheet:", SPREADSHEET_ID_HO, SHEET_NAME_HO);
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID_HO,
             range: `${SHEET_NAME_HO}!A2:G`,
@@ -54,30 +98,25 @@ export async function POST(req: NextRequest) {
         console.log("HO rows found:", hoRows.length);
         hoRowIndex = hoRows.findIndex((r: any) => r[1] === jobCode);
         foundInHO = hoRowIndex >= 0;
-        console.log("Found in HO:", foundInHO, "at index:", hoRowIndex);
+        console.log("Found in HO:", foundInHO);
     } catch (e: any) {
         console.error("Failed to read HO Jobs sheet:", e.message);
     }
 
     // Check Store Sheet
     try {
-        console.log("Checking Store Sheet:", SPREADSHEET_ID_ST, SHEET_NAME_ST);
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID_ST,
             range: `${SHEET_NAME_ST}!A2:G`,
         });
         stRows = response.data.values || [];
         console.log("Store rows found:", stRows.length);
-        if (stRows.length > 0) console.log("Store first row:", stRows[0]);
         stRowIndex = stRows.findIndex((r: any) => r[1] === jobCode);
         foundInST = stRowIndex >= 0;
-        console.log("Found in Store:", foundInST, "at index:", stRowIndex);
+        console.log("Found in Store:", foundInST);
     } catch (e: any) {
         console.error("Failed to read Store Job sheet:", e.message);
     }
-
-    console.log("=== DECISION ===");
-    console.log("foundInST:", foundInST, "foundInHO:", foundInHO);
 
     // Determine target based on where job exists
     let targetSpreadsheetId: string;
@@ -88,6 +127,7 @@ export async function POST(req: NextRequest) {
 
     if (foundInST) {
         // Job exists in Store sheet -> update Store
+        console.log("Decision: Update Store (job found in Store)");
         targetSpreadsheetId = SPREADSHEET_ID_ST;
         targetSheetName = SHEET_NAME_ST;
         rows = stRows;
@@ -95,19 +135,23 @@ export async function POST(req: NextRequest) {
         existingGroup = stRows[stRowIndex]?.[3] || "Store";
     } else if (foundInHO) {
         // Job exists in HO sheet -> update HO
+        console.log("Decision: Update HO (job found in HO)");
         targetSpreadsheetId = SPREADSHEET_ID_HO;
         targetSheetName = SHEET_NAME_HO;
         rows = hoRows;
         rowIndex = hoRowIndex;
         existingGroup = hoRows[hoRowIndex]?.[3] || "HO";
     } else {
-        // Job doesn't exist - use group from request or default to HO
-        if (group === "Store") {
+        // Job doesn't exist anywhere - use role or group to decide
+        console.log("Job not found in any sheet. Checking role/group for new entry...");
+        if (userRole === "ST_Recruiter" || group === "Store") {
+            console.log("Decision: Create NEW in Store (role:", userRole, "group:", group, ")");
             targetSpreadsheetId = SPREADSHEET_ID_ST;
             targetSheetName = SHEET_NAME_ST;
             rows = stRows;
             existingGroup = "Store";
         } else {
+            console.log("Decision: Create NEW in HO (role:", userRole, "group:", group, ")");
             targetSpreadsheetId = SPREADSHEET_ID_HO;
             targetSheetName = SHEET_NAME_HO;
             rows = hoRows;
@@ -123,14 +167,16 @@ export async function POST(req: NextRequest) {
         existingPositionId,
         jobCode,
         title || (rowIndex >= 0 ? rows[rowIndex][2] : ""),
-        group || existingGroup, // Preserve existing group
+        group || existingGroup,
         "Stopped",
         stopDate,
         reason
     ];
 
+    console.log("Writing to:", targetSheetName, "in", targetSpreadsheetId);
+
     if (rowIndex >= 0) {
-        // Update
+        // Update existing row
         await sheets.spreadsheets.values.update({
             spreadsheetId: targetSpreadsheetId,
             range: `${targetSheetName}!A${rowIndex + 2}:G${rowIndex + 2}`,
@@ -138,7 +184,7 @@ export async function POST(req: NextRequest) {
             requestBody: { values: [newRow] }
         });
     } else {
-        // Append
+        // Append new row
         await sheets.spreadsheets.values.append({
             spreadsheetId: targetSpreadsheetId,
             range: `${targetSheetName}!A:G`,
