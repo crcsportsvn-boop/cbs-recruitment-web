@@ -49,6 +49,9 @@ interface Candidate {
   rejectedRound?: string;
   notes?: string;
   applyDate?: string;
+  // Multi-source fields (NEW)
+  dataSource?: "HO" | "ST";
+  sheetId?: string;
 }
 
 interface KanbanBoardProps {
@@ -77,6 +80,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [showRejected, setShowRejected] = useState(false);
   const [showStock, setShowStock] = useState(false);
   const [selectedJobCode, setSelectedJobCode] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "HO" | "ST">("all"); // NEW: Data source filter
   
   // Job Codes for Filter
   const uniqueJobCodes = Array.from(new Set(candidates.map(c => c.jobCode).filter(Boolean))) as string[];
@@ -173,6 +177,8 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         isPotential: c.isPotential,
         rejectedRound: c.rejectedRound,
         applyDate: c.applyDate,
+        dataSource: c.dataSource || "HO", // NEW: Track data source
+        sheetId: c.sheetId, // NEW: For update routing
       }));
       setCandidates(formatted);
     } catch (e) {
@@ -244,7 +250,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     }
     // -----------------------------------------
 
-    await updateCandidateAPI(candidate.id, updates);
+    await updateCandidateAPI(candidate, updates);
   };
 
   const handleHired = (candidate: Candidate) => {
@@ -255,7 +261,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
   const confirmHired = async () => {
       if (!selectedCandidate) return;
-      await updateCandidateAPI(selectedCandidate.id, {
+      await updateCandidateAPI(selectedCandidate, {
           status: "Hired",
           applyDate: hiredDate, 
           officialDate: hiredDate 
@@ -304,7 +310,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         if (status === "Screening") updates.testResult = ""; 
      }
 
-     await updateCandidateAPI(candidate.id, updates);
+     await updateCandidateAPI(candidate, updates);
   };
 
   const handleDeclineClick = (candidate: Candidate) => {
@@ -335,7 +341,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     const currentStatus = selectedCandidate.status || "New";
     const rejectedRound = roundMap[currentStatus] || currentStatus;
 
-    await updateCandidateAPI(selectedCandidate.id, {
+    await updateCandidateAPI(selectedCandidate, {
       status: "Rejected",
       failureReason: finalReason,
       isPotential: isPotentialDecline,
@@ -393,7 +399,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         updates.interviewDate2 = fullDate;
     }
 
-    await updateCandidateAPI(selectedCandidate.id, updates);
+    await updateCandidateAPI(selectedCandidate, updates);
     setIsInterviewModalOpen(false);
   };
 
@@ -449,16 +455,21 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       });
   };
 
-  const updateCandidateAPI = async (id: number, updates: any) => {
+  const updateCandidateAPI = async (candidate: Candidate, updates: any) => {
     // Optimistic update
     setCandidates(prev => prev.map(c => 
-      c.id === id ? { ...c, ...updates } : c
+      c.id === candidate.id ? { ...c, ...updates } : c
     ));
 
     try {
       const res = await fetch("/api/candidates/update", {
         method: "POST",
-        body: JSON.stringify({ id, updates })
+        body: JSON.stringify({ 
+          id: candidate.id, 
+          updates,
+          dataSource: candidate.dataSource, // NEW: Route to correct sheet
+          sheetId: candidate.sheetId // NEW: Exact sheet ID
+        })
       });
       
       if (!res.ok) {
@@ -550,7 +561,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       setCandidates(prev => prev.map(c => c.id === rehireCandidate.id ? { ...c, status: "Screening", jobCode: jobCode, notes: "", applyDate: newApplyDate } : c));
       
       // API
-      await updateCandidateAPI(rehireCandidate.id, { status: "Screening", jobCode: jobCode, notes: "", applyDate: newApplyDate });
+      await updateCandidateAPI(rehireCandidate, { status: "Screening", jobCode: jobCode, notes: "", applyDate: newApplyDate });
       fetchCandidates();
   };
 
@@ -602,6 +613,9 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     
     // 2. Job Code Filter
     if (selectedJobCode !== "all" && c.jobCode !== selectedJobCode) return false;
+
+    // 2.5. Data Source Filter (NEW - for Admin combined view)
+    if (sourceFilter !== "all" && c.dataSource !== sourceFilter) return false;
 
     // 3. Search Term
     const searchLower = searchTerm.toLowerCase();
@@ -753,6 +767,22 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Source Filter (Manager Only - combined view) */}
+          {user?.role === "Manager" && (
+          <div className="w-[120px]">
+            <Select value={sourceFilter} onValueChange={(v: "all" | "HO" | "ST") => setSourceFilter(v)}>
+              <SelectTrigger className="bg-white h-9 text-sm">
+                <SelectValue placeholder="Source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Sources</SelectItem>
+                <SelectItem value="HO">HO Only</SelectItem>
+                <SelectItem value="ST">Store Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          )}
 
           {/* Date Filter - Compact */}
           <div className="flex items-center gap-1 bg-white px-2 rounded border h-9">
@@ -1005,8 +1035,16 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                             </div>
                             
                             <div className="flex items-center justify-between pt-1 border-t border-gray-100 mt-1">
-                              <div className="text-[9px] text-gray-400">
-                                {c.timestamp ? c.timestamp.split(" ")[0] : ""}
+                              <div className="flex items-center gap-1">
+                                <span className="text-[9px] text-gray-400">
+                                  {c.timestamp ? c.timestamp.split(" ")[0] : ""}
+                                </span>
+                                {/* Data Source Badge (Manager only - combined view) */}
+                                {user?.role === "Manager" && (
+                                  <Badge className={`h-4 text-[8px] px-1 ${c.dataSource === "HO" ? "bg-blue-500 hover:bg-blue-600" : "bg-purple-500 hover:bg-purple-600"}`}>
+                                    {c.dataSource === "HO" ? "HO" : "ST"}
+                                  </Badge>
+                                )}
                               </div>
                               
                               {(col.id === "New" || showStock) && (

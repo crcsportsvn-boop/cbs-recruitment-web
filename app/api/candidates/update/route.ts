@@ -3,7 +3,9 @@ import { google } from "googleapis";
 
 export const dynamic = 'force-dynamic';
 
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w"; 
+// Sheet Configuration - Support both HO and Store
+const SPREADSHEET_ID_HO = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
+const SPREADSHEET_ID_ST = process.env.GOOGLE_SHEET_ID_ST || "";
 const SHEET_NAME = "Datapool";
 
 export async function POST(req: NextRequest) {
@@ -18,10 +20,24 @@ export async function POST(req: NextRequest) {
     }
 
     const tokens = JSON.parse(tokensCookie.value);
-    const { id, updates } = await req.json(); // id is the Row Index (e.g. 2, 3...)
+    const { id, updates, dataSource, sheetId } = await req.json();
+    
+    // Determine which sheet to update
+    // Priority: sheetId (exact) > dataSource (lookup) > default HO
+    let targetSheetId = SPREADSHEET_ID_HO;
+    
+    if (sheetId) {
+      // Frontend sent exact sheet ID
+      targetSheetId = sheetId;
+    } else if (dataSource === "ST" && SPREADSHEET_ID_ST) {
+      // Use Store sheet
+      targetSheetId = SPREADSHEET_ID_ST;
+    } else if (dataSource === "HO") {
+      targetSheetId = SPREADSHEET_ID_HO;
+    }
     
     // DEBUG: Log what we're updating
-    console.log("🔍 Update Request - Row:", id, "Updates:", JSON.stringify(updates));
+    console.log(`🔍 Update Request - Sheet: ${dataSource || 'HO'}, Row: ${id}, Updates:`, JSON.stringify(updates));
 
     // 2. Setup OAuth2 Client
     const oauth2Client = new google.auth.OAuth2(
@@ -33,35 +49,32 @@ export async function POST(req: NextRequest) {
     const sheets = google.sheets({ version: "v4", auth: oauth2Client });
 
     // 3. Define Column Mapping (Letter to Field)
-    // ONLY fields that need to be updated during Process/Reject
     const COLUMN_MAP: Record<string, string> = {
-      jobCode: "E",       // Column 5 (Job Code)
-      notes: "AK",         // Column 37 (Moved from Z)
-      isPotential: "AA", // Column 27
-      status: "AB",      // Column 28
-      failureReason: "AC", // Column 29
-      testResult: "AD",  // Column 30
-      hrInterviewDate: "AE", // Column 31
-      interviewDate1: "AF", // Column 32
-      interviewDate2: "AG", // Column 33
-      offerDate: "AH",    // Column 34
-      startDate: "AI",    // Column 35
-      officialDate: "AJ", // Column 36
-      rejectedRound: "AL", // Column 38 (Moved from AK)
-      applyDate: "AM",     // Column 39 (New)
+      jobCode: "E",
+      notes: "AK",
+      isPotential: "AA",
+      status: "AB",
+      failureReason: "AC",
+      testResult: "AD",
+      hrInterviewDate: "AE",
+      interviewDate1: "AF",
+      interviewDate2: "AG",
+      offerDate: "AH",
+      startDate: "AI",
+      officialDate: "AJ",
+      rejectedRound: "AL",
+      applyDate: "AM",
     };
 
     // 4. Prepare Batch Update
     const dataToUpdate = [];
     
-    // We iterate over the 'updates' object keys
     for (const [key, value] of Object.entries(updates)) {
       const colLetter = COLUMN_MAP[key];
       if (colLetter) {
         const cellValue = value === null ? "" : value;
         dataToUpdate.push({
           range: `${SHEET_NAME}!${colLetter}${id}`,
-          // Use empty string to clear cell (Google Sheets will treat "" as blank)
           values: [[cellValue]], 
         });
         console.log(`  ✏️  ${key} -> ${colLetter}${id} = "${cellValue}"`);
@@ -74,20 +87,20 @@ export async function POST(req: NextRequest) {
        return NextResponse.json({ message: "No mappable fields to update" });
     }
 
-    // 5. Execute Batch Update
+    // 5. Execute Batch Update on the correct sheet
     await sheets.spreadsheets.values.batchUpdate({
-      spreadsheetId: SPREADSHEET_ID,
+      spreadsheetId: targetSheetId,
       requestBody: {
         data: dataToUpdate,
         valueInputOption: "USER_ENTERED", 
       },
     });
 
-    return NextResponse.json({ success: true });
+    console.log(`✅ Updated ${dataToUpdate.length} fields on ${dataSource || 'HO'} sheet`);
+    return NextResponse.json({ success: true, dataSource: dataSource || 'HO' });
 
   } catch (error: any) {
     console.error("Update Candidate Error:", error);
-    // Return detailed error for frontend debugging
     return NextResponse.json(
       { error: error.message || "Failed to update candidate", details: error },
       { status: 500 }
