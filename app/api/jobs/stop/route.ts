@@ -43,43 +43,29 @@ export async function POST(req: NextRequest) {
 
     // Check HO Sheet
     try {
-        console.log("=== STOP DEBUG: Checking HO Sheet ===");
-        console.log("HO Sheet ID:", SPREADSHEET_ID_HO);
-        console.log("HO Sheet Name:", SHEET_NAME_HO);
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID_HO,
             range: `${SHEET_NAME_HO}!A2:G`,
         });
         hoRows = response.data.values || [];
-        console.log("HO Rows count:", hoRows.length);
         hoRowIndex = hoRows.findIndex((r: any) => r[1] === jobCode);
         foundInHO = hoRowIndex >= 0;
-        console.log("Job", jobCode, "found in HO:", foundInHO, "at index:", hoRowIndex);
-    } catch (e: any) {
-        console.error("Failed to read HO Jobs sheet:", e.message);
+    } catch (e) {
+        console.warn("Failed to read HO Jobs sheet", e);
     }
 
     // Check Store Sheet
     try {
-        console.log("=== STOP DEBUG: Checking Store Sheet ===");
-        console.log("Store Sheet ID:", SPREADSHEET_ID_ST);
-        console.log("Store Sheet Name:", SHEET_NAME_ST);
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID_ST,
             range: `${SHEET_NAME_ST}!A2:G`,
         });
         stRows = response.data.values || [];
-        console.log("Store Rows count:", stRows.length);
-        console.log("Store first row sample:", stRows[0]);
         stRowIndex = stRows.findIndex((r: any) => r[1] === jobCode);
         foundInST = stRowIndex >= 0;
-        console.log("Job", jobCode, "found in Store:", foundInST, "at index:", stRowIndex);
-    } catch (e: any) {
-        console.error("Failed to read Store Job sheet:", e.message);
+    } catch (e) {
+        console.warn("Failed to read Store Job sheet", e);
     }
-
-    console.log("=== STOP DEBUG: Final Decision ===");
-    console.log("foundInST:", foundInST, "foundInHO:", foundInHO);
 
     // Determine target based on where job exists
     let targetSpreadsheetId: string;
