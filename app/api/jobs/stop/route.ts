@@ -43,29 +43,41 @@ export async function POST(req: NextRequest) {
 
     // Check HO Sheet
     try {
+        console.log("=== STOP JOB DEBUG ===");
+        console.log("Looking for jobCode:", jobCode);
+        console.log("Checking HO Sheet:", SPREADSHEET_ID_HO, SHEET_NAME_HO);
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID_HO,
             range: `${SHEET_NAME_HO}!A2:G`,
         });
         hoRows = response.data.values || [];
+        console.log("HO rows found:", hoRows.length);
         hoRowIndex = hoRows.findIndex((r: any) => r[1] === jobCode);
         foundInHO = hoRowIndex >= 0;
-    } catch (e) {
-        console.warn("Failed to read HO Jobs sheet", e);
+        console.log("Found in HO:", foundInHO, "at index:", hoRowIndex);
+    } catch (e: any) {
+        console.error("Failed to read HO Jobs sheet:", e.message);
     }
 
     // Check Store Sheet
     try {
+        console.log("Checking Store Sheet:", SPREADSHEET_ID_ST, SHEET_NAME_ST);
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID_ST,
             range: `${SHEET_NAME_ST}!A2:G`,
         });
         stRows = response.data.values || [];
+        console.log("Store rows found:", stRows.length);
+        if (stRows.length > 0) console.log("Store first row:", stRows[0]);
         stRowIndex = stRows.findIndex((r: any) => r[1] === jobCode);
         foundInST = stRowIndex >= 0;
-    } catch (e) {
-        console.warn("Failed to read Store Job sheet", e);
+        console.log("Found in Store:", foundInST, "at index:", stRowIndex);
+    } catch (e: any) {
+        console.error("Failed to read Store Job sheet:", e.message);
     }
+
+    console.log("=== DECISION ===");
+    console.log("foundInST:", foundInST, "foundInHO:", foundInHO);
 
     // Determine target based on where job exists
     let targetSpreadsheetId: string;
