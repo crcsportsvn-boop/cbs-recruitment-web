@@ -191,8 +191,19 @@ export async function POST(req: NextRequest) {
     let rowIndex: number;
     let existingGroup: string = "";
 
+    // Debug logging
+    console.log("=== Job Update Debug ===");
+    console.log("JobCode:", jobCode);
+    console.log("Role:", role);
+    console.log("Group from request:", group);
+    console.log("SPREADSHEET_ID_ST:", SPREADSHEET_ID_ST);
+    console.log("Found in HO:", foundInHO, "index:", hoRowIndex);
+    console.log("Found in ST:", foundInST, "index:", stRowIndex);
+    console.log("ST Rows count:", stRows.length);
+
     if (foundInST) {
         // Job exists in Store sheet -> update Store
+        console.log("Decision: UPDATE STORE (job found in Store sheet)");
         targetSpreadsheetId = SPREADSHEET_ID_ST;
         targetSheetName = SHEET_NAME_ST;
         rows = stRows;
@@ -200,6 +211,7 @@ export async function POST(req: NextRequest) {
         existingGroup = stRows[stRowIndex]?.[3] || "Store";
     } else if (foundInHO) {
         // Job exists in HO sheet -> update HO
+        console.log("Decision: UPDATE HO (job found in HO sheet)");
         targetSpreadsheetId = SPREADSHEET_ID_HO;
         targetSheetName = SHEET_NAME_HO;
         rows = hoRows;
@@ -207,12 +219,15 @@ export async function POST(req: NextRequest) {
         existingGroup = hoRows[hoRowIndex]?.[3] || "HO";
     } else {
         // Job doesn't exist anywhere - create new based on role or group
+        console.log("Decision: CREATE NEW (job not found anywhere)");
         if (role === "ST_Recruiter" || group === "Store") {
+            console.log("Target: STORE (based on role/group)");
             targetSpreadsheetId = SPREADSHEET_ID_ST;
             targetSheetName = SHEET_NAME_ST;
             rows = stRows;
             existingGroup = "Store";
         } else {
+            console.log("Target: HO (default)");
             targetSpreadsheetId = SPREADSHEET_ID_HO;
             targetSheetName = SHEET_NAME_HO;
             rows = hoRows;
@@ -220,6 +235,9 @@ export async function POST(req: NextRequest) {
         }
         rowIndex = -1; // Will append
     }
+
+    console.log("Final target sheet:", targetSheetName, "in", targetSpreadsheetId);
+    console.log("=== End Debug ===");
 
     if (!targetSpreadsheetId) {
         return NextResponse.json({ error: "Target Sheet ID not configured" }, { status: 500 });
