@@ -2,8 +2,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
-const SHEET_NAME = "Jobs"; // Using Jobs Sheet
+const SPREADSHEET_ID_HO = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
+const SHEET_NAME_HO = "Jobs";
+
+// Store Sheet ID from walkthrough - hardcoded fallback
+const SPREADSHEET_ID_ST = process.env.GOOGLE_SHEET_ID_ST || "1GvIdlI4VTa0h4UeRjh6YjKV_SmhOU8OSbwSGGlvGTRs";
+const SHEET_NAME_ST = "Job";
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,47 +33,103 @@ export async function POST(req: NextRequest) {
     oauth2Client.setCredentials(tokens);
     const sheets = google.sheets({ version: "v4", auth: oauth2Client });
 
-    // 1. Read Jobs Sheet to find row
-    let rows: any[] = [];
+    // Check BOTH sheets to find where the job exists
+    let foundInHO = false;
+    let foundInST = false;
+    let hoRows: any[] = [];
+    let stRows: any[] = [];
+    let hoRowIndex = -1;
+    let stRowIndex = -1;
+
+    // Check HO Sheet
     try {
         const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!A2:G`,
+            spreadsheetId: SPREADSHEET_ID_HO,
+            range: `${SHEET_NAME_HO}!A2:G`,
         });
-        rows = response.data.values || [];
+        hoRows = response.data.values || [];
+        hoRowIndex = hoRows.findIndex((r: any) => r[1] === jobCode);
+        foundInHO = hoRowIndex >= 0;
     } catch (e) {
-        // assume empty if fail
+        console.warn("Failed to read HO Jobs sheet", e);
     }
 
-    const rowIndex = rows.findIndex((r) => r[1] === jobCode); // Check Col B
+    // Check Store Sheet
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID_ST,
+            range: `${SHEET_NAME_ST}!A2:G`,
+        });
+        stRows = response.data.values || [];
+        stRowIndex = stRows.findIndex((r: any) => r[1] === jobCode);
+        foundInST = stRowIndex >= 0;
+    } catch (e) {
+        console.warn("Failed to read Store Job sheet", e);
+    }
+
+    // Determine target based on where job exists
+    let targetSpreadsheetId: string;
+    let targetSheetName: string;
+    let rows: any[];
+    let rowIndex: number;
+    let existingGroup: string = "";
+
+    if (foundInST) {
+        // Job exists in Store sheet -> update Store
+        targetSpreadsheetId = SPREADSHEET_ID_ST;
+        targetSheetName = SHEET_NAME_ST;
+        rows = stRows;
+        rowIndex = stRowIndex;
+        existingGroup = stRows[stRowIndex]?.[3] || "Store";
+    } else if (foundInHO) {
+        // Job exists in HO sheet -> update HO
+        targetSpreadsheetId = SPREADSHEET_ID_HO;
+        targetSheetName = SHEET_NAME_HO;
+        rows = hoRows;
+        rowIndex = hoRowIndex;
+        existingGroup = hoRows[hoRowIndex]?.[3] || "HO";
+    } else {
+        // Job doesn't exist - use group from request or default to HO
+        if (group === "Store") {
+            targetSpreadsheetId = SPREADSHEET_ID_ST;
+            targetSheetName = SHEET_NAME_ST;
+            rows = stRows;
+            existingGroup = "Store";
+        } else {
+            targetSpreadsheetId = SPREADSHEET_ID_HO;
+            targetSheetName = SHEET_NAME_HO;
+            rows = hoRows;
+            existingGroup = "HO";
+        }
+        rowIndex = -1;
+    }
+
     const stopDate = new Date().toISOString(); 
-    
-    // Preserve Position ID if exists
     const existingPositionId = rowIndex >= 0 ? rows[rowIndex][0] : "";
 
     const newRow = [
-        existingPositionId, // A: Position ID
-        jobCode,            // B: JobCode
-        title || (rowIndex >= 0 ? rows[rowIndex][2] : ""), // C: Title
-        group || (rowIndex >= 0 ? rows[rowIndex][3] : "HO"), // D: Group
-        "Stopped",          // E: Status
-        stopDate,           // F: StopDate
-        reason              // G: Reason
+        existingPositionId,
+        jobCode,
+        title || (rowIndex >= 0 ? rows[rowIndex][2] : ""),
+        group || existingGroup, // Preserve existing group
+        "Stopped",
+        stopDate,
+        reason
     ];
 
     if (rowIndex >= 0) {
         // Update
         await sheets.spreadsheets.values.update({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!A${rowIndex + 2}:G${rowIndex + 2}`,
+            spreadsheetId: targetSpreadsheetId,
+            range: `${targetSheetName}!A${rowIndex + 2}:G${rowIndex + 2}`,
             valueInputOption: "USER_ENTERED",
             requestBody: { values: [newRow] }
         });
     } else {
         // Append
         await sheets.spreadsheets.values.append({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!A:G`,
+            spreadsheetId: targetSpreadsheetId,
+            range: `${targetSheetName}!A:G`,
             valueInputOption: "USER_ENTERED",
             requestBody: { values: [newRow] }
         });
