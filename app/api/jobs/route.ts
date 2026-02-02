@@ -5,7 +5,8 @@ import { google } from "googleapis";
 const SPREADSHEET_ID_HO = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
 const SHEET_NAME_HO = "Jobs";
 
-const SPREADSHEET_ID_ST = process.env.GOOGLE_SHEET_ID_ST || "";
+// Store Sheet ID from walkthrough - hardcoded fallback
+const SPREADSHEET_ID_ST = process.env.GOOGLE_SHEET_ID_ST || "1GvIdlI4VTa0h4UeRjh6YjKV_SmhOU8OSbwSGGlvGTRs";
 const SHEET_NAME_ST = "Job"; // User specified singular "Job"
 
 // Helper to determine role (duplicated to avoid external deps issues)

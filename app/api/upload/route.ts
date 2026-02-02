@@ -10,8 +10,8 @@ const SPREADSHEET_ID_HO =
   process.env.GOOGLE_SHEET_ID_HO ||
   "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
   
-const FOLDER_ID_INPUT_ST = process.env.GOOGLE_DRIVE_INPUT_FOLDER_ID_ST || "";
-const SPREADSHEET_ID_ST = process.env.GOOGLE_SHEET_ID_ST || "";
+const FOLDER_ID_INPUT_ST = process.env.GOOGLE_DRIVE_INPUT_FOLDER_ID_ST || "1SDb4cW8taRLfJ2uxClijyYysJI6l3SSk";
+const SPREADSHEET_ID_ST = process.env.GOOGLE_SHEET_ID_ST || "1GvIdlI4VTa0h4UeRjh6YjKV_SmhOU8OSbwSGGlvGTRs";
 
 const SHEET_NAME = "Vị trí tuyển dụng";
 const SCOPES = [
