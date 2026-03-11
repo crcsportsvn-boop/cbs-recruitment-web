@@ -103,8 +103,8 @@ Tự động chuyển dữ liệu từ bảng câu hỏi Google Form sang sheet 
 
 const CONFIG = {
   // ID của sheet Datapool (CV Scan-Stores)
-  DATAPOOL_SPREADSHEET_ID: "YOUR_DATAPOOL_SPREADSHEET_ID", // TODO: Thay bằng ID thực
-  DATAPOOL_SHEET_NAME: "CV Scan-Stores",
+  DATAPOOL_SPREADSHEET_ID: "1GvIdlI4VTa0h4UeRjh6YjKV_SmhOU8OSbwSGGlvGTRs",
+  DATAPOOL_SHEET_NAME: "Datapool",
 
   // Danh sách Form Response Sheets (thêm/bớt theo nhu cầu)
   FORM_SHEETS: [
