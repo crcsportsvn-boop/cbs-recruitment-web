@@ -150,8 +150,8 @@ function mapFormToDatapool(formRow, taUser) {
   const interviewDate = formRow[15] || ""; // P: Lịch interview
   const status = formRow[16] || "";        // Q: Status
 
-  // Gộp thông tin địa chỉ
-  const address = exactAddress ? exactAddress + (region ? " - " + region : "") : region;
+  // Lấy thẳng địa chỉ cụ thể vào cột Địa chỉ (L)
+  const address = exactAddress;
   
   // PIC (Nếu có ghi đè trên form thì lấy, nếu không lấy cấu hình mặc định)
   const finalTaUser = pic ? pic : taUser;
@@ -177,7 +177,7 @@ function mapFormToDatapool(formRow, taUser) {
     finalTaUser, // N: TA User
     "", // O: Ngành tốt nghiệp
     "", // P: Năm tốt nghiệp
-    "", // Q: Loại tốt nghiệp
+    region, // Q: Khu vực ứng tuyển (thay vì Loại tốt nghiệp)
     experience, // R: Lịch sử làm việc
     "", // S: Task công việc
     "", // T: Kỹ năng
@@ -426,8 +426,8 @@ function testMapping() {
     "03/02/2026 9:23:23", // A: Timestamp
     "Nhân viên bán hàng", // B: Position
     "Supersports", // C: Brand
-    "Hồ Chí Minh", // D: Khu vực
-    "Quận 1", // E: Địa chỉ cụ thể
+    "Hồ Chí Minh", // D: Khu vực -> Sẽ vào cột Q
+    "Quận 1", // E: Địa chỉ cụ thể -> Sẽ vào cột L
     "Nguyễn Văn A", // F: Name
     "Nam", // G: Gender
     "25/02/1995", // H: Birth date
@@ -450,6 +450,7 @@ function testMapping() {
   console.log("SĐT (J): " + result[9]);
   console.log("Nơi ở (L): " + result[11]);
   console.log("TA User (N): " + result[13]);
+  console.log("Khu vực (Q): " + result[16]);
   console.log("Ghi chú/Store Interview (Z): " + result[25]);
   console.log("Kết quả/Status (AB): " + result[27]);
   console.log("Lịch Interview (AF): " + result[31]);
