@@ -333,10 +333,8 @@ function syncAllFromForm(formConfigIndex) {
     }
   });
 
+  // Cập nhật thông báo
   console.log("Đã sync " + count + " rows từ " + formConfig.taUser);
-  SpreadsheetApp.getUi().alert(
-    "Đã sync " + count + " rows từ " + formConfig.taUser,
-  );
 }
 
 /**
@@ -402,7 +400,7 @@ function setupTriggers() {
     }
   });
 
-  SpreadsheetApp.getUi().alert(
+  console.log(
     "Đã cài đặt triggers cho " + CONFIG.FORM_SHEETS.length + " forms!",
   );
 }
