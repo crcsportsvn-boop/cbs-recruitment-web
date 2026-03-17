@@ -111,7 +111,7 @@ export default function Reports({ lang, user }: ReportProps) {
     },
     en: {
         total: "Total Candidates",
-        active: "Active Processing",
+        active: "Active",
         rejected: "Rejected",
         stock: "Stock / Hold",
         byJob: "Progress By Job",

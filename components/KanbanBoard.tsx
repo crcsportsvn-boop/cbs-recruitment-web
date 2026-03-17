@@ -133,6 +133,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
        { id: "HR Interview", title: t.colHrInterview, color: "bg-gray-50", dropTarget: "HR Interview" },
        { id: "Interview", title: t.colInterview, color: "bg-[#FFF0F0]", dropTarget: "Interview" },
        { id: "Interview2", title: t.colInterview2, color: "bg-gray-50", dropTarget: "Interview2" },
+       { id: "Offer", title: t.colOffer || "Offer", color: "bg-orange-50", dropTarget: "Offer" },
      ];
   } else if (viewMode === "offer") {
      COLUMNS = [
@@ -142,10 +143,12 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
      ];
   } else if (viewMode === "rejected") {
      COLUMNS = [
-       { id: "Screening", title: t.colScreening, color: "bg-gray-50", isRejectedCol: true },
-       { id: "HR Interview", title: t.colHrInterview, color: "bg-[#FFF0F0]", isRejectedCol: true },
-       { id: "Interview Round 1", title: t.colInterview, color: "bg-gray-50", isRejectedCol: true },
-       { id: "Interview Round 2", title: t.colInterview2, color: "bg-[#FFF0F0]", isRejectedCol: true },
+       { id: "New", title: t.colNew, color: "bg-gray-50", isRejectedCol: true },
+       { id: "Screening", title: t.colScreening, color: "bg-[#FFF0F0]", isRejectedCol: true },
+       { id: "HR Interview", title: t.colHrInterview, color: "bg-gray-50", isRejectedCol: true },
+       { id: "Interview Round 1", title: t.colInterview, color: "bg-[#FFF0F0]", isRejectedCol: true },
+       { id: "Interview Round 2", title: t.colInterview2, color: "bg-gray-50", isRejectedCol: true },
+       { id: "Offer", title: t.colOffer || "Offer", color: "bg-orange-50", isRejectedCol: true },
      ];
   }
 
@@ -650,7 +653,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         if (!validOfferStatuses.includes(c.status) && !isOfferFailed) return false;
     } else { // active
         if (isStock) return false;
-        const activeStatuses = ["New", "Screening", "HR Interview", "Interview", "Interview2"];
+        const activeStatuses = ["New", "Screening", "HR Interview", "Interview", "Interview2", "Offer"];
         if (!activeStatuses.includes(c.status)) return false;
     }
     
@@ -940,7 +943,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                 return (
                <div 
                    key={col.id} 
-                   className={`w-[220px] flex flex-col rounded-lg border border-gray-200/60 shadow-sm ${col.color} transition-colors duration-200`}
+                   className={`${viewMode === "offer" ? "flex-1 min-w-0" : "w-[220px]"} flex flex-col rounded-lg border border-gray-200/60 shadow-sm ${col.color} transition-colors duration-200`}
                    onDragOver={(e) => {
                        e.preventDefault(); // Allow drop
                        e.currentTarget.classList.add("ring-2", "ring-[#B91C1C]/20");
@@ -1106,7 +1109,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                 {viewMode === "stock" && c.notes && <p className="text-[10px] text-blue-600 italic">{c.notes}</p>}
                                 {col.isRejectedCol && (
                                     <div className="bg-red-50 rounded p-1 border border-red-100 mt-1">
-                                        <p className="text-[10px] text-red-600 font-semibold">{c.rejectedReason || "No reason"}</p>
+                                        <p className="text-[10px] text-red-600 font-semibold">{c.failureReason || "No reason"}</p>
                                         {c.additionalDetails && <p className="text-[9px] text-red-500 italic mt-0.5">{c.additionalDetails}</p>}
                                     </div>
                                 )}
