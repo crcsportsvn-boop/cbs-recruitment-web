@@ -23,22 +23,34 @@ export const dictionary = {
       colRejected: "Đã Loại",
       actionMove: "Chuyển trạng thái",
       actionDetail: "Xem chi tiết",
-      actionDecline: "Loại ứng viên (Reject)",
+      actionDecline: "Đóng quy trình ứng tuyển",
       actionWithdraw: "Withdraw (Quay lại)",
-      modalDeclineTitle: "Xác nhận Loại Ứng Viên",
-      labelForReason: "Lý do từ chối / thất bại:",
+      modalDeclineTitle: "Xác nhận đóng quy trình ứng tuyển",
+      labelForReason: "Lý do đóng quy trình:",
       selectReasonPlaceholder: "Chọn lý do...",
-      placeholderReason: "Hoặc nhập lý do khác...",
+      placeholderReason: "Ghi chú thêm (Nếu có)",
+      labelAdditionalDetails: "Ghi chú thêm (Nếu có)",
       btnCancel: "Hủy",
-      btnConfirmDecline: "Xác nhận Loại",
+      btnConfirmDecline: "Xác nhận đóng",
       btnSendInvite: "Gửi Invite & Cập Nhật",
       modalInterviewTitle: "Lên Lịch Phỏng Vấn",
       toggleRejected: "Hiển Thị Đã Loại",
-      reasons: {
-        screening: ["Không phù hợp JD", "Kinh nghiệm chưa đủ", "CV trùng lặp", "Blacklist", "Other"],
-        interview: ["Chuyên môn chưa đạt", "Không phù hợp văn hóa", "Fail Tiếng Anh", "Lương kỳ vọng cao", "Không tham gia PV", "Other"],
-        offer: ["Từ chối Offer", "Đã nhận việc nơi khác", "Không đạt thỏa thuận lương", "Ghosted", "Other"]
-      }
+      reasons: [
+        "Mức độ kinh nghiệm hoặc cấp bậc chưa phù hợp với yêu cầu vị trí",
+        "Kinh nghiệm ngành/chức năng chưa phù hợp",
+        "Phong cách lãnh đạo/ làm việc chưa phù hợp với nhu cầu của team",
+        "Định hướng nghề nghiệp chưa phù hợp",
+        "Không liên hệ được với ứng viên",
+        "Không đáp ứng yêu cầu công việc (thời gian / địa điểm / hình thức làm việc)",
+        "Ứng viên không tham gia phỏng vấn",
+        "Ứng viên chủ động rút hồ sơ ứng tuyển",
+        "Không thỏa thuận được mức lương",
+        "Ứng viên từ chối offer",
+        "Có phản hồi chưa tích cực về hiệu quả công việc",
+        "Có phản hồi về thái độ hoặc cách làm việc",
+        "Có lo ngại về tính minh bạch hoặc tuân thủ",
+        "Vị trí tạm dừng hoặc đã đóng"
+      ]
     },
     form: {
       pageTitle: "Nhập Liệu Ứng Viên",
@@ -83,7 +95,7 @@ export const dictionary = {
       colMatchReason: "Sự phù hợp",
       actionProceed: "Chuyển sang Screening",
       actionWithdraw: "Rút về Screening",
-      actionReject: "Từ chối",
+      actionReject: "Đóng quy trình",
       viewCV: "Xem CV",
       configureColumns: "Cấu hình cột"
     }
@@ -112,22 +124,34 @@ export const dictionary = {
       colRejected: "Rejected/Failed", 
       actionMove: "Move Status",
       actionDetail: "View Details",
-      actionDecline: "Decline Candidate",
+      actionDecline: "Close Application Process",
       actionWithdraw: "Withdraw (Go Back)",
-      modalDeclineTitle: "Confirm Candidate Rejection",
-      labelForReason: "Reason for rejection / failure:",
+      modalDeclineTitle: "Confirm Close Application Process",
+      labelForReason: "Reason for closing application:",
       selectReasonPlaceholder: "Select reason...",
-      placeholderReason: "Or type other reason...",
+      placeholderReason: "Additional details (if any)",
+      labelAdditionalDetails: "Additional Details (if any)",
       btnCancel: "Cancel",
-      btnConfirmDecline: "Confirm Reject",
+      btnConfirmDecline: "Confirm Close",
       btnSendInvite: "Send Invite & Update",
       modalInterviewTitle: "Schedule Interview",
       toggleRejected: "Show Rejected",
-      reasons: {
-        screening: ["Not suitable", "Experience mismatch", "Duplicate", "Blacklist", "Other"],
-        interview: ["Technical mismatch", "Cultural mismatch", "English fail", "High salary expectation", "No Show", "Other"],
-        offer: ["Declined Offer", "Accepted another job", "Salary negotiation failed", "Ghosted", "Other"]
-      }
+      reasons: [
+        "Experience / seniority not aligned with role requirements",
+        "Industry / functional experience not relevant",
+        "Leadership/ Working style not aligned with team needs",
+        "Motivation or career direction not aligned",
+        "Unable to contact candidate",
+        "Job requirements not aligned (hours / location / working arrangement)",
+        "Candidate no-show for interview",
+        "Candidate withdrew application",
+        "Salary expectation not aligned",
+        "Offer declined by candidate",
+        "Performance concerns from reference",
+        "Behavior / attitude concerns",
+        "Integrity / compliance concerns",
+        "Position closed / on hold"
+      ]
     },
     form: {
       pageTitle: "Candidate Data Entry",
@@ -172,7 +196,7 @@ export const dictionary = {
       colMatchReason: "Match Reason",
       actionProceed: "Proceed to Screening",
       actionWithdraw: "Withdraw to Screening",
-      actionReject: "Reject",
+      actionReject: "Close Application",
       viewCV: "View CV",
       configureColumns: "Configure Columns"
     }

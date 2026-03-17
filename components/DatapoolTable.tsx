@@ -99,15 +99,22 @@ interface DatapoolTableProps {
   user?: any;
 }
 
-const REASONS_EN = {
-  screening: [
-    "Not suitable for JD",
-    "Insufficient Experience",
-    "Duplicate CV",
-    "Blacklist",
-    "Other",
-  ],
-};
+const REASONS_EN = [
+  "Experience / seniority not aligned with role requirements",
+  "Industry / functional experience not relevant",
+  "Leadership/ Working style not aligned with team needs",
+  "Motivation or career direction not aligned",
+  "Unable to contact candidate",
+  "Job requirements not aligned (hours / location / working arrangement)",
+  "Candidate no-show for interview",
+  "Candidate withdrew application",
+  "Salary expectation not aligned",
+  "Offer declined by candidate",
+  "Performance concerns from reference",
+  "Behavior / attitude concerns",
+  "Integrity / compliance concerns",
+  "Position closed / on hold"
+];
 
 export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   const t = dictionary[lang].datapoolTable;
@@ -126,9 +133,9 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     null,
   );
 
-  const uniqueJobCodes = Array.from(
+  const uniqueJobCodes = (Array.from(
     new Set(candidates.map((c) => c.jobCode).filter(Boolean)),
-  ) as string[];
+  ) as string[]).sort((a, b) => a.localeCompare(b));
   const uniqueSources = Array.from(
     new Set(candidates.map((c) => c.source).filter(Boolean)),
   ) as string[];
@@ -182,6 +189,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   const [candidateToReject, setCandidateToReject] = useState<Candidate | null>(
     null,
   );
+  const [jobCodeSearch, setJobCodeSearch] = useState(""); // #4: searchable job code
 
   useEffect(() => {
     fetchCandidates();
@@ -498,11 +506,9 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
 
   const confirmDecline = async () => {
     if (!candidateToReject) return;
+    if (!declineReasonType) return; // Reason is mandatory
 
-    let finalReason = declineReasonType;
-    if (declineReasonType === "Other" || !declineReasonType) {
-      finalReason = declineReasonText;
-    }
+    const finalReason = declineReasonType;
 
     const rejectedRound = "Screening";
 
@@ -515,20 +521,23 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         ? filteredCandidates[currentIndex + 1]
         : null;
 
-    await updateCandidateAPI(candidateToReject.id, {
+    const updates: any = {
       status: "Rejected",
       failureReason: finalReason,
       isPotential: isPotentialDecline,
       rejectedRound: rejectedRound,
-    });
+    };
+    // Additional Details → column Z (additionalDetails field)
+    if (declineReasonText.trim()) {
+      updates.additionalDetails = declineReasonText.trim();
+    }
+
+    await updateCandidateAPI(candidateToReject.id, updates);
 
     setIsDeclineModalOpen(false);
     setCandidateToReject(null);
 
     // If we are currently viewing the candidate we just rejected, jump to next
-    if (selectedCandidate?.id === candidateToReject.id && nextCandidate) {
-      setSelectedCandidate(nextCandidate);
-    }
     if (selectedCandidate?.id === candidateToReject.id && nextCandidate) {
       setSelectedCandidate(nextCandidate);
     }
@@ -871,23 +880,39 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
                 <TableHead className="p-1">
                   <Select
                     value={colFilters.jobCode}
-                    onValueChange={(val) =>
+                    onValueChange={(val) => {
                       setColFilters({
                         ...colFilters,
                         jobCode: val === "all" ? "" : val,
-                      })
-                    }
+                      });
+                      setJobCodeSearch("");
+                    }}
                   >
                     <SelectTrigger className="h-7 text-xs bg-white w-full px-2">
                       <SelectValue placeholder="All" />
                     </SelectTrigger>
                     <SelectContent>
+                      <div className="px-2 pb-2 sticky top-0 bg-white z-10">
+                        <Input
+                          placeholder="Search..."
+                          className="h-6 text-xs"
+                          value={jobCodeSearch}
+                          onChange={(e) => setJobCodeSearch(e.target.value)}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                      </div>
                       <SelectItem value="all">All</SelectItem>
-                      {uniqueJobCodes.map((code) => (
-                        <SelectItem key={code} value={code}>
-                          {code}
-                        </SelectItem>
-                      ))}
+                      {uniqueJobCodes
+                        .filter((code) =>
+                          jobCodeSearch
+                            ? code.toLowerCase().includes(jobCodeSearch.toLowerCase())
+                            : true
+                        )
+                        .map((code) => (
+                          <SelectItem key={code} value={code}>
+                            {code}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </TableHead>
@@ -1582,42 +1607,40 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         onConfirm={confirmRehire}
       />
 
-      {/* Decline Modal */}
+      {/* Close Application Process Modal */}
       <Dialog open={isDeclineModalOpen} onOpenChange={setIsDeclineModalOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{tKanban?.modalDeclineTitle}</DialogTitle>
           </DialogHeader>
           <div className="py-2 space-y-4">
             <div className="space-y-2">
-              <Label>{tKanban?.labelForReason}</Label>
+              <Label>{tKanban?.labelForReason} <span className="text-red-500">*</span></Label>
               <Select
                 value={declineReasonType}
                 onValueChange={setDeclineReasonType}
               >
-                <SelectTrigger>
+                <SelectTrigger className={!declineReasonType ? "border-red-300" : ""}>
                   <SelectValue placeholder={tKanban?.selectReasonPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
-                  {REASONS_EN.screening.map((reasonEn) => (
+                  {REASONS_EN.map((reasonEn: string, idx: number) => (
                     <SelectItem key={reasonEn} value={reasonEn}>
-                      {tKanban?.reasons?.screening[
-                        REASONS_EN.screening.indexOf(reasonEn)
-                      ] || reasonEn}
+                      {tKanban?.reasons?.[idx] || reasonEn}
                     </SelectItem>
                   ))}
-                  <SelectItem value="Other">Khác (Other)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {(declineReasonType === "Other" || !declineReasonType) && (
+            <div className="space-y-2">
+              <Label>{tKanban?.labelAdditionalDetails || (lang === "vi" ? "Ghi chú thêm (Nếu có)" : "Additional Details (if any)")}</Label>
               <Input
                 placeholder={tKanban?.placeholderReason}
                 value={declineReasonText}
                 onChange={(e) => setDeclineReasonText(e.target.value)}
               />
-            )}
+            </div>
 
             <div className="flex items-center space-x-2 pt-2">
               <input
@@ -1644,7 +1667,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
             >
               {tKanban?.btnCancel}
             </Button>
-            <Button variant="destructive" onClick={confirmDecline}>
+            <Button variant="destructive" onClick={confirmDecline} disabled={!declineReasonType}>
               {tKanban?.btnConfirmDecline}
             </Button>
           </DialogFooter>

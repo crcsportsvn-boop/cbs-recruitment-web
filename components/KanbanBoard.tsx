@@ -59,12 +59,23 @@ interface KanbanBoardProps {
   user?: any;
 }
 
-// English Keys for Database Storage
-const REASONS_EN = {
-  screening: ["Not suitable for JD", "Insufficient Experience", "Duplicate CV", "Blacklist", "Other"],
-  interview: ["Technical Mismatch", "Cultural Mismatch", "Failed English", "High Salary Expectation", "No Show", "Other"],
-  offer: ["Declined Offer", "Accepted Other Job", "Salary Negotiation Failed", "Ghosted", "Other"]
-};
+// English Keys for Database Storage — Unified list for all stages
+const REASONS_EN = [
+  "Experience / seniority not aligned with role requirements",
+  "Industry / functional experience not relevant",
+  "Leadership/ Working style not aligned with team needs",
+  "Motivation or career direction not aligned",
+  "Unable to contact candidate",
+  "Job requirements not aligned (hours / location / working arrangement)",
+  "Candidate no-show for interview",
+  "Candidate withdrew application",
+  "Salary expectation not aligned",
+  "Offer declined by candidate",
+  "Performance concerns from reference",
+  "Behavior / attitude concerns",
+  "Integrity / compliance concerns",
+  "Position closed / on hold"
+];
 
 export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const t = dictionary[lang].kanban;
@@ -83,7 +94,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [sourceFilter, setSourceFilter] = useState<"all" | "HO" | "ST">("all"); // NEW: Data source filter
   
   // Job Codes for Filter
-  const uniqueJobCodes = Array.from(new Set(candidates.map(c => c.jobCode).filter(Boolean))) as string[];
+  const uniqueJobCodes = (Array.from(new Set(candidates.map(c => c.jobCode).filter(Boolean))) as string[]).sort((a, b) => a.localeCompare(b));
 
   // Modal State
   // Modal State
@@ -111,6 +122,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [stopJobReason, setStopJobReason] = useState(""); // New
   const [stopJobOtherReason, setStopJobOtherReason] = useState(""); // New
   const [isPotentialDecline, setIsPotentialDecline] = useState(false);
+  const [jobCodeSearch, setJobCodeSearch] = useState(""); // #4: Job Code search
 
   const COLUMNS = [
     { id: "New", title: t.colNew, color: "bg-gray-50" },
@@ -316,19 +328,16 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const handleDeclineClick = (candidate: Candidate) => {
     setSelectedCandidate(candidate);
     setDeclineReasonType("");
-    setDeclineReasonText("");
+    setDeclineReasonText(""); // Additional Details
     setIsPotentialDecline(false);
     setIsDeclineModalOpen(true);
   };
 
   const confirmDecline = async () => {
     if (!selectedCandidate) return;
+    if (!declineReasonType) return; // Reason is mandatory
     
-    // Combine Reason
-    let finalReason = declineReasonType;
-    if (declineReasonType === "Other" || !declineReasonType) {
-        finalReason = declineReasonText;
-    }
+    const finalReason = declineReasonType;
 
     const roundMap: Record<string, string> = {
        "New": "Screening",
@@ -341,12 +350,18 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     const currentStatus = selectedCandidate.status || "New";
     const rejectedRound = roundMap[currentStatus] || currentStatus;
 
-    await updateCandidateAPI(selectedCandidate, {
+    const updates: any = {
       status: "Rejected",
       failureReason: finalReason,
       isPotential: isPotentialDecline,
       rejectedRound: rejectedRound
-    });
+    };
+    // Additional Details → column Z (additionalDetails field)
+    if (declineReasonText.trim()) {
+      updates.additionalDetails = declineReasonText.trim();
+    }
+
+    await updateCandidateAPI(selectedCandidate, updates);
     setIsDeclineModalOpen(false);
   };
 
@@ -681,18 +696,14 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     return <div className="flex items-center justify-center h-full">Loading...</div>;
   }
 
-  // Determine current decline reasons
-  const currentStage = selectedCandidate?.status || "New";
-  let reasonKeys = REASONS_EN.screening;
-  let reasonLabels = t.reasons.screening;
+  // Unified decline reasons for all stages
+  const reasonKeys = REASONS_EN;
+  const reasonLabels = t.reasons;
 
-  if (currentStage === "Interview" || currentStage === "Interview2") {
-    reasonKeys = REASONS_EN.interview;
-    reasonLabels = t.reasons.interview;
-  } else if (currentStage === "Offer") {
-    reasonKeys = REASONS_EN.offer;
-    reasonLabels = t.reasons.offer;
-  }
+  // #4: Filter job codes by search term
+  const filteredJobCodes = jobCodeSearch
+    ? uniqueJobCodes.filter(code => code.toLowerCase().includes(jobCodeSearch.toLowerCase()))
+    : uniqueJobCodes;
 
   return (
     <div className="flex flex-col h-[calc(100vh-220px)] border rounded-lg bg-gray-50 overflow-hidden relative shadow-sm">
@@ -704,13 +715,22 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           <div className="flex gap-2 items-center flex-1 min-w-[300px]">
              {/* Job Code Finder */}
              <div className="flex items-center">
-                <Select value={selectedJobCode} onValueChange={setSelectedJobCode}>
+                <Select value={selectedJobCode} onValueChange={(v) => { setSelectedJobCode(v); setJobCodeSearch(""); }}>
                   <SelectTrigger className="w-[180px] h-9 text-sm bg-white border-r-0 rounded-r-none focus:ring-0">
                     <SelectValue placeholder="Select Job Code" />
                   </SelectTrigger>
                   <SelectContent>
+                    <div className="px-2 pb-2 sticky top-0 bg-white z-10">
+                      <Input
+                        placeholder="Search job code..."
+                        className="h-7 text-xs"
+                        value={jobCodeSearch}
+                        onChange={(e) => setJobCodeSearch(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                    </div>
                     <SelectItem value="all">All Jobs</SelectItem>
-                    {uniqueJobCodes.map(code => (
+                    {filteredJobCodes.map(code => (
                         <SelectItem key={code} value={code}>{code}</SelectItem>
                     ))}
                   </SelectContent>
@@ -1067,37 +1087,37 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
            </div>
         </div>
 
-      {/* Decline Modal */}
+      {/* Close Application Process Modal */}
       <Dialog open={isDeclineModalOpen} onOpenChange={setIsDeclineModalOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
            <DialogHeader>
              <DialogTitle>{t.modalDeclineTitle}</DialogTitle>
            </DialogHeader>
            <div className="py-2 space-y-4">
              <div className="space-y-2">
-                <Label>{t.labelForReason}</Label>
+                <Label>{t.labelForReason} <span className="text-red-500">*</span></Label>
                 <Select value={declineReasonType} onValueChange={setDeclineReasonType}>
-                  <SelectTrigger>
+                  <SelectTrigger className={!declineReasonType ? "border-red-300" : ""}>
                     <SelectValue placeholder={t.selectReasonPlaceholder} />
                   </SelectTrigger>
                   <SelectContent>
-                    {reasonKeys.map((reasonEn, idx) => (
+                    {reasonKeys.map((reasonEn: string, idx: number) => (
                        <SelectItem key={reasonEn} value={reasonEn}>
                          {reasonLabels[idx] || reasonEn}
                        </SelectItem>
                     ))}
-                    <SelectItem value="Other">Khác (Other)</SelectItem>
                   </SelectContent>
                 </Select>
              </div>
              
-             {(declineReasonType === "Other" || !declineReasonType) && (
-                 <Input 
+             <div className="space-y-2">
+                <Label>{t.labelAdditionalDetails || (lang === 'vi' ? 'Ghi chú thêm (Nếu có)' : 'Additional Details (if any)')}</Label>
+                <Input 
                    placeholder={t.placeholderReason}
                    value={declineReasonText}
                    onChange={(e) => setDeclineReasonText(e.target.value)}
-                 />
-             )}
+                />
+             </div>
 
              <div className="flex items-center space-x-2 pt-2">
                 <input 
@@ -1114,7 +1134,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
            </div>
            <DialogFooter>
              <Button variant="outline" onClick={() => setIsDeclineModalOpen(false)}>{t.btnCancel}</Button>
-             <Button variant="destructive" onClick={confirmDecline}>{t.btnConfirmDecline}</Button>
+             <Button variant="destructive" onClick={confirmDecline} disabled={!declineReasonType}>{t.btnConfirmDecline}</Button>
            </DialogFooter>
         </DialogContent>
       </Dialog>
