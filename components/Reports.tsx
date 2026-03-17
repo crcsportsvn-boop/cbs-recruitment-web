@@ -295,7 +295,7 @@ export default function Reports({ lang, user }: ReportProps) {
               // Cumulative for Tables
               for (let i = 0; i <= rank; i++) {
                  const s = STAGES[i];
-                 if (STAGES.includes(s)) {
+                 if (s && STAGES.includes(s)) {
                      if (jobStats[job] && jobStats[job].stages[s] !== undefined) jobStats[job].stages[s]++;
                      if (sourceStats[src] && sourceStats[src].stages[s] !== undefined) sourceStats[src].stages[s]++;
                  }
