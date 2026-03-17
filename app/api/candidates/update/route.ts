@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
     // 3. Define Column Mapping (Letter to Field)
     const COLUMN_MAP: Record<string, string> = {
       jobCode: "E",
+      additionalDetails: "Z",  // Column Z — Additional Details for rejection
       notes: "AK",
       isPotential: "AA",
       status: "AB",

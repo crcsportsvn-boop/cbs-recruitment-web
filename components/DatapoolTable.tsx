@@ -252,6 +252,8 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         certification: c.certification,
         jobCode: c.jobCode,
         applyDate: c.applyDate,
+        dataSource: c.dataSource,  // Track which sheet (HO/ST)
+        sheetId: c.sheetId,        // Exact sheet ID for update routing
       }));
       setCandidates(formatted);
     } catch (err) {
@@ -261,11 +263,16 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     }
   };
 
-  const updateCandidateAPI = async (id: string, updates: any) => {
+  const updateCandidateAPI = async (candidate: Candidate, updates: any) => {
     try {
       const res = await fetch("/api/candidates/update", {
         method: "POST",
-        body: JSON.stringify({ id, updates }),
+        body: JSON.stringify({ 
+          id: candidate.id, 
+          updates,
+          dataSource: (candidate as any).dataSource,
+          sheetId: (candidate as any).sheetId,
+        }),
       });
 
       if (!res.ok) {
@@ -274,7 +281,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
       }
 
       setCandidates((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, ...updates } : c)),
+        prev.map((c) => (c.id === candidate.id ? { ...c, ...updates } : c)),
       );
     } catch (error) {
       console.error("Update failed", error);
@@ -318,7 +325,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
     );
 
     // API Update
-    await updateCandidateAPI(rehireCandidate.id, {
+    await updateCandidateAPI(rehireCandidate, {
       status: "Screening",
       jobCode,
       notes: "",
@@ -471,7 +478,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         : null;
 
     const todayStr = new Date().toLocaleDateString("en-GB");
-    await updateCandidateAPI(c.id, {
+    await updateCandidateAPI(c, {
       status: "Screening",
       testResult: todayStr,
     });
@@ -489,7 +496,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   };
 
   const handleWithdrawToScreen = async (c: Candidate) => {
-    await updateCandidateAPI(c.id, {
+    await updateCandidateAPI(c, {
       status: "Screening",
       failureReason: "",
       rejectedRound: "",
@@ -532,7 +539,7 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
       updates.additionalDetails = declineReasonText.trim();
     }
 
-    await updateCandidateAPI(candidateToReject.id, updates);
+    await updateCandidateAPI(candidateToReject, updates);
 
     setIsDeclineModalOpen(false);
     setCandidateToReject(null);
