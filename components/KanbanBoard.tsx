@@ -854,7 +854,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           </div>
 
           {/* View Toggles */}
-          <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center w-full">
+          <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center w-[450px]">
              <Button 
                 variant={viewMode === "active" ? "secondary" : "ghost"} 
                 size="sm" 
@@ -887,26 +887,24 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
              >
                 {t.viewStock || "Stock"}
              </Button>
-
-             {/* Job Status Indicator - Inline */}
-             {selectedJobCode !== "all" && (
-               <div className="flex items-center gap-1.5 px-2 h-7 bg-white rounded shadow-sm shrink-0 ml-1">
-                 <span className="text-xs font-semibold text-gray-700">{selectedJobCode}</span>
-                 <span className="text-xs text-gray-400">:</span>
-                 <span className={`text-xs font-medium ${
-                   jobs[selectedJobCode]?.status === "Hiring" 
-                     ? "text-green-600" 
-                     : jobs[selectedJobCode]?.status === "Stopped" 
-                       ? "text-red-600" 
-                       : "text-gray-600"
-                 }`}>
-                   {jobs[selectedJobCode]?.status === "Hiring" ? "Hiring" : 
-                    jobs[selectedJobCode]?.status === "Stopped" ? "Closed" : 
-                    jobs[selectedJobCode]?.status || "Unknown"}
-                 </span>
-               </div>
-             )}
           </div>
+
+          {/* Job Status Indicator */}
+          {selectedJobCode !== "all" && (
+            <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center ml-auto">
+              <div className="flex items-center gap-1.5 px-2 h-7 bg-white rounded shadow-sm">
+                <span className="text-xs font-semibold text-gray-700">{selectedJobCode}</span>
+                <span className="text-xs text-gray-400">:</span>
+                <span className={`text-xs font-medium ${
+                  jobs[selectedJobCode]?.status === "Stopped" 
+                    ? "text-red-600" 
+                    : "text-green-600"
+                }`}>
+                  {jobs[selectedJobCode]?.status === "Stopped" ? "Closed" : "Hiring"}
+                </span>
+              </div>
+            </div>
+          )}
 
         </div>
 
