@@ -848,7 +848,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
               onValueChange={(v: "all" | "Hiring" | "Stopped") => setJobStatusFilter(v)}
               disabled={selectedJobCode !== "all"}
             >
-              <SelectTrigger className={`bg-white h-9 text-sm ${
+              <SelectTrigger className={`bg-white h-9 text-sm disabled:opacity-100 disabled:cursor-default ${
                 selectedJobCode !== "all" 
                   ? (jobs[selectedJobCode]?.status === "Stopped" ? "text-red-600 ring-1 ring-red-500 bg-red-50" : "text-green-600 ring-1 ring-green-500 bg-green-50")
                   : ""
