@@ -93,7 +93,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [viewMode, setViewMode] = useState<"active" | "offer" | "rejected" | "stock">("active");
   const [selectedJobCode, setSelectedJobCode] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "HO" | "ST">("all"); // NEW: Data source filter
-  
+  const [jobStatusFilter, setJobStatusFilter] = useState<"all" | "Hiring" | "Stopped">("all");
   // Job Codes for Filter
   const uniqueJobCodes = (Array.from(new Set(candidates.map(c => c.jobCode).filter(Boolean))) as string[]).sort((a, b) => a.localeCompare(b));
 
@@ -660,6 +660,12 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     // 2. Job Code Filter
     if (selectedJobCode !== "all" && c.jobCode !== selectedJobCode) return false;
 
+    // 2.2 Job Status Filter
+    if (selectedJobCode === "all" && jobStatusFilter !== "all") {
+       const jobStatus = jobs[c.jobCode]?.status || "Hiring"; // Default to Hiring
+       if (jobStatus !== jobStatusFilter) return false;
+    }
+
     // 2.5. Data Source Filter (NEW - for Admin combined view)
     if (sourceFilter !== "all" && c.dataSource !== sourceFilter) return false;
 
@@ -835,6 +841,28 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           </div>
           )}
 
+          {/* Job Status Filter */}
+          <div className="w-[120px]">
+            <Select 
+              value={selectedJobCode === "all" ? jobStatusFilter : (jobs[selectedJobCode]?.status === "Stopped" ? "Stopped" : "Hiring")} 
+              onValueChange={(v: "all" | "Hiring" | "Stopped") => setJobStatusFilter(v)}
+              disabled={selectedJobCode !== "all"}
+            >
+              <SelectTrigger className={`bg-white h-9 text-sm ${
+                selectedJobCode !== "all" 
+                  ? (jobs[selectedJobCode]?.status === "Stopped" ? "text-red-600 ring-1 ring-red-500 bg-red-50" : "text-green-600 ring-1 ring-green-500 bg-green-50")
+                  : ""
+              }`}>
+                <SelectValue placeholder="Job Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="Hiring">Hiring</SelectItem>
+                <SelectItem value="Stopped">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Date Filter - Compact */}
           <div className="flex items-center gap-1 bg-white px-2 rounded border h-9">
             <span className="text-xs text-gray-500 font-medium">From:</span>
@@ -854,11 +882,11 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           </div>
 
           {/* View Toggles */}
-          <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center w-[450px]">
+          <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center w-fit shrink-0">
              <Button 
                 variant={viewMode === "active" ? "secondary" : "ghost"} 
                 size="sm" 
-                className={`flex-1 h-7 text-xs ${viewMode === "active" ? "bg-green-100 text-green-700 hover:bg-green-200 shadow-sm" : "text-gray-500"}`}
+                className={`h-7 px-3 text-xs ${viewMode === "active" ? "bg-green-100 text-green-700 hover:bg-green-200 shadow-sm" : "text-gray-500"}`}
                 onClick={() => setViewMode("active")}
              >
                 {t.viewActive || "Active"}
@@ -866,7 +894,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
              <Button 
                 variant={viewMode === "offer" ? "secondary" : "ghost"} 
                 size="sm" 
-                className={`flex-1 h-7 text-xs ${viewMode === "offer" ? "bg-orange-100 text-orange-700 hover:bg-orange-200 shadow-sm" : "text-gray-500"}`}
+                className={`h-7 px-3 text-xs ${viewMode === "offer" ? "bg-orange-100 text-orange-700 hover:bg-orange-200 shadow-sm" : "text-gray-500"}`}
                 onClick={() => setViewMode("offer")}
              >
                 {t.viewOffer || "Offer"}
@@ -874,7 +902,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
              <Button 
                 variant={viewMode === "rejected" ? "secondary" : "ghost"} 
                 size="sm" 
-                className={`flex-1 h-7 text-xs ${viewMode === "rejected" ? "bg-white text-red-600 shadow-sm" : "text-gray-500"}`}
+                className={`h-7 px-3 text-xs ${viewMode === "rejected" ? "bg-white text-red-600 shadow-sm" : "text-gray-500"}`}
                 onClick={() => setViewMode("rejected")}
              >
                 {t.viewRejected || "Rejected"}
@@ -882,29 +910,12 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
              <Button 
                 variant={viewMode === "stock" ? "secondary" : "ghost"} 
                 size="sm" 
-                className={`flex-1 h-7 text-xs ${viewMode === "stock" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500"}`}
+                className={`h-7 px-3 text-xs ${viewMode === "stock" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500"}`}
                 onClick={() => setViewMode("stock")}
              >
                 {t.viewStock || "Stock"}
              </Button>
           </div>
-
-          {/* Job Status Indicator */}
-          {selectedJobCode !== "all" && (
-            <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center ml-auto">
-              <div className="flex items-center gap-1.5 px-2 h-7 bg-white rounded shadow-sm">
-                <span className="text-xs font-semibold text-gray-700">{selectedJobCode}</span>
-                <span className="text-xs text-gray-400">:</span>
-                <span className={`text-xs font-medium ${
-                  jobs[selectedJobCode]?.status === "Stopped" 
-                    ? "text-red-600" 
-                    : "text-green-600"
-                }`}>
-                  {jobs[selectedJobCode]?.status === "Stopped" ? "Closed" : "Hiring"}
-                </span>
-              </div>
-            </div>
-          )}
 
         </div>
 
