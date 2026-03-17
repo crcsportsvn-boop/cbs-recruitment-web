@@ -260,10 +260,10 @@ export default function Reports({ lang, user }: ReportProps) {
           else active++;
 
           const currentStage = getStage(c);
-          if (state !== "Stock") {
-              const stageIndex = STAGES.indexOf(currentStage);
-              const rank = stageIndex >= 0 ? stageIndex : 0; 
+          const stageIndex = STAGES.indexOf(currentStage);
+          const rank = stageIndex >= 0 ? stageIndex : 0;
 
+          if (state !== "Stock") {
               // Cumulative Funnel
               for (let i = 0; i <= rank; i++) {
                   const s = STAGES[i];
