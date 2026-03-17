@@ -662,7 +662,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
     // 2.2 Job Status Filter
     if (selectedJobCode === "all" && jobStatusFilter !== "all") {
-       const jobStatus = jobs[c.jobCode]?.status || "Hiring"; // Default to Hiring
+       const jobStatus = jobs[c.jobCode || ""]?.status || "Hiring"; // Default to Hiring
        if (jobStatus !== jobStatusFilter) return false;
     }
 
