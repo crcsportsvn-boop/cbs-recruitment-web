@@ -47,6 +47,8 @@ interface Candidate {
   failureReason?: string;
   isPotential?: boolean;
   rejectedRound?: string;
+  rejectedReason?: string;
+  additionalDetails?: string;
   notes?: string;
   applyDate?: string;
   // Multi-source fields (NEW)
