@@ -235,9 +235,6 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     }
 
     // 2. Direct Logic for Screening/Offer
-    let updates: any = { status: targetStatus };
-    const todayStr = new Date().toLocaleDateString('en-GB'); // dd/mm/yyyy
-
     if (targetStatus === "Offer") {
        updates.offerDate = todayStr;
     }
