@@ -88,8 +88,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [scoreFilter, setScoreFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
-  const [showRejected, setShowRejected] = useState(false);
-  const [showStock, setShowStock] = useState(false);
+  const [viewMode, setViewMode] = useState<"active" | "offer" | "rejected" | "stock">("active");
   const [selectedJobCode, setSelectedJobCode] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "HO" | "ST">("all"); // NEW: Data source filter
   
@@ -124,15 +123,29 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [isPotentialDecline, setIsPotentialDecline] = useState(false);
   const [jobCodeSearch, setJobCodeSearch] = useState(""); // #4: Job Code search
 
-  const COLUMNS = [
-    { id: "New", title: t.colNew, color: "bg-gray-50" },
-    { id: "Screening", title: t.colScreening, color: "bg-[#FFF0F0]" },
-    { id: "HR Interview", title: t.colHrInterview, color: "bg-gray-50" },
-    { id: "Interview", title: t.colInterview, color: "bg-[#FFF0F0]" },
-    { id: "Interview2", title: t.colInterview2, color: "bg-gray-50" },
-    { id: "Offer", title: t.colOffer, color: "bg-[#FFF0F0]" },
-    ...(showRejected ? [{ id: "Rejected", title: t.colRejected, color: "bg-gray-50" }] : [])
-  ];
+  let COLUMNS: { id: string, title: string, color: string, dropTarget?: string, isRejectedCol?: boolean }[] = [];
+  if (viewMode === "active" || viewMode === "stock") {
+     COLUMNS = [
+       { id: "New", title: t.colNew, color: "bg-gray-50", dropTarget: "New" },
+       { id: "Screening", title: t.colScreening, color: "bg-[#FFF0F0]", dropTarget: "Screening" },
+       { id: "HR Interview", title: t.colHrInterview, color: "bg-gray-50", dropTarget: "HR Interview" },
+       { id: "Interview", title: t.colInterview, color: "bg-[#FFF0F0]", dropTarget: "Interview" },
+       { id: "Interview2", title: t.colInterview2, color: "bg-gray-50", dropTarget: "Interview2" },
+     ];
+  } else if (viewMode === "offer") {
+     COLUMNS = [
+       { id: "Offer", title: t.viewOffer || "Offer", color: "bg-gray-50", dropTarget: "Offer" },
+       { id: "Hired", title: t.colHired || "Hired", color: "bg-green-50", dropTarget: "Hired" },
+       { id: "Offer Failed", title: t.colOfferFailed || "Offer Failed", color: "bg-red-50", isRejectedCol: true }
+     ];
+  } else if (viewMode === "rejected") {
+     COLUMNS = [
+       { id: "Screening", title: t.colScreening, color: "bg-gray-50", isRejectedCol: true },
+       { id: "HR Interview", title: t.colHrInterview, color: "bg-[#FFF0F0]", isRejectedCol: true },
+       { id: "Interview Round 1", title: t.colInterview, color: "bg-gray-50", isRejectedCol: true },
+       { id: "Interview Round 2", title: t.colInterview2, color: "bg-[#FFF0F0]", isRejectedCol: true },
+     ];
+  }
 
   useEffect(() => {
     fetchCandidates();
@@ -203,20 +216,22 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   // --- ACTIONS ---
 
   const moveStatus = async (candidate: Candidate, targetStatus: string, type?: "HR" | "L1" | "L2") => {
-    // 1. Interview Logic (Including HR Interview)
+    let updates: any = { status: targetStatus };
+    const dateObj = new Date();
+    const todayStr = dateObj.toLocaleDateString('en-GB'); // dd/mm/yyyy
+    
+    // Direct Logic for Interview bypassing Modal
     if (targetStatus === "Interview" || targetStatus === "Interview2" || targetStatus === "HR Interview") {
-      setSelectedCandidate(candidate);
-      setInterviewType(type || "L1");
+      const timeStr = "09:00"; // Fake generic time since we bypass modal
+      const fullDate = `${todayStr} ${timeStr}`;
       
-      // Default Date/Time Logic (Today)
-      setInterviewDetails(prev => ({
-          ...prev, 
-          date: new Date().toISOString().split('T')[0],
-          time: "09:00"
-      }));
-
-      setIsInterviewModalOpen(true);
-      return; 
+      if (targetStatus === "HR Interview") {
+          updates.hrInterviewDate = fullDate;
+      } else if (targetStatus === "Interview") {
+          updates.interviewDate1 = fullDate;
+      } else if (targetStatus === "Interview2") {
+          updates.interviewDate2 = fullDate;
+      }
     }
 
     // 2. Direct Logic for Screening/Offer
@@ -278,6 +293,28 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           applyDate: hiredDate, 
           officialDate: hiredDate 
       });
+
+      // Auto-close job
+      if (selectedCandidate.jobCode && selectedCandidate.jobCode !== "Unknown") {
+          try {
+              const jobInfo = jobs[selectedCandidate.jobCode];
+              const title = jobInfo?.title || "Unknown";
+              const group = jobInfo?.group || (selectedCandidate.jobCode.startsWith("ST") ? "Store" : "HO");
+              await fetch("/api/jobs/stop", {
+                  method: "POST",
+                  body: JSON.stringify({ 
+                      jobCode: selectedCandidate.jobCode, 
+                      reason: "Hired internally",
+                      title,
+                      group
+                  })
+              });
+              fetchCandidates();
+          } catch (e) {
+              console.error("Auto close job failed", e);
+          }
+      }
+
       setIsHiredModalOpen(false);
   };
 
@@ -601,30 +638,22 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     const isStock = isNoteStock || isStoppedRule;
     
     // 1. View Logic
-    if (showStock) {
-        return isStock;
+    if (viewMode === "stock") {
+        if (!isStock) return false;
+    } else if (viewMode === "rejected") {
+        if (c.status !== "Rejected" || c.rejectedRound === "Offer") return false; 
+        // Exclude Offer failures from purely 'rejected' if we want them in Offer view, 
+        // or we can include them here too. Let's exclude from here if user wants Offer failed in Offer view.
+    } else if (viewMode === "offer") {
+        if (isStock) return false;
+        const validOfferStatuses = ["Offer", "Hired"];
+        const isOfferFailed = c.status === "Rejected" && c.rejectedRound === "Offer";
+        if (!validOfferStatuses.includes(c.status) && !isOfferFailed) return false;
+    } else { // active
+        if (isStock) return false;
+        const activeStatuses = ["New", "Screening", "HR Interview", "Interview", "Interview2"];
+        if (!activeStatuses.includes(c.status)) return false;
     }
-    
-    // If NOT showing stock, hide stock items
-    if (isStock) return false;
-
-    // Reject Logic
-    if (!showRejected && c.status === "Rejected") return false;
-    if (showRejected && c.status !== "Rejected") return false; // Optional: Show ONLY rejected? 
-    // User current logic for Show Rejected was to TOGGLE it ON TOP, or Filter?
-    // Current code: "if !showRejected && c.status === Rejected return false" -> Means "Hide rejected by default".
-    // If showRejected is true, it shows BOTH active and rejected? 
-    // "Toggle Rejected" usually implies "Show Rejected" in list. 
-    
-    // Let's refine based on "View Mode".
-    // "Normal": Active, Non-Stock.
-    // "Rejected Toggle": Active + Rejected? Or Just Rejected?
-    // User requested: "show một pop up... giống Show Reject"
-    
-    // To keep it simple:
-    // If showStock -> Show ONLY Stock.
-    // If showRejected -> Show ONLY Rejected (or Active + Rejected, but typically user wants to review rejected separately).
-    // Let's stick to: "Show Rejected" = Include Rejected. 
     
     // 2. Job Code Filter
     if (selectedJobCode !== "all" && c.jobCode !== selectedJobCode) return false;
@@ -823,30 +852,38 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           </div>
 
           {/* View Toggles */}
-          <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center">
+          <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center overflow-x-auto min-w-[300px]">
              <Button 
-                variant={(!showRejected && !showStock) ? "secondary" : "ghost"} 
+                variant={viewMode === "active" ? "secondary" : "ghost"} 
                 size="sm" 
-                className={`h-7 text-xs ${(!showRejected && !showStock) ? "bg-green-100 text-green-700 hover:bg-green-200 shadow-sm" : "text-gray-500"}`}
-                onClick={() => { setShowRejected(false); setShowStock(false); }}
+                className={`h-7 text-xs ${viewMode === "active" ? "bg-green-100 text-green-700 hover:bg-green-200 shadow-sm" : "text-gray-500"}`}
+                onClick={() => setViewMode("active")}
              >
-                Active
+                {t.viewActive || "Active"}
              </Button>
              <Button 
-                variant={showRejected ? "secondary" : "ghost"} 
+                variant={viewMode === "offer" ? "secondary" : "ghost"} 
                 size="sm" 
-                className={`h-7 text-xs ${showRejected ? "bg-white text-red-600 shadow-sm" : "text-gray-500"}`}
-                onClick={() => { setShowRejected(true); setShowStock(false); }}
+                className={`h-7 text-xs ${viewMode === "offer" ? "bg-orange-100 text-orange-700 hover:bg-orange-200 shadow-sm" : "text-gray-500"}`}
+                onClick={() => setViewMode("offer")}
              >
-                Rejected
+                {t.viewOffer || "Offer"}
              </Button>
              <Button 
-                variant={showStock ? "secondary" : "ghost"} 
+                variant={viewMode === "rejected" ? "secondary" : "ghost"} 
                 size="sm" 
-                className={`h-7 text-xs ${showStock ? "bg-white text-blue-600 shadow-sm" : "text-gray-500"}`}
-                onClick={() => { setShowRejected(false); setShowStock(true); }}
+                className={`h-7 text-xs ${viewMode === "rejected" ? "bg-white text-red-600 shadow-sm" : "text-gray-500"}`}
+                onClick={() => setViewMode("rejected")}
              >
-                Stock
+                {t.viewRejected || "Rejected"}
+             </Button>
+             <Button 
+                variant={viewMode === "stock" ? "secondary" : "ghost"} 
+                size="sm" 
+                className={`h-7 text-xs ${viewMode === "stock" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500"}`}
+                onClick={() => setViewMode("stock")}
+             >
+                {t.viewStock || "Stock"}
              </Button>
           </div>
 
@@ -890,7 +927,10 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                
                const colCandidates = filteredCandidates.filter(c => {
                    const s = c.status || "New";
-                   if (col.id === "Offer") return s === "Offer" || s === "Hired";
+                   if (col.isRejectedCol) {
+                       if (col.id === "Offer Failed") return s === "Rejected" && c.rejectedRound === "Offer";
+                       return s === "Rejected" && c.rejectedRound === col.id;
+                   }
                    return s === col.id;
                });
                
@@ -963,7 +1003,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                    </Button>
                                  </DropdownMenuTrigger>
                                  <DropdownMenuContent align="end">
-                                   {showStock ? (
+                                   {viewMode === "stock" ? (
                                       <DropdownMenuItem onClick={() => handleReactivateCandidate(c)}>
                                          Rehire
                                       </DropdownMenuItem>
@@ -1011,6 +1051,19 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                                  Hired
                                              </DropdownMenuItem>
                                          )}
+                                         
+                                         {/* Only allow fail directly from Offer stage in Active view or Offer view before Hired */}
+                                         {col.id === "Offer" && (
+                                             <DropdownMenuItem className="text-red-500 font-bold" onClick={() => {
+                                                  // Offer fail is basically a Decline but we can pre-select Offer round
+                                                  setDeclineReasonType("");
+                                                  setDeclineReasonText("");
+                                                  setSelectedCandidate(c);
+                                                  setIsDeclineModalOpen(true);
+                                             }}>
+                                                 Offer Failed
+                                             </DropdownMenuItem>
+                                         )}
 
                                          {/* Withdraw Logic */}
                                          {col.id !== "New" && (
@@ -1023,7 +1076,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                          )}
                                          
                                          {/* Recovery logic only for Rejected, not for Stock (Stock has Reactivate) */}
-                                         {col.id === "Rejected" && (
+                                         {col.isRejectedCol && (
                                              <>
                                              <DropdownMenuSeparator />
                                              <DropdownMenuItem onClick={() => handleWithdraw(c)}>
@@ -1033,7 +1086,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                          )}
 
                                          <DropdownMenuSeparator />
-                                         {col.id !== "Rejected" && (
+                                         {!col.isRejectedCol && col.id !== "Offer Failed" && col.id !== "Hired" && (
                                              <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeclineClick(c)}>
                                              {t.actionDecline}
                                              </DropdownMenuItem>
@@ -1051,7 +1104,13 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                 {c.positionRaw}
                                 </span>
                                 {/* Show Stock Reason */}
-                                {showStock && c.notes && <p className="text-[10px] text-blue-600 italic">{c.notes}</p>}
+                                {viewMode === "stock" && c.notes && <p className="text-[10px] text-blue-600 italic">{c.notes}</p>}
+                                {col.isRejectedCol && (
+                                    <div className="bg-red-50 rounded p-1 border border-red-100 mt-1">
+                                        <p className="text-[10px] text-red-600 font-semibold">{c.rejectedReason || "No reason"}</p>
+                                        {c.additionalDetails && <p className="text-[9px] text-red-500 italic mt-0.5">{c.additionalDetails}</p>}
+                                    </div>
+                                )}
                             </div>
                             
                             <div className="flex items-center justify-between pt-1 border-t border-gray-100 mt-1">
@@ -1067,7 +1126,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                 )}
                               </div>
                               
-                              {(col.id === "New" || showStock) && (
+                              {(col.id === "New" || viewMode === "stock") && (
                                 <Badge className={`h-5 text-[10px] px-1.5 ${
                                    parseInt(c.matchScore) >= 8 ? "bg-green-500" : 
                                    parseInt(c.matchScore) >= 5 ? "bg-yellow-500" : "bg-gray-500"
