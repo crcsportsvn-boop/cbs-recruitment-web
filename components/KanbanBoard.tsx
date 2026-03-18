@@ -106,6 +106,8 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [rehireCandidate, setRehireCandidate] = useState<Candidate | null>(null); // New
   const [isHiredModalOpen, setIsHiredModalOpen] = useState(false);
   const [hiredDate, setHiredDate] = useState("");
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+  const [offerDate, setOfferDate] = useState("");
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   
@@ -139,8 +141,8 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
      COLUMNS = [
        { id: "Offer", title: t.viewOffer || "Offer", color: "bg-orange-50", dropTarget: "Offer" },
        { id: "Hired", title: t.colHired || "Hired", color: "bg-green-50", dropTarget: "Hired" },
-       { id: "Offer Failed", title: t.colOfferFailed || "Offer Failed", color: "bg-red-50", isRejectedCol: true }
-     ];
+      { id: "Onboarding Failed", title: t.colOfferFailed || "Onboarding Failed", color: "bg-red-50", isRejectedCol: true }
+    ];
   } else if (viewMode === "rejected") {
      COLUMNS = [
        { id: "New", title: t.colNew, color: "bg-gray-50", isRejectedCol: true },
@@ -220,35 +222,20 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
   // --- ACTIONS ---
 
-  const moveStatus = async (candidate: Candidate, targetStatus: string, type?: "HR" | "L1" | "L2") => {
+  const moveStatus = async (candidate: Candidate, targetStatus: string, bypassModal: boolean = false) => {
     let updates: any = { status: targetStatus };
     const dateObj = new Date();
     const todayStr = dateObj.toLocaleDateString('en-GB'); // dd/mm/yyyy
     
-    // Direct Logic for Interview bypassing Modal
-    if (targetStatus === "Interview" || targetStatus === "Interview2" || targetStatus === "HR Interview") {
-      const timeStr = "09:00"; // Fake generic time since we bypass modal
-      const fullDate = `${todayStr} ${timeStr}`;
-      
-      if (targetStatus === "HR Interview") {
-          updates.hrInterviewDate = fullDate;
-      } else if (targetStatus === "Interview") {
-          updates.interviewDate1 = fullDate;
-      } else if (targetStatus === "Interview2") {
-          updates.interviewDate2 = fullDate;
-      }
-    }
-
-    // 2. Direct Logic for Screening/Offer
-    if (targetStatus === "Offer") {
-       updates.offerDate = todayStr;
-    }
-    
-    // Test Result if moving New -> Screening
+    // Direct Logic for Screening bypassing Modal
     if (targetStatus === "Screening" && candidate.status === "New") {
        updates.testResult = todayStr;
     }
-
+    
+    if (bypassModal) {
+      if (targetStatus === "Offer") updates.offerDate = todayStr;
+    }
+    
     // --- CLEANUP LOGIC FOR BACKWARD MOVES ---
     // If we move to a stage, we must clear dates of SUBSEQUENT stages to avoid dirty data in reports.
     // Hierarchy: New -> Screening -> HR Interview -> Interview -> Interview2 -> Offer
@@ -284,15 +271,28 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
   const handleHired = (candidate: Candidate) => {
       setSelectedCandidate(candidate);
-      setHiredDate(new Date().toLocaleDateString('en-GB'));
+      setHiredDate(new Date().toLocaleDateString('en-GB')); // Default to today
       setIsHiredModalOpen(true);
+  };
+
+  const handleOffer = (candidate: Candidate) => {
+      setSelectedCandidate(candidate);
+      setOfferDate(new Date().toLocaleDateString('en-GB')); // Default to today
+      setIsOfferModalOpen(true);
+  };
+
+  const confirmOffer = async () => {
+      if (!selectedCandidate) return;
+      await moveStatus(selectedCandidate, "Offer");
+      await updateCandidateAPI(selectedCandidate, { offerDate: offerDate });
+      setIsOfferModalOpen(false);
   };
 
   const confirmHired = async () => {
       if (!selectedCandidate) return;
       await updateCandidateAPI(selectedCandidate, {
           status: "Hired",
-          applyDate: hiredDate, 
+          startDate: hiredDate, 
           officialDate: hiredDate 
       });
 
@@ -402,6 +402,17 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
     await updateCandidateAPI(selectedCandidate, updates);
     setIsDeclineModalOpen(false);
+  };
+
+  const handleInterviewModal = (candidate: Candidate, type: "HR" | "L1" | "L2") => {
+      setSelectedCandidate(candidate);
+      setInterviewType(type);
+      setInterviewDetails({
+         ...interviewDetails,
+         date: new Date().toISOString().split('T')[0],
+         time: "09:00"
+      });
+      setIsInterviewModalOpen(true);
   };
 
   const confirmInterview = async () => {
@@ -937,7 +948,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                const colCandidates = filteredCandidates.filter(c => {
                    const s = c.status || "New";
                    if (col.isRejectedCol) {
-                       if (col.id === "Offer Failed") return s === "Rejected" && c.rejectedRound === "Offer";
+                      if (col.id === "Onboarding Failed") return s === "Rejected" && c.rejectedRound === "Offer";
                        return s === "Rejected" && c.rejectedRound === col.id;
                    }
                    return s === col.id;
@@ -967,12 +978,12 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                const cand = JSON.parse(candJson);
                                if (cand.status !== col.id) {
                                    // Identify type for Interview status
-                                   let type: "HR" | "L1" | "L2" | undefined;
-                                   if (col.id === "HR Interview") type = "HR";
-                                   else if (col.id === "Interview") type = "L1";
-                                   else if (col.id === "Interview2") type = "L2";
-                                   
-                                   moveStatus(cand, col.id, type);
+                                   if (col.id === "HR Interview") handleInterviewModal(cand, "HR");
+                                   else if (col.id === "Interview") handleInterviewModal(cand, "L1");
+                                   else if (col.id === "Interview2") handleInterviewModal(cand, "L2");
+                                   else if (col.id === "Offer") handleOffer(cand);
+                                   else if (col.id === "Hired") handleHired(cand);
+                                   else moveStatus(cand, col.id);
                                }
                            } catch (err) {
                                console.error("Drop Error", err);
@@ -1031,27 +1042,27 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                              </DropdownMenuItem>
                                          )}
                                          {col.id === "Screening" && (
-                                             <DropdownMenuItem onClick={() => moveStatus(c, "HR Interview", "HR")}>
+                                             <DropdownMenuItem onClick={() => handleInterviewModal(c, "HR")}>
                                              Schedule HR Interview
                                              </DropdownMenuItem>
                                          )}
                                          {col.id === "HR Interview" && (
-                                             <DropdownMenuItem onClick={() => moveStatus(c, "Interview", "L1")}>
+                                             <DropdownMenuItem onClick={() => handleInterviewModal(c, "L1")}>
                                              Schedule Manager L1
                                              </DropdownMenuItem>
                                          )}
                                          {col.id === "Interview" && (
                                              <>
-                                             <DropdownMenuItem onClick={() => moveStatus(c, "Interview2", "L2")}>
+                                             <DropdownMenuItem onClick={() => handleInterviewModal(c, "L2")}>
                                                  Schedule Manager L2
                                              </DropdownMenuItem>
-                                             <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
+                                             <DropdownMenuItem onClick={() => handleOffer(c)}>
                                                  Make Offer
                                              </DropdownMenuItem>
                                              </>
                                          )}
                                          {col.id === "Interview2" && (
-                                             <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
+                                             <DropdownMenuItem onClick={() => handleOffer(c)}>
                                              Make Offer
                                              </DropdownMenuItem>
                                          )}
@@ -1070,7 +1081,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                                   setSelectedCandidate(c);
                                                   setIsDeclineModalOpen(true);
                                              }}>
-                                                 Offer Failed
+                                                Onboarding Failed
                                              </DropdownMenuItem>
                                          )}
 
@@ -1095,7 +1106,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                          )}
 
                                          <DropdownMenuSeparator />
-                                         {!col.isRejectedCol && col.id !== "Offer Failed" && col.id !== "Hired" && (
+                                        {!col.isRejectedCol && col.id !== "Onboarding Failed" && col.id !== "Hired" && (
                                              <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeclineClick(c)}>
                                              {t.actionDecline}
                                              </DropdownMenuItem>
@@ -1278,6 +1289,29 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
             <DialogFooter>
                 <Button variant="outline" onClick={() => setIsStopJobModalOpen(false)}>Cancel</Button>
                 <Button variant="destructive" onClick={handleStopJob}>Confirm Stop</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Offer Modal */}
+      <Dialog open={isOfferModalOpen} onOpenChange={setIsOfferModalOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Confirm Offer</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                <div className="space-y-2">
+                    <Label>Offer Date (dd/mm/yyyy)</Label>
+                    <Input 
+                        value={offerDate}
+                        onChange={(e) => setOfferDate(e.target.value)}
+                        placeholder="dd/mm/yyyy"
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsOfferModalOpen(false)}>{t.btnCancel}</Button>
+                <Button onClick={confirmOffer} className="bg-orange-600 hover:bg-orange-700 text-white">Confirm</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
