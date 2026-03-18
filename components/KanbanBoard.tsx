@@ -113,10 +113,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   
   // Data for Modals
   const [interviewDetails, setInterviewDetails] = useState({
-    date: new Date().toISOString().split('T')[0], // Default to Today
-    time: "09:00",
-    venue: "HCM Office – Eximland Building, 163 Phan Dang Luu, Ward 1, Phu Nhuan District, HCMC",
-    interviewer: ""
+    date: new Date().toLocaleDateString('en-GB') // Default to Today
   });
   const [interviewType, setInterviewType] = useState<"HR" | "L1" | "L2">("L1"); 
 
@@ -408,9 +405,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       setSelectedCandidate(candidate);
       setInterviewType(type);
       setInterviewDetails({
-         ...interviewDetails,
-         date: new Date().toISOString().split('T')[0],
-         time: "09:00"
+         date: new Date().toLocaleDateString('en-GB')
       });
       setIsInterviewModalOpen(true);
   };
@@ -418,40 +413,10 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const confirmInterview = async () => {
     if (!selectedCandidate) return;
     
-    // Outlook Logic ONLY for L1 & L2 (Not HR)
-    if (interviewType !== "HR") {
-        const roundName = interviewType === "L1" ? "Round 1" : "Round 2";
-        const subject = `Interview Invitation (${roundName}) - ${selectedCandidate.positionRaw} - ${selectedCandidate.fullName}`;
-        
-        // Construct Signature ...
-        const senderName = user?.config?.displayName || user?.name || "HR Team";
-        const senderPhone = user?.config?.phoneNumber || "";
-        
-        const body = `Dear Mr./Ms. ${selectedCandidate.fullName},\n\n` +
-                     `Greetings from CBS VN.\n\n` +
-                     `Thank you for your interest in a possible job opportunity with us. After exploring your qualifications, we are pleased to invite you to join an offline interview with the following details:\n\n` +
-                     `Applied Position:  ${selectedCandidate.positionRaw}\n` +
-                     `Date & time:       ${interviewDetails.time}, ${new Date(interviewDetails.date || new Date()).toLocaleDateString('en-GB')}\n` +
-                     `Venue:             ${interviewDetails.venue}\n` +
-                     `Meet with:         ${interviewDetails.interviewer}\n\n` +
-                     `Please confirm your attendance by replying to this email. Should you need any assistance, do not hesitate to contact me via ${senderPhone} (${senderName}).\n\n` +
-                     `Thanks and best regards!\n\n` +
-                     `${senderName}\n` +
-                     `CBS HR Team`;
-    
-        const mailtoLink = `mailto:${selectedCandidate.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.open(mailtoLink, "_blank");
-    }
-
     // Update API
-    const dateObj = new Date(interviewDetails.date || new Date());
-    const dateStr = dateObj.toLocaleDateString('en-GB'); 
-    const timeStr = interviewDetails.time;
-    const fullDate = `${dateStr} ${timeStr}`;
+    const fullDate = interviewDetails.date;
 
-    const updates: any = {
-      interviewer: interviewDetails.interviewer
-    };
+    const updates: any = {};
     
     if (interviewType === "HR") {
         updates.status = "HR Interview";
@@ -466,58 +431,6 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
     await updateCandidateAPI(selectedCandidate, updates);
     setIsInterviewModalOpen(false);
-  };
-
-  const copyToClipboard = () => {
-      if (!selectedCandidate) return;
-      const senderName = user?.config?.displayName || user?.name || "HR Team";
-      const senderPhone = user?.config?.phoneNumber || "";
-      const dateStr = new Date(interviewDetails.date || new Date()).toLocaleDateString('en-GB'); // dd/MM/yyyy
-
-      // Rich Text HTML logic
-      const htmlContent = `
-        <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
-            <p>Dear <strong>${selectedCandidate.fullName}</strong>,</p>
-            <p>Greetings from <strong>CBS VN</strong>.</p>
-            <p>Thank you for your interest in a possible job opportunity with us. After exploring your qualifications, we are pleased to invite you to join an <u>offline</u> interview with the following details:</p>
-            
-            <table style="border-collapse: collapse; margin: 15px 0;">
-                <tr>
-                    <td style="font-weight: bold; padding-right: 20px; padding-bottom: 5px; vertical-align: top; white-space: nowrap;">Applied Position:</td>
-                    <td style="font-weight: bold; padding-bottom: 5px;">${selectedCandidate.positionRaw}</td>
-                </tr>
-                <tr>
-                    <td style="font-weight: bold; padding-right: 20px; padding-bottom: 5px; vertical-align: top; white-space: nowrap;">Date & time:</td>
-                    <td style="padding-bottom: 5px;">${dateStr}, at <strong>${interviewDetails.time}</strong></td>
-                </tr>
-                <tr>
-                    <td style="font-weight: bold; padding-right: 20px; padding-bottom: 5px; vertical-align: top; white-space: nowrap;">Venue:</td>
-                    <td style="padding-bottom: 5px;">${interviewDetails.venue}</td>
-                </tr>
-                <tr>
-                    <td style="font-weight: bold; padding-right: 20px; padding-bottom: 5px; vertical-align: top; white-space: nowrap;">Meet with:</td>
-                    <td style="padding-bottom: 5px;">${interviewDetails.interviewer}</td>
-                </tr>
-            </table>
-
-            <p>Please confirm your attendance by replying to this email. Should you need any assistance, do not hesitate to contact me via ${senderPhone} (${senderName}).</p>
-            <br/>
-            <p><strong>Thanks and best regards!</strong></p>
-            <br/>
-            <p style="color: #B91C1C; font-weight: bold;">${senderName}</p>
-        </div>
-      `;
-      
-      const blob = new Blob([htmlContent], { type: "text/html" });
-      const textBlob = new Blob([htmlContent.replace(/<[^>]*>/g, "")], { type: "text/plain" });
-      const data = [new ClipboardItem({ 
-          "text/html": blob,
-          "text/plain": textBlob 
-      })];
-      
-      navigator.clipboard.write(data).catch(err => {
-          console.error("Failed to copy:", err);
-      });
   };
 
   const updateCandidateAPI = async (candidate: Candidate, updates: any) => {
@@ -1222,32 +1135,21 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       <Dialog open={isInterviewModalOpen} onOpenChange={setIsInterviewModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t.modalInterviewTitle} ({interviewType})</DialogTitle>
+            <DialogTitle>Confirm Interview ({interviewType})</DialogTitle>
           </DialogHeader>
-           <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Ngày</Label>
-                <Input type="date" className="col-span-3" value={interviewDetails.date} onChange={e => setInterviewDetails({...interviewDetails, date: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Giờ</Label>
-                <Input type="time" className="col-span-3" value={interviewDetails.time} onChange={e => setInterviewDetails({...interviewDetails, time: e.target.value})} />
-              </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Địa điểm</Label>
-                <Input className="col-span-3" value={interviewDetails.venue} onChange={e => setInterviewDetails({...interviewDetails, venue: e.target.value})} />
-              </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">PV Với</Label>
-                <Input className="col-span-3" placeholder="Interviewer Name" value={interviewDetails.interviewer} onChange={e => setInterviewDetails({...interviewDetails, interviewer: e.target.value})} />
-              </div>
+           <div className="py-4 space-y-4">
+                <div className="space-y-2">
+                    <Label>Interview Date (dd/mm/yyyy)</Label>
+                    <Input 
+                        value={interviewDetails.date}
+                        onChange={(e) => setInterviewDetails({ date: e.target.value })}
+                        placeholder="dd/mm/yyyy"
+                    />
+                </div>
             </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsInterviewModalOpen(false)}>{t.btnCancel}</Button>
-            <Button variant="secondary" onClick={copyToClipboard} className="gap-2">
-                <Copy className="h-4 w-4" /> Copy Email Template
-            </Button>
-            <Button onClick={confirmInterview} className="bg-[#B91C1C] hover:bg-[#991b1b]">{t.btnSendInvite}</Button>
+            <Button onClick={confirmInterview} className="bg-orange-600 hover:bg-orange-700 text-white">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
