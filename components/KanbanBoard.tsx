@@ -297,7 +297,10 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       if (selectedCandidate.jobCode && selectedCandidate.jobCode !== "Unknown") {
           try {
               const jobInfo = jobs[selectedCandidate.jobCode];
-              const title = jobInfo?.title || "Unknown";
+              // Lookup title from candidates with same jobCode if jobInfo doesn't have it
+              const candidateTitle = candidates.find(c => c.jobCode === selectedCandidate.jobCode && c.positionRaw)?.positionRaw;
+              const title = jobInfo?.title || candidateTitle || "Unknown";
+              const positionId = jobInfo?.positionId || selectedCandidate.positionId || "Unknown";
               const group = jobInfo?.group || (selectedCandidate.jobCode.startsWith("ST") ? "Store" : "HO");
               await fetch("/api/jobs/stop", {
                   method: "POST",
@@ -305,6 +308,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                       jobCode: selectedCandidate.jobCode, 
                       reason: "Successful Hired",
                       title,
+                      positionId,
                       group
                   })
               });
@@ -469,9 +473,11 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         return;
     }
 
-    // Get Title and Group from Jobs API data (not hardcoded ACTIVE_JOBS)
+    // Get Title and Group from Jobs API data, fallback to candidate data
     const jobInfo = jobs[selectedJobCode];
-    const title = jobInfo?.title || "Unknown";
+    const candidateWithJob = candidates.find(c => c.jobCode === selectedJobCode && c.positionRaw);
+    const title = jobInfo?.title || candidateWithJob?.positionRaw || "Unknown";
+    const positionId = jobInfo?.positionId || candidateWithJob?.positionId || "Unknown";
     const group = jobInfo?.group || (selectedJobCode.startsWith("ST") ? "Store" : "HO");
 
     try {
@@ -481,6 +487,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                 jobCode: selectedJobCode, 
                 reason: finalReason,
                 title,
+                positionId,
                 group
             })
         });

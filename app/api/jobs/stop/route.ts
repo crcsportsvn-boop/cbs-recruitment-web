@@ -52,7 +52,7 @@ async function getUserRole(oauth2Client: any): Promise<string> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { jobCode, reason, title, group } = await req.json();
+    const { jobCode, reason, title, group, positionId } = await req.json();
 
     if (!jobCode || !reason) {
       return NextResponse.json({ error: "Missing jobCode or reason" }, { status: 400 });
@@ -161,13 +161,16 @@ export async function POST(req: NextRequest) {
     }
 
     const stopDate = new Date().toISOString(); 
-    const existingPositionId = rowIndex >= 0 ? rows[rowIndex][0] : "";
+    const existingPositionId = rowIndex >= 0 ? rows[rowIndex][0] : (positionId || "Unknown");
+
+    // Force group to match target sheet (ignore client-sent group to prevent mismatch)
+    const resolvedGroup = (targetSpreadsheetId === SPREADSHEET_ID_ST) ? "Store" : "HO";
 
     const newRow = [
         existingPositionId,
         jobCode,
         title || (rowIndex >= 0 ? rows[rowIndex][2] : ""),
-        group || existingGroup,
+        resolvedGroup,
         "Stopped",
         stopDate,
         reason
