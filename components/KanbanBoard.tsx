@@ -303,7 +303,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                   method: "POST",
                   body: JSON.stringify({ 
                       jobCode: selectedCandidate.jobCode, 
-                      reason: "Hired internally",
+                      reason: "Successful Hired",
                       title,
                       group
                   })
@@ -1175,7 +1175,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                             <SelectItem value="Headcount reduction">Headcount reduction</SelectItem>
                             <SelectItem value="Budget constraints">Budget constraints</SelectItem>
                             <SelectItem value="Strategy change">Strategy change</SelectItem>
-                            <SelectItem value="Hired internally">Hired internally</SelectItem>
+                            <SelectItem value="Successful Hired">Successful Hired</SelectItem>
                             <SelectItem value="Other">Other</SelectItem>
                         </SelectContent>
                     </Select>
