@@ -341,6 +341,8 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         else if (status === "Interview") prev = "HR Interview";
         else if (status === "Interview2") prev = "Interview";
         else if (status === "Offer") prev = "Interview2";
+         else if (status === "Hired") prev = "Offer";
+         else if (status === "Onboarding Failed") prev = "Offer";
      }
 
      // Log logic
@@ -355,7 +357,11 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
      if (status === "Rejected") {
         updates.failureReason = ""; 
      } else {
-        if (status === "Offer") updates.offerDate = "";
+         if (status === "Hired" || status === "Onboarding Failed") {
+            updates.startDate = "";
+            updates.officialDate = "";
+         }
+         if (status === "Offer") updates.offerDate = "";
         if (status === "Interview") updates.interviewDate1 = ""; 
         if (status === "Interview2") updates.interviewDate2 = "";
         if (status === "HR Interview") updates.hrInterviewDate = "";
