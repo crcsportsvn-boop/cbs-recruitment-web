@@ -312,12 +312,12 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                       group
                   })
               });
-              fetchCandidates();
           } catch (e) {
               console.error("Auto close job failed", e);
           }
       }
 
+      await fetchCandidates();
       setIsHiredModalOpen(false);
   };
 
