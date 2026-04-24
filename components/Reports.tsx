@@ -59,6 +59,8 @@ export default function Reports({ lang, user }: ReportProps) {
 
   // Filters
   const [filterJob, setFilterJob] = useState("all");
+  const [jobSearchTerm, setJobSearchTerm] = useState("");
+  const [isJobDropdownOpen, setIsJobDropdownOpen] = useState(false);
   const [filterSource, setFilterSource] = useState("all");
   const [filterGroup, setFilterGroup] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -109,7 +111,7 @@ export default function Reports({ lang, user }: ReportProps) {
     },
     en: {
         total: "Total Candidates",
-        active: "Active Processing",
+        active: "Active",
         rejected: "Rejected",
         stock: "Stock / Hold",
         byJob: "Progress By Job",
@@ -258,10 +260,10 @@ export default function Reports({ lang, user }: ReportProps) {
           else active++;
 
           const currentStage = getStage(c);
-          if (state !== "Stock") {
-              const stageIndex = STAGES.indexOf(currentStage);
-              const rank = stageIndex >= 0 ? stageIndex : 0; 
+          const stageIndex = STAGES.indexOf(currentStage);
+          const rank = stageIndex >= 0 ? stageIndex : 0;
 
+          if (state !== "Stock") {
               // Cumulative Funnel
               for (let i = 0; i <= rank; i++) {
                   const s = STAGES[i];
@@ -290,11 +292,14 @@ export default function Reports({ lang, user }: ReportProps) {
           else { jobStats[job].active++; sourceStats[src].active++; }
 
           if (state !== "Stock") {
-             const s = currentStage;
-             if (STAGES.includes(s)) {
-                 if (jobStats[job] && jobStats[job].stages[s] !== undefined) jobStats[job].stages[s]++;
-                 if (sourceStats[src] && sourceStats[src].stages[s] !== undefined) sourceStats[src].stages[s]++;
-             }
+              // Cumulative for Tables
+              for (let i = 0; i <= rank; i++) {
+                 const s = STAGES[i];
+                 if (s && STAGES.includes(s)) {
+                     if (jobStats[job] && jobStats[job].stages[s] !== undefined) jobStats[job].stages[s]++;
+                     if (sourceStats[src] && sourceStats[src].stages[s] !== undefined) sourceStats[src].stages[s]++;
+                 }
+              }
           }
       });
 
@@ -389,37 +394,71 @@ export default function Reports({ lang, user }: ReportProps) {
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-1 relative">
                         <label className="text-xs font-medium text-gray-500">{t.jobCode}</label>
-                        <Select value={filterJob} onValueChange={setFilterJob}>
-                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">{t.all}</SelectItem>
-                                {uniqueJobCodes.map(code => {
-                                    // Determine Display Name
-                                    // 1. Check Candidate (Datapool) for Position Name - Primary Preference if available? 
-                                    // Actually, usually Job Table is "Master". But user complains about Job Table being empty/wrong.
-                                    // Let's get Candidate Position first.
-                                    const cand = candidates.find(c => c.jobCode === code);
-                                    let rawName = cand?.positionRaw || "Unknown";
+                        <div className="relative">
+                            <input
+                                placeholder="Search Job..."
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                value={jobSearchTerm || (filterJob === "all" ? "" : filterJob)}
+                                onChange={(e) => {
+                                    setJobSearchTerm(e.target.value);
+                                    if (e.target.value === "") setFilterJob("all");
+                                    setIsJobDropdownOpen(true);
+                                }}
+                                onFocus={() => {
+                                    setJobSearchTerm("");
+                                    setIsJobDropdownOpen(true);
+                                }}
+                                onBlur={() => setTimeout(() => setIsJobDropdownOpen(false), 200)}
+                            />
+                            {isJobDropdownOpen && (
+                                <div className="absolute z-50 mt-1 w-[300px] min-w-full bg-white border rounded-md shadow-lg max-h-[300px] overflow-auto">
+                                    <div 
+                                        className="px-3 py-2 text-xs cursor-pointer hover:bg-gray-100 font-medium text-gray-700"
+                                        onClick={() => {
+                                            setFilterJob("all");
+                                            setJobSearchTerm("");
+                                            setIsJobDropdownOpen(false);
+                                        }}
+                                    >
+                                        {t.all}
+                                    </div>
+                                    {uniqueJobCodes.map(code => {
+                                        const cand = candidates.find(c => c.jobCode === code);
+                                        let rawName = cand?.positionRaw || "Unknown";
+                                        const jobMeta = jobs.find(j => j.jobCode === code);
+                                        if (jobMeta?.title && jobMeta.title.trim() !== "" && jobMeta.title !== "Unknown") {
+                                            rawName = jobMeta.title;
+                                        } else if (rawName === "Unknown") {
+                                            rawName = ACTIVE_JOBS.find(j => j.id === code)?.name || "Unknown";
+                                        }
+                                        if (rawName === "Unknown") rawName = code;
 
-                                    // 2. If Job Table has a VALID title, override it (Canonical Name).
-                                    // But if Job Table title is empty or "Unknown", keep Candidate Name.
-                                    const jobMeta = jobs.find(j => j.jobCode === code);
-                                    if (jobMeta?.title && jobMeta.title.trim() !== "" && jobMeta.title !== "Unknown") {
-                                        rawName = jobMeta.title;
-                                    } else if (rawName === "Unknown") {
-                                        // 3. Fallback to Constants only if both Candidate and Job Table failed
-                                        rawName = ACTIVE_JOBS.find(j => j.id === code)?.name || "Unknown";
-                                    }
+                                        const searchLower = jobSearchTerm.toLowerCase();
+                                        if (jobSearchTerm && !code.toLowerCase().includes(searchLower) && !rawName.toLowerCase().includes(searchLower)) {
+                                            return null;
+                                        }
 
-                                    if (rawName === "Unknown") rawName = code;
-
-                                    const isStopped = jobMeta?.status === "Stopped";
-                                    return <SelectItem key={code} value={code} className={isStopped ? "text-red-500" : ""}>{code} - {rawName}</SelectItem>
-                                })}
-                            </SelectContent>
-                        </Select>
+                                        const isStopped = jobMeta?.status === "Stopped";
+                                        return (
+                                            <div 
+                                                key={code} 
+                                                className={`px-3 py-2 text-xs flex justify-between items-center cursor-pointer hover:bg-gray-50 border-b last:border-0 ${isStopped ? "text-red-500" : "text-gray-700"} ${filterJob === code ? "bg-gray-100 font-bold" : ""}`}
+                                                onClick={() => {
+                                                    setFilterJob(code);
+                                                    setJobSearchTerm(code);
+                                                    setIsJobDropdownOpen(false);
+                                                }}
+                                            >
+                                                <span className="font-semibold truncate w-1/3">{code}</span>
+                                                <span className="truncate w-2/3 ml-2" title={rawName}>{rawName}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-gray-500">Source</label>

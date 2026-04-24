@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { jobCode, title, group, status, stopDate, reason } = await req.json();
+    const { jobCode, title, group, status, stopDate, reason, positionId } = await req.json();
 
     if (!jobCode) {
       return NextResponse.json({ error: "Missing jobCode" }, { status: 400 });
@@ -244,13 +244,16 @@ export async function POST(req: NextRequest) {
     }
     
     const existingPositionId = rowIndex >= 0 ? rows[rowIndex][0] : "";
-    const displayPositionId = existingPositionId || ""; 
+    const displayPositionId = existingPositionId || positionId || "Unknown"; 
+
+    // Force group to match target sheet
+    const resolvedGroup = (targetSpreadsheetId === SPREADSHEET_ID_ST) ? "Store" : "HO";
 
     const newRow = [
         displayPositionId, // A: Position ID
         jobCode,           // B: JobCode
         title || (rowIndex >= 0 ? rows[rowIndex][2] : ""), // C: Title
-        group || existingGroup, // D: Group (Preserve existing or use provided)
+        resolvedGroup, // D: Group (always match target sheet)
         status !== undefined ? status : (rowIndex >= 0 ? rows[rowIndex][4] : "Hiring"), // E: Status
         stopDate !== undefined ? stopDate : (rowIndex >= 0 ? rows[rowIndex][5] : ""), // F: StopDate
         reason !== undefined ? reason : (rowIndex >= 0 ? rows[rowIndex][6] : "") // G: Reason

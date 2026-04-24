@@ -47,6 +47,8 @@ interface Candidate {
   failureReason?: string;
   isPotential?: boolean;
   rejectedRound?: string;
+  rejectedReason?: string;
+  additionalDetails?: string;
   notes?: string;
   applyDate?: string;
   // Multi-source fields (NEW)
@@ -88,11 +90,10 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [scoreFilter, setScoreFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
-  const [showRejected, setShowRejected] = useState(false);
-  const [showStock, setShowStock] = useState(false);
+  const [viewMode, setViewMode] = useState<"active" | "offer" | "rejected" | "stock">("active");
   const [selectedJobCode, setSelectedJobCode] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "HO" | "ST">("all"); // NEW: Data source filter
-  
+  const [jobStatusFilter, setJobStatusFilter] = useState<"all" | "Hiring" | "Stopped">("all");
   // Job Codes for Filter
   const uniqueJobCodes = (Array.from(new Set(candidates.map(c => c.jobCode).filter(Boolean))) as string[]).sort((a, b) => a.localeCompare(b));
 
@@ -105,15 +106,14 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [rehireCandidate, setRehireCandidate] = useState<Candidate | null>(null); // New
   const [isHiredModalOpen, setIsHiredModalOpen] = useState(false);
   const [hiredDate, setHiredDate] = useState("");
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+  const [offerDate, setOfferDate] = useState("");
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   
   // Data for Modals
   const [interviewDetails, setInterviewDetails] = useState({
-    date: new Date().toISOString().split('T')[0], // Default to Today
-    time: "09:00",
-    venue: "HCM Office – Eximland Building, 163 Phan Dang Luu, Ward 1, Phu Nhuan District, HCMC",
-    interviewer: ""
+    date: new Date().toLocaleDateString('en-GB') // Default to Today
   });
   const [interviewType, setInterviewType] = useState<"HR" | "L1" | "L2">("L1"); 
 
@@ -124,15 +124,32 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [isPotentialDecline, setIsPotentialDecline] = useState(false);
   const [jobCodeSearch, setJobCodeSearch] = useState(""); // #4: Job Code search
 
-  const COLUMNS = [
-    { id: "New", title: t.colNew, color: "bg-gray-50" },
-    { id: "Screening", title: t.colScreening, color: "bg-[#FFF0F0]" },
-    { id: "HR Interview", title: t.colHrInterview, color: "bg-gray-50" },
-    { id: "Interview", title: t.colInterview, color: "bg-[#FFF0F0]" },
-    { id: "Interview2", title: t.colInterview2, color: "bg-gray-50" },
-    { id: "Offer", title: t.colOffer, color: "bg-[#FFF0F0]" },
-    ...(showRejected ? [{ id: "Rejected", title: t.colRejected, color: "bg-gray-50" }] : [])
-  ];
+  let COLUMNS: { id: string, title: string, color: string, dropTarget?: string, isRejectedCol?: boolean }[] = [];
+  if (viewMode === "active" || viewMode === "stock") {
+     COLUMNS = [
+       { id: "New", title: t.colNew, color: "bg-gray-50", dropTarget: "New" },
+       { id: "Screening", title: t.colScreening, color: "bg-[#FFF0F0]", dropTarget: "Screening" },
+       { id: "HR Interview", title: t.colHrInterview, color: "bg-gray-50", dropTarget: "HR Interview" },
+       { id: "Interview", title: t.colInterview, color: "bg-[#FFF0F0]", dropTarget: "Interview" },
+       { id: "Interview2", title: t.colInterview2, color: "bg-gray-50", dropTarget: "Interview2" },
+       { id: "Offer", title: t.colOffer || "Offer", color: "bg-orange-50", dropTarget: "Offer" },
+     ];
+  } else if (viewMode === "offer") {
+     COLUMNS = [
+       { id: "Offer", title: t.viewOffer || "Offer", color: "bg-orange-50", dropTarget: "Offer" },
+       { id: "Hired", title: t.colHired || "Hired", color: "bg-green-50", dropTarget: "Hired" },
+      { id: "Onboarding Failed", title: t.colOfferFailed || "Onboarding Failed", color: "bg-red-50", isRejectedCol: true }
+    ];
+  } else if (viewMode === "rejected") {
+     COLUMNS = [
+       { id: "New", title: t.colNew, color: "bg-gray-50", isRejectedCol: true },
+       { id: "Screening", title: t.colScreening, color: "bg-[#FFF0F0]", isRejectedCol: true },
+       { id: "HR Interview", title: t.colHrInterview, color: "bg-gray-50", isRejectedCol: true },
+       { id: "Interview Round 1", title: t.colInterview, color: "bg-[#FFF0F0]", isRejectedCol: true },
+       { id: "Interview Round 2", title: t.colInterview2, color: "bg-gray-50", isRejectedCol: true },
+       { id: "Offer", title: t.colOffer || "Offer", color: "bg-orange-50", isRejectedCol: true },
+     ];
+  }
 
   useEffect(() => {
     fetchCandidates();
@@ -202,36 +219,20 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
   // --- ACTIONS ---
 
-  const moveStatus = async (candidate: Candidate, targetStatus: string, type?: "HR" | "L1" | "L2") => {
-    // 1. Interview Logic (Including HR Interview)
-    if (targetStatus === "Interview" || targetStatus === "Interview2" || targetStatus === "HR Interview") {
-      setSelectedCandidate(candidate);
-      setInterviewType(type || "L1");
-      
-      // Default Date/Time Logic (Today)
-      setInterviewDetails(prev => ({
-          ...prev, 
-          date: new Date().toISOString().split('T')[0],
-          time: "09:00"
-      }));
-
-      setIsInterviewModalOpen(true);
-      return; 
-    }
-
-    // 2. Direct Logic for Screening/Offer
+  const moveStatus = async (candidate: Candidate, targetStatus: string, bypassModal: boolean = false) => {
     let updates: any = { status: targetStatus };
-    const todayStr = new Date().toLocaleDateString('en-GB'); // dd/mm/yyyy
-
-    if (targetStatus === "Offer") {
-       updates.offerDate = todayStr;
-    }
+    const dateObj = new Date();
+    const todayStr = dateObj.toLocaleDateString('en-GB'); // dd/mm/yyyy
     
-    // Test Result if moving New -> Screening
+    // Direct Logic for Screening bypassing Modal
     if (targetStatus === "Screening" && candidate.status === "New") {
        updates.testResult = todayStr;
     }
-
+    
+    if (bypassModal) {
+      if (targetStatus === "Offer") updates.offerDate = todayStr;
+    }
+    
     // --- CLEANUP LOGIC FOR BACKWARD MOVES ---
     // If we move to a stage, we must clear dates of SUBSEQUENT stages to avoid dirty data in reports.
     // Hierarchy: New -> Screening -> HR Interview -> Interview -> Interview2 -> Offer
@@ -267,15 +268,28 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
   const handleHired = (candidate: Candidate) => {
       setSelectedCandidate(candidate);
-      setHiredDate(new Date().toLocaleDateString('en-GB'));
+      setHiredDate(new Date().toLocaleDateString('en-GB')); // Default to today
       setIsHiredModalOpen(true);
+  };
+
+  const handleOffer = (candidate: Candidate) => {
+      setSelectedCandidate(candidate);
+      setOfferDate(new Date().toLocaleDateString('en-GB')); // Default to today
+      setIsOfferModalOpen(true);
+  };
+
+  const confirmOffer = async () => {
+      if (!selectedCandidate) return;
+      await moveStatus(selectedCandidate, "Offer");
+      await updateCandidateAPI(selectedCandidate, { offerDate: offerDate });
+      setIsOfferModalOpen(false);
   };
 
   const confirmHired = async () => {
       if (!selectedCandidate) return;
       await updateCandidateAPI(selectedCandidate, {
           status: "Hired",
-          applyDate: hiredDate, 
+          startDate: hiredDate, 
           officialDate: hiredDate 
       });
 
@@ -328,6 +342,8 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         else if (status === "Interview") prev = "HR Interview";
         else if (status === "Interview2") prev = "Interview";
         else if (status === "Offer") prev = "Interview2";
+         else if (status === "Hired") prev = "Offer";
+         else if (status === "Onboarding Failed") prev = "Offer";
      }
 
      // Log logic
@@ -342,7 +358,11 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
      if (status === "Rejected") {
         updates.failureReason = ""; 
      } else {
-        if (status === "Offer") updates.offerDate = "";
+         if (status === "Hired" || status === "Onboarding Failed") {
+            updates.startDate = "";
+            updates.officialDate = "";
+         }
+         if (status === "Offer") updates.offerDate = "";
         if (status === "Interview") updates.interviewDate1 = ""; 
         if (status === "Interview2") updates.interviewDate2 = "";
         if (status === "HR Interview") updates.hrInterviewDate = "";
@@ -392,43 +412,22 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     setIsDeclineModalOpen(false);
   };
 
+  const handleInterviewModal = (candidate: Candidate, type: "HR" | "L1" | "L2") => {
+      setSelectedCandidate(candidate);
+      setInterviewType(type);
+      setInterviewDetails({
+         date: new Date().toLocaleDateString('en-GB')
+      });
+      setIsInterviewModalOpen(true);
+  };
+
   const confirmInterview = async () => {
     if (!selectedCandidate) return;
     
-    // Outlook Logic ONLY for L1 & L2 (Not HR)
-    if (interviewType !== "HR") {
-        const roundName = interviewType === "L1" ? "Round 1" : "Round 2";
-        const subject = `Interview Invitation (${roundName}) - ${selectedCandidate.positionRaw} - ${selectedCandidate.fullName}`;
-        
-        // Construct Signature ...
-        const senderName = user?.config?.displayName || user?.name || "HR Team";
-        const senderPhone = user?.config?.phoneNumber || "";
-        
-        const body = `Dear Mr./Ms. ${selectedCandidate.fullName},\n\n` +
-                     `Greetings from CBS VN.\n\n` +
-                     `Thank you for your interest in a possible job opportunity with us. After exploring your qualifications, we are pleased to invite you to join an offline interview with the following details:\n\n` +
-                     `Applied Position:  ${selectedCandidate.positionRaw}\n` +
-                     `Date & time:       ${interviewDetails.time}, ${new Date(interviewDetails.date || new Date()).toLocaleDateString('en-GB')}\n` +
-                     `Venue:             ${interviewDetails.venue}\n` +
-                     `Meet with:         ${interviewDetails.interviewer}\n\n` +
-                     `Please confirm your attendance by replying to this email. Should you need any assistance, do not hesitate to contact me via ${senderPhone} (${senderName}).\n\n` +
-                     `Thanks and best regards!\n\n` +
-                     `${senderName}\n` +
-                     `CBS HR Team`;
-    
-        const mailtoLink = `mailto:${selectedCandidate.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.open(mailtoLink, "_blank");
-    }
-
     // Update API
-    const dateObj = new Date(interviewDetails.date || new Date());
-    const dateStr = dateObj.toLocaleDateString('en-GB'); 
-    const timeStr = interviewDetails.time;
-    const fullDate = `${dateStr} ${timeStr}`;
+    const fullDate = interviewDetails.date;
 
-    const updates: any = {
-      interviewer: interviewDetails.interviewer
-    };
+    const updates: any = {};
     
     if (interviewType === "HR") {
         updates.status = "HR Interview";
@@ -443,58 +442,6 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
     await updateCandidateAPI(selectedCandidate, updates);
     setIsInterviewModalOpen(false);
-  };
-
-  const copyToClipboard = () => {
-      if (!selectedCandidate) return;
-      const senderName = user?.config?.displayName || user?.name || "HR Team";
-      const senderPhone = user?.config?.phoneNumber || "";
-      const dateStr = new Date(interviewDetails.date || new Date()).toLocaleDateString('en-GB'); // dd/MM/yyyy
-
-      // Rich Text HTML logic
-      const htmlContent = `
-        <div style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
-            <p>Dear <strong>${selectedCandidate.fullName}</strong>,</p>
-            <p>Greetings from <strong>CBS VN</strong>.</p>
-            <p>Thank you for your interest in a possible job opportunity with us. After exploring your qualifications, we are pleased to invite you to join an <u>offline</u> interview with the following details:</p>
-            
-            <table style="border-collapse: collapse; margin: 15px 0;">
-                <tr>
-                    <td style="font-weight: bold; padding-right: 20px; padding-bottom: 5px; vertical-align: top; white-space: nowrap;">Applied Position:</td>
-                    <td style="font-weight: bold; padding-bottom: 5px;">${selectedCandidate.positionRaw}</td>
-                </tr>
-                <tr>
-                    <td style="font-weight: bold; padding-right: 20px; padding-bottom: 5px; vertical-align: top; white-space: nowrap;">Date & time:</td>
-                    <td style="padding-bottom: 5px;">${dateStr}, at <strong>${interviewDetails.time}</strong></td>
-                </tr>
-                <tr>
-                    <td style="font-weight: bold; padding-right: 20px; padding-bottom: 5px; vertical-align: top; white-space: nowrap;">Venue:</td>
-                    <td style="padding-bottom: 5px;">${interviewDetails.venue}</td>
-                </tr>
-                <tr>
-                    <td style="font-weight: bold; padding-right: 20px; padding-bottom: 5px; vertical-align: top; white-space: nowrap;">Meet with:</td>
-                    <td style="padding-bottom: 5px;">${interviewDetails.interviewer}</td>
-                </tr>
-            </table>
-
-            <p>Please confirm your attendance by replying to this email. Should you need any assistance, do not hesitate to contact me via ${senderPhone} (${senderName}).</p>
-            <br/>
-            <p><strong>Thanks and best regards!</strong></p>
-            <br/>
-            <p style="color: #B91C1C; font-weight: bold;">${senderName}</p>
-        </div>
-      `;
-      
-      const blob = new Blob([htmlContent], { type: "text/html" });
-      const textBlob = new Blob([htmlContent.replace(/<[^>]*>/g, "")], { type: "text/plain" });
-      const data = [new ClipboardItem({ 
-          "text/html": blob,
-          "text/plain": textBlob 
-      })];
-      
-      navigator.clipboard.write(data).catch(err => {
-          console.error("Failed to copy:", err);
-      });
   };
 
   const updateCandidateAPI = async (candidate: Candidate, updates: any) => {
@@ -533,9 +480,11 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         return;
     }
 
-    // Get Title and Group from Jobs API data (not hardcoded ACTIVE_JOBS)
+    // Get Title and Group from Jobs API data, fallback to candidate data
     const jobInfo = jobs[selectedJobCode];
-    const title = jobInfo?.title || "Unknown";
+    const candidateWithJob = candidates.find(c => c.jobCode === selectedJobCode && c.positionRaw);
+    const title = jobInfo?.title || candidateWithJob?.positionRaw || "Unknown";
+    const positionId = jobInfo?.positionId || candidateWithJob?.positionId || "Unknown";
     const group = jobInfo?.group || (selectedJobCode.startsWith("ST") ? "Store" : "HO");
 
     try {
@@ -545,6 +494,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                 jobCode: selectedJobCode, 
                 reason: finalReason,
                 title,
+                positionId,
                 group
             })
         });
@@ -628,33 +578,31 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     const isStock = isNoteStock || isStoppedRule;
     
     // 1. View Logic
-    if (showStock) {
-        return isStock;
+    if (viewMode === "stock") {
+        if (!isStock) return false;
+    } else if (viewMode === "rejected") {
+        if (c.status !== "Rejected" || c.rejectedRound === "Offer") return false; 
+        // Exclude Offer failures from purely 'rejected' if we want them in Offer view, 
+        // or we can include them here too. Let's exclude from here if user wants Offer failed in Offer view.
+    } else if (viewMode === "offer") {
+        if (isStock) return false;
+        const validOfferStatuses = ["Offer", "Hired"];
+        const isOfferFailed = c.status === "Rejected" && c.rejectedRound === "Offer";
+        if (!validOfferStatuses.includes(c.status) && !isOfferFailed) return false;
+    } else { // active
+        if (isStock) return false;
+        const activeStatuses = ["New", "Screening", "HR Interview", "Interview", "Interview2", "Offer"];
+        if (!activeStatuses.includes(c.status)) return false;
     }
-    
-    // If NOT showing stock, hide stock items
-    if (isStock) return false;
-
-    // Reject Logic
-    if (!showRejected && c.status === "Rejected") return false;
-    if (showRejected && c.status !== "Rejected") return false; // Optional: Show ONLY rejected? 
-    // User current logic for Show Rejected was to TOGGLE it ON TOP, or Filter?
-    // Current code: "if !showRejected && c.status === Rejected return false" -> Means "Hide rejected by default".
-    // If showRejected is true, it shows BOTH active and rejected? 
-    // "Toggle Rejected" usually implies "Show Rejected" in list. 
-    
-    // Let's refine based on "View Mode".
-    // "Normal": Active, Non-Stock.
-    // "Rejected Toggle": Active + Rejected? Or Just Rejected?
-    // User requested: "show một pop up... giống Show Reject"
-    
-    // To keep it simple:
-    // If showStock -> Show ONLY Stock.
-    // If showRejected -> Show ONLY Rejected (or Active + Rejected, but typically user wants to review rejected separately).
-    // Let's stick to: "Show Rejected" = Include Rejected. 
     
     // 2. Job Code Filter
     if (selectedJobCode !== "all" && c.jobCode !== selectedJobCode) return false;
+
+    // 2.2 Job Status Filter
+    if (selectedJobCode === "all" && jobStatusFilter !== "all") {
+       const jobStatus = jobs[c.jobCode || ""]?.status || "Hiring"; // Default to Hiring
+       if (jobStatus !== jobStatusFilter) return false;
+    }
 
     // 2.5. Data Source Filter (NEW - for Admin combined view)
     if (sourceFilter !== "all" && c.dataSource !== sourceFilter) return false;
@@ -831,6 +779,28 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           </div>
           )}
 
+          {/* Job Status Filter */}
+          <div className="w-[120px]">
+            <Select 
+              value={selectedJobCode === "all" ? jobStatusFilter : (jobs[selectedJobCode]?.status === "Stopped" ? "Stopped" : "Hiring")} 
+              onValueChange={(v: "all" | "Hiring" | "Stopped") => setJobStatusFilter(v)}
+              disabled={selectedJobCode !== "all"}
+            >
+              <SelectTrigger className={`bg-white h-9 text-sm disabled:opacity-100 disabled:cursor-default ${
+                selectedJobCode !== "all" 
+                  ? (jobs[selectedJobCode]?.status === "Stopped" ? "text-red-600 ring-1 ring-red-500 bg-red-50" : "text-green-600 ring-1 ring-green-500 bg-green-50")
+                  : ""
+              }`}>
+                <SelectValue placeholder="Job Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="Hiring">Hiring</SelectItem>
+                <SelectItem value="Stopped">Closed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Date Filter - Compact */}
           <div className="flex items-center gap-1 bg-white px-2 rounded border h-9">
             <span className="text-xs text-gray-500 font-medium">From:</span>
@@ -850,53 +820,40 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           </div>
 
           {/* View Toggles */}
-          <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center">
+          <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center w-fit shrink-0">
              <Button 
-                variant={(!showRejected && !showStock) ? "secondary" : "ghost"} 
+                variant={viewMode === "active" ? "secondary" : "ghost"} 
                 size="sm" 
-                className={`h-7 text-xs ${(!showRejected && !showStock) ? "bg-green-100 text-green-700 hover:bg-green-200 shadow-sm" : "text-gray-500"}`}
-                onClick={() => { setShowRejected(false); setShowStock(false); }}
+                className={`h-7 px-3 text-xs ${viewMode === "active" ? "bg-green-100 text-green-700 hover:bg-green-200 shadow-sm" : "text-gray-500"}`}
+                onClick={() => setViewMode("active")}
              >
-                Active
+                {t.viewActive || "Active"}
              </Button>
              <Button 
-                variant={showRejected ? "secondary" : "ghost"} 
+                variant={viewMode === "offer" ? "secondary" : "ghost"} 
                 size="sm" 
-                className={`h-7 text-xs ${showRejected ? "bg-white text-red-600 shadow-sm" : "text-gray-500"}`}
-                onClick={() => { setShowRejected(true); setShowStock(false); }}
+                className={`h-7 px-3 text-xs ${viewMode === "offer" ? "bg-orange-100 text-orange-700 hover:bg-orange-200 shadow-sm" : "text-gray-500"}`}
+                onClick={() => setViewMode("offer")}
              >
-                Rejected
+                {t.viewOffer || "Offer"}
              </Button>
              <Button 
-                variant={showStock ? "secondary" : "ghost"} 
+                variant={viewMode === "rejected" ? "secondary" : "ghost"} 
                 size="sm" 
-                className={`h-7 text-xs ${showStock ? "bg-white text-blue-600 shadow-sm" : "text-gray-500"}`}
-                onClick={() => { setShowRejected(false); setShowStock(true); }}
+                className={`h-7 px-3 text-xs ${viewMode === "rejected" ? "bg-white text-red-600 shadow-sm" : "text-gray-500"}`}
+                onClick={() => setViewMode("rejected")}
              >
-                Stock
+                {t.viewRejected || "Rejected"}
+             </Button>
+             <Button 
+                variant={viewMode === "stock" ? "secondary" : "ghost"} 
+                size="sm" 
+                className={`h-7 px-3 text-xs ${viewMode === "stock" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500"}`}
+                onClick={() => setViewMode("stock")}
+             >
+                {t.viewStock || "Stock"}
              </Button>
           </div>
-
-          {/* Job Status Indicator - Inline */}
-          {selectedJobCode !== "all" && jobs[selectedJobCode] && (
-            <div className="flex bg-gray-100 p-1 rounded-md gap-1 h-9 items-center">
-              <div className="flex items-center gap-1.5 px-2 h-7 bg-white rounded shadow-sm">
-                <span className="text-xs font-semibold text-gray-700">{selectedJobCode}</span>
-                <span className="text-xs text-gray-400">:</span>
-                <span className={`text-xs font-medium ${
-                  jobs[selectedJobCode].status === "Hiring" 
-                    ? "text-green-600" 
-                    : jobs[selectedJobCode].status === "Stopped" 
-                      ? "text-red-600" 
-                      : "text-gray-600"
-                }`}>
-                  {jobs[selectedJobCode].status === "Hiring" ? "Hiring" : 
-                   jobs[selectedJobCode].status === "Stopped" ? "Closed" : 
-                   jobs[selectedJobCode].status || "Unknown"}
-                </span>
-              </div>
-            </div>
-          )}
 
         </div>
 
@@ -917,7 +874,10 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                
                const colCandidates = filteredCandidates.filter(c => {
                    const s = c.status || "New";
-                   if (col.id === "Offer") return s === "Offer" || s === "Hired";
+                   if (col.isRejectedCol) {
+                      if (col.id === "Onboarding Failed") return s === "Rejected" && c.rejectedRound === "Offer";
+                       return s === "Rejected" && c.rejectedRound === col.id;
+                   }
                    return s === col.id;
                });
                
@@ -928,7 +888,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                 return (
                <div 
                    key={col.id} 
-                   className={`w-[220px] flex flex-col rounded-lg border border-gray-200/60 shadow-sm ${col.color} transition-colors duration-200`}
+                   className={`${viewMode === "offer" ? "flex-1 min-w-0" : "w-[220px]"} flex flex-col rounded-lg border border-gray-200/60 shadow-sm ${col.color} transition-colors duration-200`}
                    onDragOver={(e) => {
                        e.preventDefault(); // Allow drop
                        e.currentTarget.classList.add("ring-2", "ring-[#B91C1C]/20");
@@ -945,12 +905,12 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                const cand = JSON.parse(candJson);
                                if (cand.status !== col.id) {
                                    // Identify type for Interview status
-                                   let type: "HR" | "L1" | "L2" | undefined;
-                                   if (col.id === "HR Interview") type = "HR";
-                                   else if (col.id === "Interview") type = "L1";
-                                   else if (col.id === "Interview2") type = "L2";
-                                   
-                                   moveStatus(cand, col.id, type);
+                                   if (col.id === "HR Interview") handleInterviewModal(cand, "HR");
+                                   else if (col.id === "Interview") handleInterviewModal(cand, "L1");
+                                   else if (col.id === "Interview2") handleInterviewModal(cand, "L2");
+                                   else if (col.id === "Offer") handleOffer(cand);
+                                   else if (col.id === "Hired") handleHired(cand);
+                                   else moveStatus(cand, col.id);
                                }
                            } catch (err) {
                                console.error("Drop Error", err);
@@ -990,7 +950,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                    </Button>
                                  </DropdownMenuTrigger>
                                  <DropdownMenuContent align="end">
-                                   {showStock ? (
+                                   {viewMode === "stock" ? (
                                       <DropdownMenuItem onClick={() => handleReactivateCandidate(c)}>
                                          Rehire
                                       </DropdownMenuItem>
@@ -1009,33 +969,46 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                              </DropdownMenuItem>
                                          )}
                                          {col.id === "Screening" && (
-                                             <DropdownMenuItem onClick={() => moveStatus(c, "HR Interview", "HR")}>
+                                             <DropdownMenuItem onClick={() => handleInterviewModal(c, "HR")}>
                                              Schedule HR Interview
                                              </DropdownMenuItem>
                                          )}
                                          {col.id === "HR Interview" && (
-                                             <DropdownMenuItem onClick={() => moveStatus(c, "Interview", "L1")}>
+                                             <DropdownMenuItem onClick={() => handleInterviewModal(c, "L1")}>
                                              Schedule Manager L1
                                              </DropdownMenuItem>
                                          )}
                                          {col.id === "Interview" && (
                                              <>
-                                             <DropdownMenuItem onClick={() => moveStatus(c, "Interview2", "L2")}>
+                                             <DropdownMenuItem onClick={() => handleInterviewModal(c, "L2")}>
                                                  Schedule Manager L2
                                              </DropdownMenuItem>
-                                             <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
+                                             <DropdownMenuItem onClick={() => handleOffer(c)}>
                                                  Make Offer
                                              </DropdownMenuItem>
                                              </>
                                          )}
                                          {col.id === "Interview2" && (
-                                             <DropdownMenuItem onClick={() => moveStatus(c, "Offer")}>
+                                             <DropdownMenuItem onClick={() => handleOffer(c)}>
                                              Make Offer
                                              </DropdownMenuItem>
                                          )}
                                          {col.id === "Offer" && (
                                              <DropdownMenuItem className="text-green-600 font-bold" onClick={() => handleHired(c)}>
                                                  Hired
+                                             </DropdownMenuItem>
+                                         )}
+                                         
+                                         {/* Only allow fail directly from Offer stage in Active view or Offer view before Hired */}
+                                         {col.id === "Offer" && (
+                                             <DropdownMenuItem className="text-red-500 font-bold" onClick={() => {
+                                                  // Offer fail is basically a Decline but we can pre-select Offer round
+                                                  setDeclineReasonType("");
+                                                  setDeclineReasonText("");
+                                                  setSelectedCandidate(c);
+                                                  setIsDeclineModalOpen(true);
+                                             }}>
+                                                Onboarding Failed
                                              </DropdownMenuItem>
                                          )}
 
@@ -1050,7 +1023,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                          )}
                                          
                                          {/* Recovery logic only for Rejected, not for Stock (Stock has Reactivate) */}
-                                         {col.id === "Rejected" && (
+                                         {col.isRejectedCol && (
                                              <>
                                              <DropdownMenuSeparator />
                                              <DropdownMenuItem onClick={() => handleWithdraw(c)}>
@@ -1060,7 +1033,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                          )}
 
                                          <DropdownMenuSeparator />
-                                         {col.id !== "Rejected" && (
+                                        {!col.isRejectedCol && col.id !== "Onboarding Failed" && col.id !== "Hired" && (
                                              <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeclineClick(c)}>
                                              {t.actionDecline}
                                              </DropdownMenuItem>
@@ -1078,7 +1051,13 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                 {c.positionRaw}
                                 </span>
                                 {/* Show Stock Reason */}
-                                {showStock && c.notes && <p className="text-[10px] text-blue-600 italic">{c.notes}</p>}
+                                {viewMode === "stock" && c.notes && <p className="text-[10px] text-blue-600 italic">{c.notes}</p>}
+                                {col.isRejectedCol && (
+                                    <div className="bg-red-50 rounded p-1 border border-red-100 mt-1">
+                                        <p className="text-[10px] text-red-600 font-semibold">{c.failureReason || "No reason"}</p>
+                                        {c.additionalDetails && <p className="text-[9px] text-red-500 italic mt-0.5">{c.additionalDetails}</p>}
+                                    </div>
+                                )}
                             </div>
                             
                             <div className="flex items-center justify-between pt-1 border-t border-gray-100 mt-1">
@@ -1094,7 +1073,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                                 )}
                               </div>
                               
-                              {(col.id === "New" || showStock) && (
+                              {(col.id === "New" || viewMode === "stock") && (
                                 <Badge className={`h-5 text-[10px] px-1.5 ${
                                    parseInt(c.matchScore) >= 8 ? "bg-green-500" : 
                                    parseInt(c.matchScore) >= 5 ? "bg-yellow-500" : "bg-gray-500"
@@ -1170,32 +1149,21 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
       <Dialog open={isInterviewModalOpen} onOpenChange={setIsInterviewModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t.modalInterviewTitle} ({interviewType})</DialogTitle>
+            <DialogTitle>Confirm Interview ({interviewType})</DialogTitle>
           </DialogHeader>
-           <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Ngày</Label>
-                <Input type="date" className="col-span-3" value={interviewDetails.date} onChange={e => setInterviewDetails({...interviewDetails, date: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Giờ</Label>
-                <Input type="time" className="col-span-3" value={interviewDetails.time} onChange={e => setInterviewDetails({...interviewDetails, time: e.target.value})} />
-              </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Địa điểm</Label>
-                <Input className="col-span-3" value={interviewDetails.venue} onChange={e => setInterviewDetails({...interviewDetails, venue: e.target.value})} />
-              </div>
-               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">PV Với</Label>
-                <Input className="col-span-3" placeholder="Interviewer Name" value={interviewDetails.interviewer} onChange={e => setInterviewDetails({...interviewDetails, interviewer: e.target.value})} />
-              </div>
+           <div className="py-4 space-y-4">
+                <div className="space-y-2">
+                    <Label>Interview Date (dd/mm/yyyy)</Label>
+                    <Input 
+                        value={interviewDetails.date}
+                        onChange={(e) => setInterviewDetails({ date: e.target.value })}
+                        placeholder="dd/mm/yyyy"
+                    />
+                </div>
             </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsInterviewModalOpen(false)}>{t.btnCancel}</Button>
-            <Button variant="secondary" onClick={copyToClipboard} className="gap-2">
-                <Copy className="h-4 w-4" /> Copy Email Template
-            </Button>
-            <Button onClick={confirmInterview} className="bg-[#B91C1C] hover:bg-[#991b1b]">{t.btnSendInvite}</Button>
+            <Button onClick={confirmInterview} className="bg-orange-600 hover:bg-orange-700 text-white">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1221,7 +1189,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                             <SelectItem value="Headcount reduction">Headcount reduction</SelectItem>
                             <SelectItem value="Budget constraints">Budget constraints</SelectItem>
                             <SelectItem value="Strategy change">Strategy change</SelectItem>
-                            <SelectItem value="Hired internally">Hired internally</SelectItem>
+                            <SelectItem value="Successful Hired">Successful Hired</SelectItem>
                             <SelectItem value="Other">Other</SelectItem>
                         </SelectContent>
                     </Select>
@@ -1237,6 +1205,29 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
             <DialogFooter>
                 <Button variant="outline" onClick={() => setIsStopJobModalOpen(false)}>Cancel</Button>
                 <Button variant="destructive" onClick={handleStopJob}>Confirm Stop</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Offer Modal */}
+      <Dialog open={isOfferModalOpen} onOpenChange={setIsOfferModalOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Confirm Offer</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                <div className="space-y-2">
+                    <Label>Offer Date (dd/mm/yyyy)</Label>
+                    <Input 
+                        value={offerDate}
+                        onChange={(e) => setOfferDate(e.target.value)}
+                        placeholder="dd/mm/yyyy"
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsOfferModalOpen(false)}>{t.btnCancel}</Button>
+                <Button onClick={confirmOffer} className="bg-orange-600 hover:bg-orange-700 text-white">Confirm</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
