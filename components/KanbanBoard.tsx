@@ -278,8 +278,35 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           applyDate: hiredDate, 
           officialDate: hiredDate 
       });
+
+      // Auto-close job
+      if (selectedCandidate.jobCode && selectedCandidate.jobCode !== "Unknown") {
+          try {
+              const jobInfo = jobs[selectedCandidate.jobCode];
+              // Lookup title from candidates with same jobCode if jobInfo doesn't have it
+              const candidateTitle = candidates.find(c => c.jobCode === selectedCandidate.jobCode && c.positionRaw)?.positionRaw;
+              const title = jobInfo?.title || candidateTitle || "Unknown";
+              const positionId = jobInfo?.positionId || selectedCandidate.positionId || "Unknown";
+              const group = jobInfo?.group || (selectedCandidate.jobCode.startsWith("ST") ? "Store" : "HO");
+              await fetch("/api/jobs/stop", {
+                  method: "POST",
+                  body: JSON.stringify({ 
+                      jobCode: selectedCandidate.jobCode, 
+                      reason: "Successful Hired",
+                      title,
+                      positionId,
+                      group
+                  })
+              });
+          } catch (e) {
+              console.error("Auto close job failed", e);
+          }
+      }
+
+      await fetchCandidates();
       setIsHiredModalOpen(false);
   };
+
 
   const handleWithdraw = async (candidate: Candidate) => {
      // Determine previous status
@@ -1265,3 +1292,4 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
     </div>
   );
 }
+
