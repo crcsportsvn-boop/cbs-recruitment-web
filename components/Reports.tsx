@@ -303,7 +303,7 @@ export default function Reports({ lang, user }: ReportProps) {
               if (stageName === "HR Interview") return isNotBlankDate(c.hrInterviewDate);
               if (stageName === "HM Interview") return isNotBlankDate(c.interviewDate1);
               if (stageName === "Offer") return isNotBlankDate(c.offerDate);
-              if (stageName === "Onboard") return isNotBlankDate(c.startDate) || isNotBlankDate(c.officialDate) || c.status === "Hired";
+              if (stageName === "Onboard") return isNotBlankDate(c.officialDate);
               return false;
           };
 
