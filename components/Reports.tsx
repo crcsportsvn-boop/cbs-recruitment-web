@@ -30,6 +30,11 @@ interface Candidate {
   rejectedRound?: string;
   applyDate?: string; // YYYY-MM-DD HH:mm:ss
   dataSource?: string; // 'HO' or 'ST' - from API
+  testResult?: string;
+  hrInterviewDate?: string;
+  interviewDate1?: string;
+  interviewDate2?: string;
+  offerDate?: string;
 }
 
 interface JobData {
@@ -259,20 +264,6 @@ export default function Reports({ lang, user }: ReportProps) {
           else if (state === "Rejected") rejected++;
           else active++;
 
-          const currentStage = getStage(c);
-          const stageIndex = STAGES.indexOf(currentStage);
-          const rank = stageIndex >= 0 ? stageIndex : 0;
-
-          if (state !== "Stock") {
-              // Cumulative Funnel
-              for (let i = 0; i <= rank; i++) {
-                  const s = STAGES[i];
-                  if (s && stageCounts[s] !== undefined) {
-                      stageCounts[s]++;
-                  }
-              }
-          }
-
           const job = c.jobCode || "Unknown";
           const src = c.source || "Unknown";
 
@@ -292,14 +283,30 @@ export default function Reports({ lang, user }: ReportProps) {
           else { jobStats[job].active++; sourceStats[src].active++; }
 
           if (state !== "Stock") {
-              // Cumulative for Tables
-              for (let i = 0; i <= rank; i++) {
-                 const s = STAGES[i];
-                 if (s && STAGES.includes(s)) {
-                     if (jobStats[job] && jobStats[job].stages[s] !== undefined) jobStats[job].stages[s]++;
-                     if (sourceStats[src] && sourceStats[src].stages[s] !== undefined) sourceStats[src].stages[s]++;
-                 }
-              }
+              const isNotBlankDate = (val?: string) => {
+                  if (!val) return false;
+                  const trimmed = val.trim();
+                  return trimmed !== "" && trimmed !== "-" && trimmed !== "null" && trimmed !== "undefined";
+              };
+
+              const hasStage = (stageName: string) => {
+                  if (stageName === "New") return true;
+                  if (stageName === "Screening") return isNotBlankDate(c.testResult);
+                  if (stageName === "HR Interview") return isNotBlankDate(c.hrInterviewDate);
+                  if (stageName === "Interview Round 1") return isNotBlankDate(c.interviewDate1);
+                  if (stageName === "Interview Round 2") return isNotBlankDate(c.interviewDate2);
+                  if (stageName === "Offer") return isNotBlankDate(c.offerDate);
+                  if (stageName === "Hired") return isNotBlankDate(c.startDate) || isNotBlankDate(c.officialDate) || c.status === "Hired";
+                  return false;
+              };
+
+              STAGES.forEach(s => {
+                  if (hasStage(s)) {
+                      stageCounts[s] = (stageCounts[s] ?? 0) + 1;
+                      jobStats[job].stages[s] = (jobStats[job].stages[s] ?? 0) + 1;
+                      sourceStats[src].stages[s] = (sourceStats[src].stages[s] ?? 0) + 1;
+                  }
+              });
           }
       });
 
