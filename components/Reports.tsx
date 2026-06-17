@@ -45,16 +45,14 @@ interface JobData {
   stopDate: string;
 }
 
-const STAGES = ["New", "Screening", "HR Interview", "Interview Round 1", "Interview Round 2", "Offer", "Hired"];
+const STAGES = ["New", "HR Interview", "HM Interview", "Offer", "Onboard"];
 
 const STAGE_KEYS: Record<string, string> = {
     "New": "stNew",
-    "Screening": "stScreen",
     "HR Interview": "stHR",
-    "Interview Round 1": "stL1",
-    "Interview Round 2": "stL2",
+    "HM Interview": "stHM",
     "Offer": "stOffer",
-    "Hired": "stHired"
+    "Onboard": "stOnboard"
 };
 
 export default function Reports({ lang, user }: ReportProps) {
@@ -102,12 +100,10 @@ export default function Reports({ lang, user }: ReportProps) {
         groupHO: "Khối Văn Phòng (HO)",
         groupStore: "Khối Cửa Hàng (Store)",
         stNew: "Mới",
-        stScreen: "Sàng Lọc",
         stHR: "PV HR",
-        stL1: "PV Vòng 1",
-        stL2: "PV Vòng 2",
+        stHM: "PV HM",
         stOffer: "Offer",
-        stHired: "Nhận Việc",
+        stOnboard: "Onboard",
         status: "Trạng thái Job",
         hiringJobs: "Job Đang Tuyển",
         closedJobs: "Job Đã Đóng",
@@ -133,12 +129,10 @@ export default function Reports({ lang, user }: ReportProps) {
         groupHO: "Head Office (HO)",
         groupStore: "Stores",
         stNew: "New",
-        stScreen: "Screening",
         stHR: "HR Interview",
-        stL1: "Round 1",
-        stL2: "Round 2",
+        stHM: "HM Interview",
         stOffer: "Offer",
-        stHired: "Hired",
+        stOnboard: "Onboard",
         status: "Job Status",
         hiringJobs: "Hiring Jobs",
         closedJobs: "Closed Jobs",
@@ -199,22 +193,6 @@ export default function Reports({ lang, user }: ReportProps) {
     return "Active";
   };
 
-  const getStage = (c: Candidate) => {
-      if (c.startDate || c.officialDate || c.status === "Hired") return "Hired";
-      
-      let status = c.status || "New";
-      if (status === "Rejected" && c.rejectedRound) {
-          status = c.rejectedRound;
-      }
-
-      if (status === "Interview") return "Interview Round 1";
-      if (status === "Interview2") return "Interview Round 2";
-      
-      // Safety check: if rejectedRound is random text, default to New? 
-      // User request implies we strictly trust the round.
-      // But if it doesn't match a key, it won't be counted in columns anyway.
-      return status;
-  };
 
   const filteredCandidates = useMemo(() => {
     return candidates.filter(c => {
@@ -282,32 +260,28 @@ export default function Reports({ lang, user }: ReportProps) {
           else if (state === "Rejected") { jobStats[job].rejected++; sourceStats[src].rejected++; }
           else { jobStats[job].active++; sourceStats[src].active++; }
 
-          if (state !== "Stock") {
-              const isNotBlankDate = (val?: string) => {
-                  if (!val) return false;
-                  const trimmed = val.trim();
-                  return trimmed !== "" && trimmed !== "-" && trimmed !== "null" && trimmed !== "undefined";
-              };
+          const isNotBlankDate = (val?: string) => {
+              if (!val) return false;
+              const trimmed = val.trim();
+              return trimmed !== "" && trimmed !== "-" && trimmed !== "null" && trimmed !== "undefined";
+          };
 
-              const hasStage = (stageName: string) => {
-                  if (stageName === "New") return true;
-                  if (stageName === "Screening") return isNotBlankDate(c.testResult);
-                  if (stageName === "HR Interview") return isNotBlankDate(c.hrInterviewDate);
-                  if (stageName === "Interview Round 1") return isNotBlankDate(c.interviewDate1);
-                  if (stageName === "Interview Round 2") return isNotBlankDate(c.interviewDate2);
-                  if (stageName === "Offer") return isNotBlankDate(c.offerDate);
-                  if (stageName === "Hired") return isNotBlankDate(c.startDate) || isNotBlankDate(c.officialDate) || c.status === "Hired";
-                  return false;
-              };
+          const hasStage = (stageName: string) => {
+              if (stageName === "New") return true;
+              if (stageName === "HR Interview") return isNotBlankDate(c.hrInterviewDate);
+              if (stageName === "HM Interview") return isNotBlankDate(c.interviewDate1);
+              if (stageName === "Offer") return isNotBlankDate(c.offerDate);
+              if (stageName === "Onboard") return isNotBlankDate(c.startDate) || isNotBlankDate(c.officialDate) || c.status === "Hired";
+              return false;
+          };
 
-              STAGES.forEach(s => {
-                  if (hasStage(s)) {
-                      stageCounts[s] = (stageCounts[s] ?? 0) + 1;
-                      jobStats[job].stages[s] = (jobStats[job].stages[s] ?? 0) + 1;
-                      sourceStats[src].stages[s] = (sourceStats[src].stages[s] ?? 0) + 1;
-                  }
-              });
-          }
+          STAGES.forEach(s => {
+              if (hasStage(s)) {
+                  stageCounts[s] = (stageCounts[s] ?? 0) + 1;
+                  jobStats[job].stages[s] = (jobStats[job].stages[s] ?? 0) + 1;
+                  sourceStats[src].stages[s] = (sourceStats[src].stages[s] ?? 0) + 1;
+              }
+          });
       });
 
       return { total, active, stock, rejected, stageCounts, jobStats, sourceStats };
@@ -578,7 +552,7 @@ export default function Reports({ lang, user }: ReportProps) {
                                        <TableCell className="text-center text-red-500 w-24">{stat.rejected}</TableCell>
                                        {STAGES.map(s => (<TableCell key={s} className="text-center text-xs border-l w-24">{stat.stages[s] || "-"}</TableCell>))}
                                        <TableCell className="text-center font-bold text-blue-600 border-l w-24">
-                                            {stat.stages["New"] > 0 ? Math.round((stat.stages["Hired"] / stat.stages["New"]) * 100) + "%" : "0%"}
+                                            {stat.stages["New"] > 0 ? Math.round((stat.stages["Onboard"] / stat.stages["New"]) * 100) + "%" : "0%"}
                                        </TableCell>
                                    </TableRow>
                                );
@@ -619,7 +593,7 @@ export default function Reports({ lang, user }: ReportProps) {
                                    <TableCell className="text-center text-red-500 w-24">{stat.rejected}</TableCell>
                                    {STAGES.map(s => (<TableCell key={s} className="text-center text-xs border-l w-24">{stat.stages[s] || "-"}</TableCell>))}
                                    <TableCell className="text-center font-bold text-blue-600 border-l w-24">
-                                        {stat.stages["New"] > 0 ? Math.round((stat.stages["Hired"] / stat.stages["New"]) * 100) + "%" : "0%"}
+                                        {stat.stages["New"] > 0 ? Math.round((stat.stages["Onboard"] / stat.stages["New"]) * 100) + "%" : "0%"}
                                    </TableCell>
                                </TableRow>
                            ))}
