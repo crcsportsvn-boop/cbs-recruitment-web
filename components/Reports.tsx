@@ -210,17 +210,49 @@ export default function Reports({ lang, user }: ReportProps) {
 
         // Date Filter
         if (dateFrom || dateTo) {
-            try {
-                const cDate = parse(c.timestamp || "", 'dd/MM/yyyy HH:mm:ss', new Date());
-                if (dateFrom) {
-                    const from = new Date(dateFrom); from.setHours(0,0,0,0);
-                    if (cDate < from) return false;
-                }
-                if (dateTo) {
-                    const to = new Date(dateTo); to.setHours(23,59,59,999);
-                    if (cDate > to) return false;
-                }
-            } catch (e) {}
+            const parseDateString = (dateStr?: string) => {
+                if (!dateStr) return null;
+                const clean = dateStr.trim();
+                if (!clean || clean === "-" || clean === "null" || clean === "undefined") return null;
+                
+                // Try dd/MM/yyyy HH:mm:ss
+                try {
+                    const d = parse(clean, 'dd/MM/yyyy HH:mm:ss', new Date());
+                    if (!isNaN(d.getTime())) return d;
+                } catch(e) {}
+                
+                // Try dd/MM/yyyy
+                try {
+                    const d = parse(clean, 'dd/MM/yyyy', new Date());
+                    if (!isNaN(d.getTime())) return d;
+                } catch(e) {}
+
+                // Try yyyy-MM-dd HH:mm:ss
+                try {
+                    const d = parse(clean, 'yyyy-MM-dd HH:mm:ss', new Date());
+                    if (!isNaN(d.getTime())) return d;
+                } catch(e) {}
+
+                // Try ISO
+                try {
+                    const d = parseISO(clean);
+                    if (!isNaN(d.getTime())) return d;
+                } catch(e) {}
+                
+                return null;
+            };
+
+            const cDate = parseDateString(c.timestamp);
+            if (!cDate) return false;
+
+            if (dateFrom) {
+                const from = new Date(dateFrom); from.setHours(0,0,0,0);
+                if (cDate < from) return false;
+            }
+            if (dateTo) {
+                const to = new Date(dateTo); to.setHours(23,59,59,999);
+                if (cDate > to) return false;
+            }
         }
 
         return true;
@@ -291,7 +323,15 @@ export default function Reports({ lang, user }: ReportProps) {
   const jobCounts = useMemo(() => {
     const candidateJobCodes = new Set<string>();
     candidates?.forEach(c => {
-        if (c.jobCode && c.jobCode.trim()) candidateJobCodes.add(c.jobCode.trim());
+        if (!c.jobCode || !c.jobCode.trim()) return;
+        const jobCode = c.jobCode.trim();
+        const job = jobMap[jobCode];
+        
+        // Priority: 1. dataSource from API, 2. job.group, 3. infer from jobCode
+        const group = c.dataSource === "ST" ? "Store" : (c.dataSource === "HO" ? "HO" : (job?.group || (jobCode.startsWith("ST") ? "Store" : "HO")));
+        if (filterGroup !== "all" && group !== filterGroup) return;
+
+        candidateJobCodes.add(jobCode);
     });
     
     let hiring = 0;
@@ -307,7 +347,7 @@ export default function Reports({ lang, user }: ReportProps) {
     });
       
     return { hiring, stopped };
-  }, [candidates, jobMap]);
+  }, [candidates, jobMap, filterGroup]);
 
   const funnelData = STAGES.map((stage, index) => {
       const val = stats.stageCounts[stage] || 0;
