@@ -92,10 +92,21 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [dateTo, setDateTo] = useState<string>("");
   const [viewMode, setViewMode] = useState<"active" | "offer" | "rejected" | "stock">("active");
   const [selectedJobCode, setSelectedJobCode] = useState<string>("all");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "HO" | "ST">("all"); // NEW: Data source filter
+  // FIX #1: Auto-init sourceFilter by user role — HO/ST recruiters only see their own source
+  const getInitialSourceFilter = (): "all" | "HO" | "ST" => {
+    if (user?.role === "HO_Recruiter") return "HO";
+    if (user?.role === "ST_Recruiter") return "ST";
+    return "all"; // Manager/Admin sees all
+  };
+  const [sourceFilter, setSourceFilter] = useState<"all" | "HO" | "ST">(getInitialSourceFilter());
   const [jobStatusFilter, setJobStatusFilter] = useState<"all" | "Hiring" | "Stopped">("all");
-  // Job Codes for Filter
-  const uniqueJobCodes = (Array.from(new Set(candidates.map(c => c.jobCode).filter(Boolean))) as string[]).sort((a, b) => a.localeCompare(b));
+  // FIX #2: uniqueJobCodes respects current sourceFilter so dropdown only shows relevant codes
+  const uniqueJobCodes = (Array.from(new Set(
+    candidates
+      .filter(c => sourceFilter === "all" || c.dataSource === sourceFilter)
+      .map(c => c.jobCode)
+      .filter(Boolean)
+  )) as string[]).sort((a, b) => a.localeCompare(b));
 
   // Modal State
   // Modal State
@@ -153,6 +164,11 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
   useEffect(() => {
     fetchCandidates();
+    // FIX #3: Poll every 60s to sync changes made directly in Google Sheets
+    const intervalId = setInterval(() => {
+      fetchCandidates();
+    }, 60000);
+    return () => clearInterval(intervalId);
   }, []);
 
   const fetchCandidates = async () => {
@@ -766,7 +782,11 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
           {/* Source Filter (Manager Only - combined view) */}
           {user?.role === "Manager" && (
           <div className="w-[120px]">
-            <Select value={sourceFilter} onValueChange={(v: "all" | "HO" | "ST") => setSourceFilter(v)}>
+            <Select value={sourceFilter} onValueChange={(v: "all" | "HO" | "ST") => {
+              setSourceFilter(v);
+              // Reset jobCode filter to avoid showing a code from the wrong source
+              setSelectedJobCode("all");
+            }}>
               <SelectTrigger className="bg-white h-9 text-sm">
                 <SelectValue placeholder="Source" />
               </SelectTrigger>
