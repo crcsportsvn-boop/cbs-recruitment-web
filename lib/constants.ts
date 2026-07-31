@@ -6,6 +6,7 @@ export const RECRUITMENT_SOURCES = [
   "Network",
   "Referal",
   "Headhunt",
+  "CareerViet",
   "Vietnamworks",
   "Email",
   "Internal",
