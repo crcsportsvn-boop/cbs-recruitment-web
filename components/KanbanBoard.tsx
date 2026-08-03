@@ -134,6 +134,7 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const [stopJobOtherReason, setStopJobOtherReason] = useState(""); // New
   const [isPotentialDecline, setIsPotentialDecline] = useState(false);
   const [jobCodeSearch, setJobCodeSearch] = useState(""); // #4: Job Code search
+  const [isDragging, setIsDragging] = useState(false); // Guard: prevent refresh during drag
 
   let COLUMNS: { id: string, title: string, color: string, dropTarget?: string, isRejectedCol?: boolean }[] = [];
   if (viewMode === "active" || viewMode === "stock") {
@@ -164,12 +165,38 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
 
   useEffect(() => {
     fetchCandidates();
-    // FIX #3: Poll every 60s to sync changes made directly in Google Sheets
-    const intervalId = setInterval(() => {
-      fetchCandidates();
-    }, 60000);
-    return () => clearInterval(intervalId);
   }, []);
+
+  // FIX #3 (v2): Sync from GG Sheet khi user quay lại tab, không interrupt thao tác đang dở
+  useEffect(() => {
+    const anyModalOpen =
+      isInterviewModalOpen ||
+      isDeclineModalOpen ||
+      isHiredModalOpen ||
+      isOfferModalOpen ||
+      isStopJobModalOpen ||
+      isRehireModalOpen ||
+      isResumeModalOpen;
+
+    const handleVisibilityChange = () => {
+      // Chỉ fetch khi tab active VÀ không có modal/drag đang mở
+      if (!document.hidden && !anyModalOpen && !isDragging) {
+        fetchCandidates();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [
+    isInterviewModalOpen,
+    isDeclineModalOpen,
+    isHiredModalOpen,
+    isOfferModalOpen,
+    isStopJobModalOpen,
+    isRehireModalOpen,
+    isResumeModalOpen,
+    isDragging,
+  ]);
 
   const fetchCandidates = async () => {
     try {
@@ -946,16 +973,17 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
                    </Badge>
                  </div>
 
-                 {/* Cards Container */}
-                 <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-gray-300">
-                   {colCandidates.map((c) => (
+             {/* Cards Container */}
+             <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-gray-300">
+               {colCandidates.map((c) => (
                        <div
                            draggable
                            onDragStart={(e) => {
                                e.dataTransfer.setData("candidate", JSON.stringify(c));
                                e.dataTransfer.effectAllowed = "move";
-                               // Optional: Set drag image or styling
+                               setIsDragging(true); // Guard: block refresh while dragging
                            }}
+                           onDragEnd={() => setIsDragging(false)} // Release guard when done
                            key={c.id} 
                            className="cursor-grab active:cursor-grabbing"
                         >
