@@ -36,5 +36,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# YoYo AI version control directory
+# YoYo AI & Antigravity IDE
 .yoyo/
+.venv/
+.understand-anything/
+.antigravity.checklist.md
+ai_agent_drafts/

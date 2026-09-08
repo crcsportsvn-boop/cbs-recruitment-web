@@ -27,6 +27,7 @@ import { Loader2, CheckCircle, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 import { dictionary, LangType } from "@/lib/dictionary";
+import { useRecruitmentData } from "@/lib/context/RecruitmentContext";
 
 // Form Schema
 const formSchema = z.object({
@@ -127,19 +128,16 @@ export default function CandidateInputForm({ lang = 'vi' }: CandidateInputFormPr
   const [activeJobs, setActiveJobs] = useState<any[]>([]);
   const [quickSelectValue, setQuickSelectValue] = useState("");
 
-  // Fetch Jobs on Mount
+  const { jobs: contextJobs } = useRecruitmentData();
+
+  // Sync Jobs from Central Context
   useEffect(() => {
-    fetch("/api/jobs")
-        .then(res => res.json())
-        .then(data => {
-            if (data.jobs) {
-                // Filter: Status is Empty or "Hiring"
-                const valid = data.jobs.filter((j: any) => !j.status || j.status === "Hiring");
-                setActiveJobs(valid);
-            }
-        })
-        .catch(err => console.error("Failed to fetch jobs", err));
-  }, []);
+    if (contextJobs && contextJobs.length > 0) {
+      // Filter: Status is Empty or "Hiring"
+      const valid = contextJobs.filter((j: any) => !j.status || j.status === "Hiring");
+      setActiveJobs(valid);
+    }
+  }, [contextJobs]);
 
   const handleQuickJobSelect = (value: string) => {
     setQuickSelectValue(value);

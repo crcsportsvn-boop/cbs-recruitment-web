@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 
+export const dynamic = 'force-dynamic';
+
 // Sheet Configuration
 const SPREADSHEET_ID_HO =
   process.env.GOOGLE_SHEET_ID_HO ||
@@ -90,45 +92,51 @@ async function fetchFromSheet(
 
     const rows = response.data.values || [];
 
-    return rows.map((row, index) => ({
-      id: index + 2,
-      dataSource, // NEW: Track which sheet this came from
-      sheetId: spreadsheetId, // NEW: For update routing
-      matchScore: row[0],
-      timestamp: row[1],
-      positionRaw: row[2],
-      source: row[3],
-      jobCode: row[4],
-      positionId: row[5],
-      fullName: row[6],
-      yob: row[7],
-      gender: row[8],
-      phone: row[9],
-      email: row[10],
-      location: row[11],
-      degree: row[12],
-      education: row[13],
-      jobFunction: row[18],
-      skills: row[19],
-      certification: row[20],
-      workHistory: row[17],
-      summary: row[21],
-      matchReason: row[22],
-      cvLink: row[23],
-      notes: row[36],
-      isPotential: row[26] === "TRUE",
-      status: row[27] || "New",
-      failureReason: row[28],
-      testResult: row[29],
-      hrInterviewDate: row[30],
-      interviewDate1: row[31],
-      interviewDate2: row[32],
-      offerDate: row[33],
-      startDate: row[34],
-      officialDate: row[35],
-      rejectedRound: row[37],
-      applyDate: row[38],
-    }));
+    return rows.map((row, index) => {
+      const cand: any = {
+        id: index + 2,
+        dataSource, // Track which sheet this came from
+        sheetId: spreadsheetId, // For update routing
+        matchScore: row[0] ? String(row[0]).trim() : "0",
+        timestamp: row[1] ? String(row[1]).trim() : "",
+        positionRaw: row[2] ? String(row[2]).trim() : "",
+        source: row[3] ? String(row[3]).trim() : "",
+        jobCode: row[4] ? String(row[4]).trim() : "",
+        positionId: row[5] ? String(row[5]).trim() : "",
+        fullName: row[6] ? String(row[6]).trim() : "",
+        isPotential: row[26] === "TRUE",
+        status: (row[27] && String(row[27]).trim()) || "New",
+      };
+
+      // Only attach optional fields if non-empty to optimize payload size
+      if (row[7]) cand.yob = String(row[7]).trim();
+      if (row[8]) cand.gender = String(row[8]).trim();
+      if (row[9]) cand.phone = String(row[9]).trim();
+      if (row[10]) cand.email = String(row[10]).trim();
+      if (row[11]) cand.location = String(row[11]).trim();
+      if (row[12]) cand.degree = String(row[12]).trim();
+      if (row[13]) cand.education = String(row[13]).trim();
+      if (row[17]) cand.workHistory = String(row[17]).trim();
+      if (row[18]) cand.jobFunction = String(row[18]).trim();
+      if (row[19]) cand.skills = String(row[19]).trim();
+      if (row[20]) cand.certification = String(row[20]).trim();
+      if (row[21]) cand.summary = String(row[21]).trim();
+      if (row[22]) cand.matchReason = String(row[22]).trim();
+      if (row[23]) cand.cvLink = String(row[23]).trim();
+      if (row[28]) cand.failureReason = String(row[28]).trim();
+      if (row[29]) cand.testResult = String(row[29]).trim();
+      if (row[30]) cand.hrInterviewDate = String(row[30]).trim();
+      if (row[31]) cand.interviewDate1 = String(row[31]).trim();
+      if (row[32]) cand.interviewDate2 = String(row[32]).trim();
+      if (row[33]) cand.offerDate = String(row[33]).trim();
+      if (row[34]) cand.startDate = String(row[34]).trim();
+      if (row[35]) cand.officialDate = String(row[35]).trim();
+      if (row[36]) cand.notes = String(row[36]).trim();
+      if (row[37]) cand.rejectedRound = String(row[37]).trim();
+      if (row[38]) cand.applyDate = String(row[38]).trim();
+
+      return cand;
+    });
   } catch (error: any) {
     console.error(`Error fetching from ${dataSource} sheet:`, error.message);
     return [];
@@ -195,11 +203,24 @@ export async function GET(req: NextRequest) {
       return 0; // Keep fetch order
     });
 
+    // Check if sync/force-refresh was requested
+    const isSync = req.nextUrl.searchParams.get("sync") === "1";
+    const cacheControl = isSync 
+      ? "no-store, no-cache, must-revalidate"
+      : "private, max-age=120, stale-while-revalidate=300";
+
     // Reverse to show latest first
-    return NextResponse.json({
-      candidates: allCandidates.reverse(),
-      sources: sources.map((s) => s.type), // Tell frontend which sources were fetched
-    });
+    return NextResponse.json(
+      {
+        candidates: allCandidates.reverse(),
+        sources: sources.map((s) => s.type), // Tell frontend which sources were fetched
+      },
+      {
+        headers: {
+          "Cache-Control": cacheControl,
+        },
+      },
+    );
   } catch (error: any) {
     console.error("Fetch Candidates Error:", error);
     return NextResponse.json(

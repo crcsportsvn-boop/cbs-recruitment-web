@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 
+export const dynamic = 'force-dynamic';
+
 const SPREADSHEET_ID_HO = process.env.GOOGLE_SHEET_ID_HO || "191CzArhWOeyCeRPHlhSbibMG-q_qfW3k2YUCPLvG06w";
 const SHEET_NAME_HO = "Jobs";
 
@@ -120,7 +122,19 @@ export async function GET(req: NextRequest) {
         }
     }
 
-    return NextResponse.json({ jobs: allJobs });
+    const isSync = req.nextUrl.searchParams.get("sync") === "1";
+    const cacheControl = isSync 
+      ? "no-store, no-cache, must-revalidate"
+      : "private, max-age=300, stale-while-revalidate=600";
+
+    return NextResponse.json(
+      { jobs: allJobs },
+      {
+        headers: {
+          "Cache-Control": cacheControl,
+        },
+      },
+    );
 
   } catch (error: any) {
     console.error("Fetch Jobs Error:", error);

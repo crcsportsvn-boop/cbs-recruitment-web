@@ -6,10 +6,11 @@ import CandidateInputForm from "@/components/CandidateInputForm";
 import KanbanBoard from "@/components/KanbanBoard";
 import DatapoolTable from "@/components/DatapoolTable";
 import Reports from "@/components/Reports";
+import OrgChartStudio from "@/components/org-chart/OrgChartStudio";
 import ScrollTopButton from "@/components/ScrollTopButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Globe, LogOut, ChevronDown, User as UserIcon } from "lucide-react";
+import { Globe, LogOut, ChevronDown, User as UserIcon, RefreshCw } from "lucide-react";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -19,6 +20,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { RecruitmentProvider, useRecruitmentData } from "@/lib/context/RecruitmentContext";
 
 export default function Home() {
   return (
@@ -46,19 +48,34 @@ function HomeContent() {
   const [loggingIn, setLoggingIn] = useState(true);
 
   useEffect(() => {
-    // ... logic fetch user giữ nguyên ...
     fetch('/api/user')
       .then(res => res.json())
       .then(data => {
-        if (data.authenticated) {
+        if (data.authenticated && data.user) {
           setUser(data.user);
+        } else if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+          // Auto dev bypass on localhost for immediate testing
+          setUser({
+            id: 'dev-manager-01',
+            email: 'dinhsang031@centralretail.com',
+            displayName: 'Manager / HO (Dev Mode)',
+            role: 'Manager'
+          });
         }
       })
-      .catch(err => console.error("Auth check failed", err))
+      .catch(err => {
+        console.error("Auth check failed", err);
+        if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+          setUser({
+            id: 'dev-manager-01',
+            email: 'dinhsang031@centralretail.com',
+            displayName: 'Manager / HO (Dev Mode)',
+            role: 'Manager'
+          });
+        }
+      })
       .finally(() => {
-          // Add a small artificial delay for smoothness if it's too fast (optional, but requested for "Experience")
-          // But usually better to just show content. Let's keep it snappy but animated.
-           setLoggingIn(false);
+         setLoggingIn(false);
       });
   }, []);
 
@@ -69,6 +86,7 @@ function HomeContent() {
       tabDatapool: "Kho Dữ Liệu",
       tabProcess: "Quy Trình Tuyển Dụng",
       tabReport: "Báo Cáo",
+      tabOrgChart: "Sơ Đồ Tổ Chức (Org Chart)",
       tabConfig: "Cấu Hình",
       footer: "© 2026 CBS Vietnam - Recruitment Portal",
       verifying: "Đang xác thực bảo mật..."
@@ -79,6 +97,7 @@ function HomeContent() {
       tabDatapool: "Datapool",
       tabProcess: "Recruitment Process",
       tabReport: "Reports",
+      tabOrgChart: "Org Chart Studio",
       tabConfig: "Settings",
       footer: "© 2026 CBS Vietnam - All rights reserved",
       verifying: "Verifying credentials..."
@@ -137,6 +156,24 @@ function HomeContent() {
                     </svg>
                     Sign in with Google
                     </Button>
+
+                    <div className="mt-4 pt-3 border-t border-gray-100 flex flex-col gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setUser({
+                              id: 'dev-manager-01',
+                              email: 'dinhsang031@centralretail.com',
+                              displayName: 'Đinh Sáng (Manager / HO)',
+                              role: 'Manager'
+                            });
+                          }}
+                          className="w-full text-xs text-gray-700 hover:bg-gray-100 border-dashed border-gray-400"
+                        >
+                          ⚡ Test Local (Bypass Login as Manager / HO)
+                        </Button>
+                    </div>
                 </div>
             )}
         </div>
@@ -147,10 +184,40 @@ function HomeContent() {
     );
   }
 
-  const isHO = user.role === 'HO_Recruiter';
-  const isStore = user.role === 'ST_Recruiter';
-  const isAdmin = user.role === 'Admin' || user.role === 'Manager';
-  const isGuest = user.role === 'Guest' || !user.role;
+  return (
+    <RecruitmentProvider user={user}>
+      <AuthenticatedApp
+        user={user}
+        lang={lang}
+        setLang={setLang}
+        activeTab={activeTab}
+        handleTabChange={handleTabChange}
+        t={t}
+      />
+    </RecruitmentProvider>
+  );
+}
+
+function AuthenticatedApp({
+  user,
+  lang,
+  setLang,
+  activeTab,
+  handleTabChange,
+  t,
+}: {
+  user: any;
+  lang: "vi" | "en";
+  setLang: (l: "vi" | "en") => void;
+  activeTab: string;
+  handleTabChange: (v: string) => void;
+  t: any;
+}) {
+  const { isSyncing, refreshData } = useRecruitmentData();
+  const isHO = user.role === "HO_Recruiter";
+  const isStore = user.role === "ST_Recruiter";
+  const isAdmin = user.role === "Admin" || user.role === "Manager";
+  const isGuest = user.role === "Guest" || !user.role;
 
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -158,58 +225,89 @@ function HomeContent() {
       <header className="bg-[#B91C1C] text-white p-4 shadow-md sticky top-0 z-40">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-             {/* Logo */}
+            {/* Logo */}
             <div className="bg-white p-1 rounded h-12 flex items-center justify-center">
-               <Image 
-                 src="/cbs-logo.png" 
-                 alt="CBS Logo" 
-                 width={120} 
-                 height={40} 
-                 className="object-contain h-full w-auto"
-                 priority
-               />
+              <Image
+                src="/cbs-logo.png"
+                alt="CBS Logo"
+                width={120}
+                height={40}
+                className="object-contain h-full w-auto"
+                priority
+              />
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight">{t[lang].title}</h1>
               <div className="text-xs text-red-100 flex gap-2 items-center mt-1">
-                  <span>{user.email}</span>
-                  <span className="bg-white/20 px-1 rounded font-mono" title="Role">{user.role}</span>
-
+                <span>{user.email}</span>
+                <span className="bg-white/20 px-1 rounded font-mono" title="Role">
+                  {user.role}
+                </span>
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-white hover:bg-white/20 hover:text-white"
-              onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')}
+
+          <div className="flex items-center gap-2">
+            {/* 1. Nút SYNC - mũi tên tròn update và chữ SYNC viết hoa giống chữ VN */}
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={isSyncing}
+              className="text-white hover:bg-white/20 hover:text-white font-medium flex items-center px-3"
+              onClick={() => refreshData(true)}
+              title={
+                lang === "vi"
+                  ? "Đồng bộ dữ liệu từ Google Sheets"
+                  : "Sync data from Google Sheets"
+              }
             >
-              <Globe className="h-4 w-4 mr-2" />
-              {lang === 'vi' ? 'EN' : 'VN'}
+              <RefreshCw
+                className={`h-4 w-4 mr-1.5 ${isSyncing ? "animate-spin" : ""}`}
+              />
+              SYNC
             </Button>
 
+            {/* 2. Nút Ngôn ngữ (VN / EN) */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/20 hover:text-white font-medium flex items-center px-3"
+              onClick={() => setLang(lang === "vi" ? "en" : "vi")}
+            >
+              <Globe className="h-4 w-4 mr-1.5" />
+              {lang === "vi" ? "VN" : "EN"}
+            </Button>
+
+            {/* 3. Nút Account Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-white hover:bg-white/20 gap-2 px-2">
-                   <div className="h-6 w-6 bg-white/20 rounded-full flex items-center justify-center">
-                      <UserIcon className="h-4 w-4" />
-                   </div>
-                   <ChevronDown className="h-4 w-4" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white/20 gap-2 px-2"
+                >
+                  <div className="h-6 w-6 bg-white/20 rounded-full flex items-center justify-center">
+                    <UserIcon className="h-4 w-4" />
+                  </div>
+                  <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>
-                   <div className="flex flex-col">
-                      <span>{user?.displayName || user?.name || "User"}</span>
-                      <span className="text-xs text-gray-400 font-normal">{user?.email}</span>
-                   </div>
+                  <div className="flex flex-col">
+                    <span>{user?.displayName || user?.name || "User"}</span>
+                    <span className="text-xs text-gray-400 font-normal">
+                      {user?.email}
+                    </span>
+                  </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => window.location.href = "/api/auth/logout"} className="text-red-600 focus:text-red-600">
+                <DropdownMenuItem
+                  onClick={() => (window.location.href = "/api/auth/logout")}
+                  className="text-red-600 focus:text-red-600"
+                >
                   <LogOut className="h-4 w-4 mr-2" />
-                  {lang === 'vi' ? 'Đăng xuất' : 'Log out'}
+                  {lang === "vi" ? "Đăng xuất" : "Log out"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -266,6 +364,11 @@ function HomeContent() {
                 <TabsTrigger value="reports" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                     {t[lang].tabReport}
                 </TabsTrigger>
+                {(isHO || isAdmin) && (
+                    <TabsTrigger value="orgchart" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
+                        {t[lang].tabOrgChart}
+                    </TabsTrigger>
+                )}
                 {isAdmin && (
                     <TabsTrigger value="settings" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                         {t[lang].tabConfig}
@@ -291,6 +394,12 @@ function HomeContent() {
             <TabsContent value="reports" className="w-full h-full min-h-[600px] animate-in fade-in slide-in-from-right-10 duration-300">
                 <Reports lang={lang} user={user} />
             </TabsContent>
+
+            {(isHO || isAdmin) && (
+              <TabsContent value="orgchart" className="w-full h-full min-h-[600px] animate-in fade-in slide-in-from-right-10 duration-300">
+                  <OrgChartStudio lang={lang} user={user} />
+              </TabsContent>
+            )}
             
             <TabsContent value="settings">
                 <div className="text-center p-10 text-muted-foreground bg-white rounded-lg shadow">

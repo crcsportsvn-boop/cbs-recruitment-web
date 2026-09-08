@@ -1,0 +1,12 @@
+{
+  "template": "company_n1",
+  "selectedDivision": "Crocs",
+  "densityMode": "full",
+  "showNicknames": true,
+  "showSumUpTable": true,
+  "showSharedSidebar": true,
+  "zoomLevel": 1,
+  "exportedAt": "2026-08-25T11:50:00.000Z",
+  "version": "1.0.0",
+  "description": "CBS Master Org Chart & Headcount Proposal Draft"
+}

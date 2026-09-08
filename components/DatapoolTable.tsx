@@ -56,6 +56,7 @@ import {
 import { Label } from "@/components/ui/label";
 import RehireModal from "@/components/RehireModal";
 import { parse, isAfter, parseISO } from "date-fns";
+import { useRecruitmentData } from "@/lib/context/RecruitmentContext";
 
 interface JobData {
   jobCode: string;
@@ -119,8 +120,16 @@ const REASONS_EN = [
 export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   const t = dictionary[lang].datapoolTable;
   const tKanban = dictionary[lang].kanban;
+  const {
+    candidates: contextCandidates,
+    jobs: contextJobs,
+    loading: contextLoading,
+    updateCandidateInCache,
+    refreshData,
+  } = useRecruitmentData();
+
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(contextLoading);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -192,79 +201,79 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
   const [jobCodeSearch, setJobCodeSearch] = useState(""); // #4: searchable job code
 
   useEffect(() => {
-    fetchCandidates();
-  }, []);
+    setLoading(contextLoading);
+  }, [contextLoading]);
 
-  const fetchCandidates = async () => {
-    try {
-      setLoading(true);
-      const [candRes, jobRes] = await Promise.all([
-        fetch("/api/candidates"),
-        fetch("/api/jobs"),
-      ]);
-
-      if (!candRes.ok) throw new Error("Failed to fetch candidates");
-      const data = await candRes.json();
-      const jobData = await jobRes.json();
-
-      // Process Jobs into Map
-      const jobMap: Record<string, JobData> = {};
-      if (jobData.jobs) {
-        jobData.jobs.forEach((j: any) => {
-          jobMap[j.jobCode] = {
-            jobCode: j.jobCode,
-            status: j.status,
-            stopDate: j.stopDate,
-          };
-        });
-      }
-      setJobs(jobMap);
-
-      const formatted = data.candidates.map((c: any) => ({
+  // Sync candidates from central context
+  useEffect(() => {
+    if (contextCandidates && contextCandidates.length >= 0) {
+      const formatted = contextCandidates.map((c: any) => ({
         id: c.id,
-        name: c.fullName,
+        name: c.fullName || c.name || "",
         position: c.positionId
           ? `${c.positionRaw} (${c.positionId})`
           : c.positionRaw,
         status: c.status || "New",
         matchScore: parseInt(c.matchScore) || 0,
-        phone: c.phone,
-        email: c.email,
-        cvLink: c.cvLink,
-        education: c.education,
-        degree: c.degree,
-        matchReason: c.matchReason,
-        source: c.source,
-        timestamp: c.timestamp,
-        failureReason: c.failureReason,
-        summary: c.summary,
+        phone: c.phone || "",
+        email: c.email || "",
+        cvLink: c.cvLink || "",
+        education: c.education || "",
+        degree: c.degree || "",
+        matchReason: c.matchReason || "",
+        source: c.source || "",
+        timestamp: c.timestamp || "",
+        failureReason: c.failureReason || "",
+        summary: c.summary || "",
         isPotential: c.isPotential,
-        rejectedRound: c.rejectedRound,
-        yob: c.yob,
-        gender: c.gender,
-        location: c.location,
-        notes: c.notes,
-        // Map new fields
-        jobFunction: c.jobFunction,
-        workHistory: c.workHistory,
-        skills: c.skills,
-
-        certification: c.certification,
-        jobCode: c.jobCode,
-        applyDate: c.applyDate,
-        dataSource: c.dataSource,  // Track which sheet (HO/ST)
-        sheetId: c.sheetId,        // Exact sheet ID for update routing
+        rejectedRound: c.rejectedRound || "",
+        yob: c.yob || "",
+        gender: c.gender || "",
+        location: c.location || "",
+        notes: c.notes || "",
+        jobFunction: c.jobFunction || "",
+        workHistory: c.workHistory || "",
+        skills: c.skills || "",
+        certification: c.certification || "",
+        jobCode: c.jobCode || "",
+        applyDate: c.applyDate || "",
+        dataSource: c.dataSource || "HO",
+        sheetId: c.sheetId || "",
       }));
       setCandidates(formatted);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
     }
+  }, [contextCandidates]);
+
+  // Sync jobs from central context
+  useEffect(() => {
+    if (contextJobs && contextJobs.length >= 0) {
+      const jobMap: Record<string, JobData> = {};
+      contextJobs.forEach((j: any) => {
+        if (j.jobCode) {
+          jobMap[j.jobCode] = {
+            jobCode: j.jobCode,
+            status: j.status,
+            stopDate: j.stopDate || "",
+          };
+        }
+      });
+      setJobs(jobMap);
+    }
+  }, [contextJobs]);
+
+  const fetchCandidates = async () => {
+    await refreshData(true);
   };
 
   const updateCandidateAPI = async (candidate: Candidate, updates: any) => {
     try {
+      // Optimistically update local Datapool state
+      setCandidates((prev) =>
+        prev.map((c) => (c.id === candidate.id ? { ...c, ...updates } : c)),
+      );
+      // Also update central context cache
+      updateCandidateInCache(candidate.id, updates);
+
       const res = await fetch("/api/candidates/update", {
         method: "POST",
         body: JSON.stringify({ 
@@ -279,12 +288,9 @@ export default function DatapoolTable({ lang, user }: DatapoolTableProps) {
         const err = await res.json();
         throw new Error(err.error || "API returned error");
       }
-
-      setCandidates((prev) =>
-        prev.map((c) => (c.id === candidate.id ? { ...c, ...updates } : c)),
-      );
     } catch (error) {
       console.error("Update failed", error);
+      fetchCandidates(); // Revert
     }
   };
 

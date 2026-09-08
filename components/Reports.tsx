@@ -10,6 +10,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList, C
 import { ACTIVE_JOBS } from "@/lib/constants";
 import { Loader2, Filter, AlertCircle } from "lucide-react";
 import { parse, isAfter, parseISO } from "date-fns";
+import { useRecruitmentData } from "@/lib/context/RecruitmentContext";
 
 interface ReportProps {
   lang: LangType;
@@ -56,9 +57,15 @@ const STAGE_KEYS: Record<string, string> = {
 };
 
 export default function Reports({ lang, user }: ReportProps) {
+  const {
+    candidates: contextCandidates,
+    jobs: contextJobs,
+    loading: contextLoading,
+  } = useRecruitmentData();
+
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [jobs, setJobs] = useState<JobData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(contextLoading);
 
   // Filters
   const [filterJob, setFilterJob] = useState("all");
@@ -142,28 +149,20 @@ export default function Reports({ lang, user }: ReportProps) {
   }[lang];
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    setLoading(contextLoading);
+  }, [contextLoading]);
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [candRes, jobRes] = await Promise.all([
-        fetch("/api/candidates"),
-        fetch("/api/jobs")
-      ]);
-
-      const candData = await candRes.json();
-      const jobData = await jobRes.json();
-
-      setCandidates(candData.candidates || []);
-      setJobs(jobData.jobs || []);
-    } catch (error) {
-      console.error("Failed to fetch data", error);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (contextCandidates && contextCandidates.length >= 0) {
+      setCandidates(contextCandidates as any);
     }
-  };
+  }, [contextCandidates]);
+
+  useEffect(() => {
+    if (contextJobs && contextJobs.length >= 0) {
+      setJobs(contextJobs as any);
+    }
+  }, [contextJobs]);
 
   const jobMap = useMemo(() => {
     const map: Record<string, JobData> = {};

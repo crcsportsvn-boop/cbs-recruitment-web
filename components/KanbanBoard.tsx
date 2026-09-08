@@ -14,6 +14,7 @@ import { MoreHorizontal, Search, EyeOff, Eye, Copy, Check } from "lucide-react";
 import { dictionary, LangType } from "@/lib/dictionary";
 import { ACTIVE_JOBS } from "@/lib/constants";
 import { parse, isAfter, parseISO } from "date-fns";
+import { useRecruitmentData } from "@/lib/context/RecruitmentContext";
 
 interface JobData {
     jobCode: string;
@@ -81,9 +82,18 @@ const REASONS_EN = [
 
 export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   const t = dictionary[lang].kanban;
+  const {
+    candidates: contextCandidates,
+    jobs: contextJobs,
+    loading: contextLoading,
+    updateCandidateInCache,
+    updateJobInCache,
+    refreshData,
+  } = useRecruitmentData();
+
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [jobs, setJobs] = useState<Record<string, JobData>>({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(contextLoading);
   
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -109,17 +119,16 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   )) as string[]).sort((a, b) => a.localeCompare(b));
 
   // Modal State
-  // Modal State
   const [isInterviewModalOpen, setIsInterviewModalOpen] = useState(false);
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
-  const [isStopJobModalOpen, setIsStopJobModalOpen] = useState(false);
-  const [isRehireModalOpen, setIsRehireModalOpen] = useState(false); // New
-  const [rehireCandidate, setRehireCandidate] = useState<Candidate | null>(null); // New
   const [isHiredModalOpen, setIsHiredModalOpen] = useState(false);
+  const [isStopJobModalOpen, setIsStopJobModalOpen] = useState(false); // New
+  const [isRehireModalOpen, setIsRehireModalOpen] = useState(false);
+  const [rehireCandidate, setRehireCandidate] = useState<Candidate | null>(null);
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [hiredDate, setHiredDate] = useState("");
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const [offerDate, setOfferDate] = useState("");
-  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   
   // Data for Modals
@@ -164,80 +173,24 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   }
 
   useEffect(() => {
-    fetchCandidates();
-  }, []);
+    setLoading(contextLoading);
+  }, [contextLoading]);
 
-  // FIX #3 (v2): Sync from GG Sheet khi user quay lại tab, không interrupt thao tác đang dở
+  // Sync candidates from central context
   useEffect(() => {
-    const anyModalOpen =
-      isInterviewModalOpen ||
-      isDeclineModalOpen ||
-      isHiredModalOpen ||
-      isOfferModalOpen ||
-      isStopJobModalOpen ||
-      isRehireModalOpen ||
-      isResumeModalOpen;
-
-    const handleVisibilityChange = () => {
-      // Chỉ fetch khi tab active VÀ không có modal/drag đang mở
-      if (!document.hidden && !anyModalOpen && !isDragging) {
-        fetchCandidates();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [
-    isInterviewModalOpen,
-    isDeclineModalOpen,
-    isHiredModalOpen,
-    isOfferModalOpen,
-    isStopJobModalOpen,
-    isRehireModalOpen,
-    isResumeModalOpen,
-    isDragging,
-  ]);
-
-  const fetchCandidates = async () => {
-    try {
-      setLoading(true);
-      const [candRes, jobRes] = await Promise.all([
-        fetch("/api/candidates"),
-        fetch("/api/jobs")
-      ]);
-      
-      if (!candRes.ok) throw new Error("Failed");
-      const data = await candRes.json();
-      const jobData = await jobRes.json();
-
-      // Jobs Map - Store complete job info including title and positionId
-      const jobMap: Record<string, JobData> = {};
-      if (jobData.jobs) {
-          jobData.jobs.forEach((j: any) => {
-              jobMap[j.jobCode] = { 
-                  jobCode: j.jobCode, 
-                  positionId: j.positionId,
-                  title: j.title,
-                  group: j.group,
-                  status: j.status, 
-                  stopDate: j.stopDate 
-              };
-          });
-      }
-      setJobs(jobMap);
-
-      const formatted = data.candidates.map((c: any) => ({
-        // ... mapping remains same, assuming API returns same structure
+    if (contextCandidates && contextCandidates.length >= 0) {
+      const formatted = contextCandidates.map((c: any) => ({
         id: c.id,
-        fullName: c.fullName,
-        positionRaw: c.positionRaw,
+        fullName: c.fullName || "",
+        positionRaw: c.positionRaw || "",
         status: c.status || "New",
-        matchScore: c.matchScore,
-        cvLink: c.cvLink,
+        matchScore: c.matchScore || "0",
+        cvLink: c.cvLink || "",
         email: c.email || "",
         matchReason: c.matchReason || "",
         notes: c.notes || "",
         jobCode: c.jobCode,
+        positionId: c.positionId,
         timestamp: c.timestamp,
         log: c.log || "",
         offerDate: c.offerDate,
@@ -248,16 +201,37 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
         failureReason: c.failureReason,
         isPotential: c.isPotential,
         rejectedRound: c.rejectedRound,
+        rejectedReason: c.rejectedReason,
         applyDate: c.applyDate,
-        dataSource: c.dataSource || "HO", // NEW: Track data source
-        sheetId: c.sheetId, // NEW: For update routing
+        dataSource: c.dataSource || "HO",
+        sheetId: c.sheetId,
       }));
       setCandidates(formatted);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
     }
+  }, [contextCandidates]);
+
+  // Sync jobs from central context
+  useEffect(() => {
+    if (contextJobs && contextJobs.length >= 0) {
+      const jobMap: Record<string, JobData> = {};
+      contextJobs.forEach((j: any) => {
+        if (j.jobCode) {
+          jobMap[j.jobCode] = {
+            jobCode: j.jobCode,
+            positionId: j.positionId,
+            title: j.title,
+            group: j.group,
+            status: j.status,
+            stopDate: j.stopDate || "",
+          };
+        }
+      });
+      setJobs(jobMap);
+    }
+  }, [contextJobs]);
+
+  const fetchCandidates = async () => {
+    await refreshData(true);
   };
 
   // --- ACTIONS ---
@@ -488,10 +462,12 @@ export default function KanbanBoard({ lang, user }: KanbanBoardProps) {
   };
 
   const updateCandidateAPI = async (candidate: Candidate, updates: any) => {
-    // Optimistic update
+    // Optimistic update locally
     setCandidates(prev => prev.map(c => 
       c.id === candidate.id ? { ...c, ...updates } : c
     ));
+    // Also update central context cache
+    updateCandidateInCache(candidate.id, updates);
 
     try {
       const res = await fetch("/api/candidates/update", {
