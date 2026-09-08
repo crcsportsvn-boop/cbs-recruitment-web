@@ -36,7 +36,8 @@ function HomeContent() {
   const router = useRouter();
   const pathname = usePathname();
   
-  const activeTab = searchParams.get("tab") || "input";
+  const tabParam = searchParams.get("tab") || "input";
+  const activeTab = tabParam === "orgchart" ? "input" : tabParam;
 
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -364,11 +365,12 @@ function AuthenticatedApp({
                 <TabsTrigger value="reports" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                     {t[lang].tabReport}
                 </TabsTrigger>
-                {(isHO || isAdmin) && (
+                {/* OrgChart tab - ẩn tạm thời chưa publish */}
+                {/* {(isHO || isAdmin) && (
                     <TabsTrigger value="orgchart" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                         {t[lang].tabOrgChart}
                     </TabsTrigger>
-                )}
+                )} */}
                 {isAdmin && (
                     <TabsTrigger value="settings" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                         {t[lang].tabConfig}
@@ -395,11 +397,12 @@ function AuthenticatedApp({
                 <Reports lang={lang} user={user} />
             </TabsContent>
 
-            {(isHO || isAdmin) && (
+            {/* OrgChart content - ẩn tạm thời chưa publish */}
+            {/* {(isHO || isAdmin) && (
               <TabsContent value="orgchart" className="w-full h-full min-h-[600px] animate-in fade-in slide-in-from-right-10 duration-300">
                   <OrgChartStudio lang={lang} user={user} />
               </TabsContent>
-            )}
+            )} */}
             
             <TabsContent value="settings">
                 <div className="text-center p-10 text-muted-foreground bg-white rounded-lg shadow">
