@@ -1,22 +1,100 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import OrgChartStudio from '@/components/org-chart/OrgChartStudio';
 import { Button } from '@/components/ui/button';
 import {
   ArrowLeft,
-  Sparkles,
   HelpCircle,
-  Laptop,
-  CheckCircle2,
-  FileSpreadsheet,
-  FileDown
+  Lock,
 } from 'lucide-react';
+
+/** Roles allowed to access Org Chart Studio */
+const ALLOWED_ROLES = ['Admin', 'Manager', 'HO_Recruiter'];
 
 export default function OrgChartReviewPage() {
   const [showQuickGuide, setShowQuickGuide] = useState<boolean>(false);
+  const [authState, setAuthState] = useState<'loading' | 'allowed' | 'denied'>('loading');
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    // Dev mode bypass on localhost
+    const isLocalhost =
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1';
+
+    if (isLocalhost) {
+      // In dev mode, allow full access (same mock user as main page)
+      setUser({ role: 'Manager', displayName: 'Dev Mode', email: 'dev@localhost' });
+      setAuthState('allowed');
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    fetch('/api/user', { signal: controller.signal })
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated && data.user) {
+          setUser(data.user);
+          const allowed = ALLOWED_ROLES.includes(data.user.role);
+          setAuthState(allowed ? 'allowed' : 'denied');
+        } else {
+          // Not authenticated at all → redirect to login
+          window.location.href = '/';
+        }
+      })
+      .catch(() => {
+        // Network error or abort → redirect to main
+        window.location.href = '/';
+      })
+      .finally(() => clearTimeout(timeout));
+  }, []);
+
+  // Loading skeleton
+  if (authState === 'loading') {
+    return (
+      <main className="h-screen bg-slate-100 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative w-10 h-10">
+            <div className="absolute inset-0 border-4 border-slate-200 rounded-full" />
+            <div className="absolute inset-0 border-4 border-[#B91C1C] rounded-full border-t-transparent animate-spin" />
+          </div>
+          <p className="text-slate-500 text-sm font-medium">Đang xác thực...</p>
+        </div>
+      </main>
+    );
+  }
+
+  // Access denied screen
+  if (authState === 'denied') {
+    return (
+      <main className="h-screen bg-slate-100 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-10 max-w-md w-full text-center">
+          <div className="flex justify-center mb-4">
+            <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center">
+              <Lock className="w-7 h-7 text-[#B91C1C]" />
+            </div>
+          </div>
+          <h1 className="text-xl font-bold text-slate-900 mb-2">Không có quyền truy cập</h1>
+          <p className="text-slate-500 text-sm mb-6">
+            Tính năng <strong>Org Chart Studio</strong> chỉ dành cho <strong>Manager</strong> và <strong>HO Recruiter</strong>.
+          </p>
+          <Link href="/">
+            <Button className="bg-[#B91C1C] hover:bg-[#991B1B] text-white gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Về Cổng Tuyển Dụng
+            </Button>
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+
 
   return (
     <main className="h-screen bg-slate-100 flex flex-col font-sans overflow-hidden">
