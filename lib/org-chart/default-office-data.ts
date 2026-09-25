@@ -1333,6 +1333,38 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
+    "id": "SHO-HOK-146-148-011-1",
+    "title": "Marketing Manager",
+    "division": "HOKA",
+    "dept": "Marketing",
+    "subDept": "Marketing",
+    "jobGrade": "14",
+    "reportsToId": "THL_REG_MKT_HOKA",
+    "reportsToTitle": "Regional Head of MKT - Hoka",
+    "holderName": "Trần Ngọc Trang",
+    "nickname": "Trang",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
+    "id": "SHO-HOK-146-148-012-1",
+    "title": "Marketing Executive",
+    "division": "HOKA",
+    "dept": "Marketing",
+    "subDept": "Marketing",
+    "jobGrade": "11",
+    "reportsToId": "SHO-HOK-146-148-011-1",
+    "reportsToTitle": "Marketing Manager",
+    "holderName": "Lê Thị Vi",
+    "nickname": "Vi",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
     "id": "SHO-HUM-006-001-005-1",
     "title": "Admin Executive",
     "division": "Human Resources",
@@ -1348,6 +1380,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     ],
     "status": "active"
   },
+
   {
     "id": "SHO-HUM-006-005-061-1",
     "title": "HRBP cum OD Manager",

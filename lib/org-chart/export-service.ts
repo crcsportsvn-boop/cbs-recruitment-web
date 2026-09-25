@@ -4,6 +4,73 @@ import * as XLSX from 'xlsx';
 import { OrgProposalState, OrgNode, HeadcountSummary, ProposalChange, ProposalJustificationRow } from '@/types/org-chart';
 
 /**
+ * Helper: trigger a Blob download reliably across browsers and production environments
+ */
+function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  // Delay revoke so the browser has time to start the download
+  setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 1500);
+}
+
+/**
+ * Shared html2canvas clone handler — strips transforms, resets overflow/clamp
+ */
+function applyCloneCleanup(clonedElement: HTMLElement, exportW: number, exportH: number): void {
+  clonedElement.style.transform = 'none';
+  clonedElement.style.transition = 'none';
+  clonedElement.style.margin = '0';
+  clonedElement.style.overflow = 'visible';
+  clonedElement.style.width = `${exportW}px`;
+  clonedElement.style.height = `${exportH}px`;
+
+  const allElements = clonedElement.querySelectorAll<HTMLElement>('*');
+  allElements.forEach(el => {
+    el.style.overflow = 'visible';
+    el.style.textOverflow = 'clip';
+
+    const classNameStr =
+      typeof el.className === 'string'
+        ? el.className
+        : typeof (el.className as any)?.baseVal === 'string'
+        ? (el.className as any).baseVal
+        : '';
+
+    if (
+      classNameStr.includes('-webkit-box') ||
+      classNameStr.includes('line-clamp') ||
+      (el.style as any).webkitLineClamp
+    ) {
+      el.style.display = 'block';
+      (el.style as any).webkitLineClamp = 'unset';
+      (el.style as any).webkitBoxOrient = 'unset';
+      el.style.maxHeight = 'none';
+      el.style.height = 'auto';
+    }
+
+    if (['DIV', 'SPAN', 'P', 'H1', 'H2', 'H3', 'H4', 'STRONG', 'B'].includes(el.tagName)) {
+      el.style.lineHeight = '1.35';
+      el.style.textRendering = 'geometricPrecision';
+      (el.style as any).webkitFontSmoothing = 'antialiased';
+    }
+  });
+
+  const cards = clonedElement.querySelectorAll<HTMLElement>('[style*="min-height"], [style*="minHeight"], .group');
+  cards.forEach(card => {
+    card.style.overflow = 'visible';
+    card.style.height = 'auto';
+  });
+}
+
+/**
  * Exports the HTML Canvas element to high-resolution PNG image
  */
 export async function exportToImage(element: HTMLElement, filename: string = 'CBS_Org_Chart.png'): Promise<void> {
@@ -16,14 +83,13 @@ export async function exportToImage(element: HTMLElement, filename: string = 'CB
     }
   }
 
-  // Read unscaled base dimensions directly from style or unscaled element metrics
   const rawStyleW = parseInt(element.style.width, 10);
   const rawStyleH = parseInt(element.style.height, 10);
   const exportW = Math.max(rawStyleW || element.scrollWidth || element.offsetWidth, 1440);
   const exportH = Math.max(rawStyleH || element.scrollHeight || element.offsetHeight, 810);
 
   const canvas = await html2canvas(element, {
-    scale: 2.5, // Razor-sharp 2.5x resolution for crystal clear PowerPoint presentation
+    scale: 2.5,
     useCORS: true,
     logging: false,
     backgroundColor: '#ffffff',
@@ -36,61 +102,25 @@ export async function exportToImage(element: HTMLElement, filename: string = 'CB
     x: 0,
     y: 0,
     onclone: (_clonedDoc, clonedElement) => {
-      // Reset zoom/pan transforms so the cloned DOM is rendered in pristine 1:1 state
-      clonedElement.style.transform = 'none';
-      clonedElement.style.transition = 'none';
-      clonedElement.style.margin = '0';
-      clonedElement.style.overflow = 'visible';
-      clonedElement.style.width = `${exportW}px`;
-      clonedElement.style.height = `${exportH}px`;
-
-      // Remove overflow clipping across all cloned elements to completely prevent text truncation
-      const allElements = clonedElement.querySelectorAll<HTMLElement>('*');
-      allElements.forEach(el => {
-        el.style.overflow = 'visible';
-        el.style.textOverflow = 'clip';
-
-        // Strip webkit line clamp and box-orient so letters are never cut in half
-        const classNameStr = typeof el.className === 'string'
-          ? el.className
-          : (typeof (el.className as any)?.baseVal === 'string' ? (el.className as any).baseVal : '');
-
-        if (
-          classNameStr.includes('-webkit-box') ||
-          classNameStr.includes('line-clamp') ||
-          (el.style as any).webkitLineClamp
-        ) {
-          el.style.display = 'block';
-          (el.style as any).webkitLineClamp = 'unset';
-          (el.style as any).webkitBoxOrient = 'unset';
-          el.style.maxHeight = 'none';
-          el.style.height = 'auto';
-        }
-
-        // Clean typography rendering with comfortable line-height so letters and accents never slice
-        if (['DIV', 'SPAN', 'P', 'H1', 'H2', 'H3', 'H4', 'STRONG', 'B'].includes(el.tagName)) {
-          el.style.lineHeight = '1.35';
-          el.style.textRendering = 'geometricPrecision';
-          (el.style as any).webkitFontSmoothing = 'antialiased';
-        }
-      });
-
-      // Ensure all card wrappers have breathing room
-      const cards = clonedElement.querySelectorAll<HTMLElement>('[style*="min-height"], [style*="minHeight"], .group');
-      cards.forEach(card => {
-        card.style.overflow = 'visible';
-        card.style.height = 'auto';
-      });
+      applyCloneCleanup(clonedElement, exportW, exportH);
     }
   });
 
-  const image = canvas.toDataURL('image/png', 1.0);
-  const link = document.createElement('a');
-  link.href = image;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  // Wrap toBlob in a Promise so we properly await the download trigger
+  await new Promise<void>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error('Canvas toBlob returned null'));
+          return;
+        }
+        triggerBlobDownload(blob, filename);
+        resolve();
+      },
+      'image/png',
+      1.0
+    );
+  });
 }
 
 /**
@@ -128,51 +158,28 @@ export async function exportToPDF(
     x: 0,
     y: 0,
     onclone: (_clonedDoc, clonedElement) => {
-      clonedElement.style.transform = 'none';
-      clonedElement.style.transition = 'none';
-      clonedElement.style.margin = '0';
-      clonedElement.style.overflow = 'visible';
-      clonedElement.style.width = `${exportW}px`;
-      clonedElement.style.height = `${exportH}px`;
-
-      const allElements = clonedElement.querySelectorAll<HTMLElement>('*');
-      allElements.forEach(el => {
-        el.style.overflow = 'visible';
-        el.style.textOverflow = 'clip';
-
-        const classNameStr = typeof el.className === 'string'
-          ? el.className
-          : (typeof (el.className as any)?.baseVal === 'string' ? (el.className as any).baseVal : '');
-
-        if (
-          classNameStr.includes('-webkit-box') ||
-          classNameStr.includes('line-clamp') ||
-          (el.style as any).webkitLineClamp
-        ) {
-          el.style.display = 'block';
-          (el.style as any).webkitLineClamp = 'unset';
-          (el.style as any).webkitBoxOrient = 'unset';
-          el.style.maxHeight = 'none';
-          el.style.height = 'auto';
-        }
-
-        if (['DIV', 'SPAN', 'P', 'H1', 'H2', 'H3', 'H4', 'STRONG', 'B'].includes(el.tagName)) {
-          el.style.lineHeight = '1.35';
-          el.style.textRendering = 'geometricPrecision';
-          (el.style as any).webkitFontSmoothing = 'antialiased';
-        }
-      });
-
-      const cards = clonedElement.querySelectorAll<HTMLElement>('[style*="min-height"], [style*="minHeight"], .group');
-      cards.forEach(card => {
-        card.style.overflow = 'visible';
-        card.style.height = 'auto';
-      });
+      applyCloneCleanup(clonedElement, exportW, exportH);
     }
   });
 
-  const imgData = canvas.toDataURL('image/png', 1.0);
-  
+  // Wrap toBlob in Promise, then embed in PDF
+  const pngBlob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) { reject(new Error('Canvas toBlob returned null')); return; }
+        resolve(blob);
+      },
+      'image/png',
+      1.0
+    );
+  });
+
+  const imgData = await new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.readAsDataURL(pngBlob);
+  });
+
   // Dimensions in mm (Landscape)
   const isA3 = paperFormat === 'a3';
   const pdfWidth = isA3 ? 420 : 297;
@@ -282,14 +289,7 @@ export function exportProposalExcel(
   // Generate ArrayBuffer and trigger download
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  triggerBlobDownload(blob, filename);
 }
 
 /**
@@ -298,14 +298,7 @@ export function exportProposalExcel(
 export function exportProposalJSON(state: OrgProposalState, filename: string = 'CBS_Org_Proposal.cbsorg'): void {
   const jsonStr = JSON.stringify(state, null, 2);
   const blob = new Blob([jsonStr], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  triggerBlobDownload(blob, filename);
 }
 
 /**
