@@ -4,25 +4,31 @@ import * as XLSX from 'xlsx';
 import { OrgProposalState, OrgNode, HeadcountSummary, ProposalChange, ProposalJustificationRow } from '@/types/org-chart';
 
 /**
- * Helper: trigger a Blob download reliably across browsers and production environments
+ * Trigger a named file download from a Blob.
+ * Uses data URI conversion to ensure filename is respected cross-browser.
  */
-function triggerBlobDownload(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-  // Delay revoke so the browser has time to start the download
-  setTimeout(() => {
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, 1500);
+function downloadBlob(blob: Blob, filename: string): Promise<void> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        resolve();
+      }, 500);
+    };
+    reader.readAsDataURL(blob);
+  });
 }
 
 /**
- * Shared html2canvas clone handler — strips transforms, resets overflow/clamp
+ * Shared html2canvas clone handler – strips transforms, resets overflow/clamp
  */
 function applyCloneCleanup(clonedElement: HTMLElement, exportW: number, exportH: number): void {
   clonedElement.style.transform = 'none';
@@ -32,8 +38,7 @@ function applyCloneCleanup(clonedElement: HTMLElement, exportW: number, exportH:
   clonedElement.style.width = `${exportW}px`;
   clonedElement.style.height = `${exportH}px`;
 
-  const allElements = clonedElement.querySelectorAll<HTMLElement>('*');
-  allElements.forEach(el => {
+  clonedElement.querySelectorAll<HTMLElement>('*').forEach(el => {
     el.style.overflow = 'visible';
     el.style.textOverflow = 'clip';
 
@@ -63,24 +68,19 @@ function applyCloneCleanup(clonedElement: HTMLElement, exportW: number, exportH:
     }
   });
 
-  const cards = clonedElement.querySelectorAll<HTMLElement>('[style*="min-height"], [style*="minHeight"], .group');
-  cards.forEach(card => {
+  clonedElement.querySelectorAll<HTMLElement>('[style*="min-height"], [style*="minHeight"], .group').forEach(card => {
     card.style.overflow = 'visible';
     card.style.height = 'auto';
   });
 }
 
 /**
- * Exports the HTML Canvas element to high-resolution PNG image
+ * Exports the HTML Canvas element to high-resolution PNG image.
+ * Uses toDataURL (not blob URL) so Chrome always respects the filename.
  */
 export async function exportToImage(element: HTMLElement, filename: string = 'CBS_Org_Chart.png'): Promise<void> {
-  // Wait for all web fonts to load completely
   if (typeof document !== 'undefined' && (document as any).fonts?.ready) {
-    try {
-      await (document as any).fonts.ready;
-    } catch {
-      // ignore
-    }
+    try { await (document as any).fonts.ready; } catch { /* ignore */ }
   }
 
   const rawStyleW = parseInt(element.style.width, 10);
@@ -101,30 +101,23 @@ export async function exportToImage(element: HTMLElement, filename: string = 'CB
     scrollY: 0,
     x: 0,
     y: 0,
-    onclone: (_clonedDoc, clonedElement) => {
-      applyCloneCleanup(clonedElement, exportW, exportH);
-    }
+    onclone: (_clonedDoc, clonedElement) => applyCloneCleanup(clonedElement, exportW, exportH)
   });
 
-  // Wrap toBlob in a Promise so we properly await the download trigger
-  await new Promise<void>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error('Canvas toBlob returned null'));
-          return;
-        }
-        triggerBlobDownload(blob, filename);
-        resolve();
-      },
-      'image/png',
-      1.0
-    );
-  });
+  // Use dataURL directly – Chrome always honors the .download attribute on data URIs
+  const dataUrl = canvas.toDataURL('image/png', 1.0);
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => document.body.removeChild(a), 500);
 }
 
 /**
- * Exports the HTML Canvas element to vector-fitted PDF (supports A4 and A3 Landscape)
+ * Exports the HTML Canvas element to PDF (A4 or A3 Landscape).
+ * jsPDF.save() has its own reliable download mechanism.
  */
 export async function exportToPDF(
   element: HTMLElement,
@@ -132,11 +125,7 @@ export async function exportToPDF(
   paperFormat: 'a4' | 'a3' = 'a4'
 ): Promise<void> {
   if (typeof document !== 'undefined' && (document as any).fonts?.ready) {
-    try {
-      await (document as any).fonts.ready;
-    } catch {
-      // ignore
-    }
+    try { await (document as any).fonts.ready; } catch { /* ignore */ }
   }
 
   const rawStyleW = parseInt(element.style.width, 10);
@@ -157,61 +146,34 @@ export async function exportToPDF(
     scrollY: 0,
     x: 0,
     y: 0,
-    onclone: (_clonedDoc, clonedElement) => {
-      applyCloneCleanup(clonedElement, exportW, exportH);
-    }
+    onclone: (_clonedDoc, clonedElement) => applyCloneCleanup(clonedElement, exportW, exportH)
   });
 
-  // Wrap toBlob in Promise, then embed in PDF
-  const pngBlob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) { reject(new Error('Canvas toBlob returned null')); return; }
-        resolve(blob);
-      },
-      'image/png',
-      1.0
-    );
-  });
+  // Use dataURL for embedding into PDF
+  const imgData = canvas.toDataURL('image/png', 1.0);
 
-  const imgData = await new Promise<string>((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target?.result as string);
-    reader.readAsDataURL(pngBlob);
-  });
-
-  // Dimensions in mm (Landscape)
   const isA3 = paperFormat === 'a3';
   const pdfWidth = isA3 ? 420 : 297;
   const pdfHeight = isA3 ? 297 : 210;
   const margin = 8;
 
-  const pdf = new jsPDF({
-    orientation: 'landscape',
-    unit: 'mm',
-    format: paperFormat
-  });
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: paperFormat });
 
   const contentWidth = pdfWidth - margin * 2;
   const contentHeight = pdfHeight - margin * 2;
-
-  const imgWidth = canvas.width;
-  const imgHeight = canvas.height;
-  const ratio = Math.min(contentWidth / imgWidth, contentHeight / imgHeight);
-
-  const finalWidth = imgWidth * ratio;
-  const finalHeight = imgHeight * ratio;
-
+  const ratio = Math.min(contentWidth / canvas.width, contentHeight / canvas.height);
+  const finalWidth = canvas.width * ratio;
+  const finalHeight = canvas.height * ratio;
   const posX = (pdfWidth - finalWidth) / 2;
   const posY = (pdfHeight - finalHeight) / 2;
 
   pdf.addImage(imgData, 'PNG', posX, posY, finalWidth, finalHeight);
+  // jsPDF.save() uses its own FileSaver mechanism – reliable in all browsers
   pdf.save(filename);
 }
 
 /**
  * Exports the proposal dataset to structured Excel workbook (.xlsx)
- * Contains: Proposal_Master, Diff_Summary, Proposal_Justification, Headcount_Summary
  */
 export function exportProposalExcel(
   proposalNodes: OrgNode[],
@@ -222,7 +184,6 @@ export function exportProposalExcel(
 ): void {
   const wb = XLSX.utils.book_new();
 
-  // 1. Sheet: Proposal_Master (Format matches original input Excel)
   const masterData = proposalNodes
     .filter(n => !n.isVirtual && !n.isSupervisor)
     .map((n, idx) => ({
@@ -241,10 +202,8 @@ export function exportProposalExcel(
       'Proposal Status': n.status === 'new_hire' ? 'New Hire BP' : n.status === 'replace' ? 'Replace' : n.status === 'vacant' ? 'Vacant' : 'Active',
       'Proposal Tag / Badge': n.customLabel || ''
     }));
-  const wsMaster = XLSX.utils.json_to_sheet(masterData);
-  XLSX.utils.book_append_sheet(wb, wsMaster, 'Proposal_Master');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(masterData), 'Proposal_Master');
 
-  // 2. Sheet: Diff_Summary (Changes compared to Current)
   const diffData = diffList.map((d, idx) => ({
     'STT': idx + 1,
     'Mã Vị Trí': d.nodeId,
@@ -256,10 +215,8 @@ export function exportProposalExcel(
     'Giá Trị Sau': d.newValue || '-',
     'Chi Tiết Biến Động': d.description
   }));
-  const wsDiff = XLSX.utils.json_to_sheet(diffData.length > 0 ? diffData : [{ 'Thông Báo': 'Không có biến động so với sơ đồ hiện tại' }]);
-  XLSX.utils.book_append_sheet(wb, wsDiff, 'Diff_Summary');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(diffData.length > 0 ? diffData : [{ 'Thông Báo': 'Không có biến động so với sơ đồ hiện tại' }]), 'Diff_Summary');
 
-  // 3. Sheet: Proposal_Justification (Thuyết minh nhu cầu)
   const justData = justificationRows.map((j, idx) => ({
     'STT': idx + 1,
     'Mã Vị Trí': j.positionId,
@@ -271,10 +228,8 @@ export function exportProposalExcel(
     'Cấp Bậc (Grade)': j.jobGrade || '',
     'Ngân Sách / Chi Phí': j.budgetImpact || ''
   }));
-  const wsJust = XLSX.utils.json_to_sheet(justData.length > 0 ? justData : [{ 'Thông Báo': 'Chưa có ghi chú thuyết minh' }]);
-  XLSX.utils.book_append_sheet(wb, wsJust, 'Proposal_Justification');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(justData.length > 0 ? justData : [{ 'Thông Báo': 'Chưa có ghi chú thuyết minh' }]), 'Proposal_Justification');
 
-  // 4. Sheet: Headcount_Summary
   const summaryData = [
     { 'Chỉ Số Định Biên': 'Tổng số ghế định biên hiện tại (Total Seats)', 'Số Lượng': summary.totalSeats },
     { 'Chỉ Số Định Biên': 'Đã có nhân sự (Occupied)', 'Số Lượng': summary.occupied },
@@ -283,22 +238,21 @@ export function exportProposalExcel(
     { 'Chỉ Số Định Biên': 'Đề xuất thay thế nhân sự (Replace)', 'Số Lượng': summary.replacement },
     { 'Chỉ Số Định Biên': 'TỔNG ĐỊNH BIÊN KẾ HOẠCH (Planned Total)', 'Số Lượng': summary.plannedTotal }
   ];
-  const wsSummary = XLSX.utils.json_to_sheet(summaryData);
-  XLSX.utils.book_append_sheet(wb, wsSummary, 'Headcount_Summary');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), 'Headcount_Summary');
 
-  // Generate ArrayBuffer and trigger download
+  // XLSX: convert to array then to Blob → use FileReader to get dataURL so filename is honored
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  triggerBlobDownload(blob, filename);
+  downloadBlob(blob, filename);
 }
 
 /**
- * Exports proposal state to a downloadable JSON file
+ * Exports proposal state to a downloadable JSON file (.cbsorg)
  */
 export function exportProposalJSON(state: OrgProposalState, filename: string = 'CBS_Org_Proposal.cbsorg'): void {
   const jsonStr = JSON.stringify(state, null, 2);
   const blob = new Blob([jsonStr], { type: 'application/json' });
-  triggerBlobDownload(blob, filename);
+  downloadBlob(blob, filename);
 }
 
 /**
@@ -310,9 +264,8 @@ export function importProposalJSON(file: File): Promise<OrgProposalState> {
     reader.onload = (e) => {
       try {
         const text = e.target?.result as string;
-        const parsed = JSON.parse(text) as OrgProposalState;
-        resolve(parsed);
-      } catch (err) {
+        resolve(JSON.parse(text) as OrgProposalState);
+      } catch {
         reject(new Error('Invalid CBS Org proposal JSON file'));
       }
     };
