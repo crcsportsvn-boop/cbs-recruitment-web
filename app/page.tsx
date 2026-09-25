@@ -6,7 +6,6 @@ import CandidateInputForm from "@/components/CandidateInputForm";
 import KanbanBoard from "@/components/KanbanBoard";
 import DatapoolTable from "@/components/DatapoolTable";
 import Reports from "@/components/Reports";
-import OrgChartStudio from "@/components/org-chart/OrgChartStudio";
 import ScrollTopButton from "@/components/ScrollTopButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { RecruitmentProvider, useRecruitmentData } from "@/lib/context/RecruitmentContext";
 
 export default function Home() {
@@ -37,9 +37,14 @@ function HomeContent() {
   const pathname = usePathname();
   
   const tabParam = searchParams.get("tab") || "input";
-  const activeTab = tabParam === "orgchart" ? "input" : tabParam;
+  const activeTab = tabParam;
 
   const handleTabChange = (value: string) => {
+    // Org Chart Studio opens as standalone page for full-screen experience
+    if (value === 'orgchart') {
+      window.location.href = '/org-chart';
+      return;
+    }
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", value);
     router.push(`${pathname}?${params.toString()}`);
@@ -47,38 +52,50 @@ function HomeContent() {
 
   const [user, setUser] = useState<any>(null);
   const [loggingIn, setLoggingIn] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    fetch('/api/user')
+    setMounted(true);
+    
+    // Check localhost immediately on client
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalhost) {
+      setUser({
+        id: 'dev-manager-01',
+        email: 'dinhsang031@centralretail.com',
+        displayName: 'Manager / HO (Dev Mode)',
+        role: 'Manager'
+      });
+      setLoggingIn(false);
+      return;
+    }
+
+    // Production: fetch with 8s timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    fetch('/api/user', { signal: controller.signal })
       .then(res => res.json())
       .then(data => {
         if (data.authenticated && data.user) {
           setUser(data.user);
-        } else if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-          // Auto dev bypass on localhost for immediate testing
-          setUser({
-            id: 'dev-manager-01',
-            email: 'dinhsang031@centralretail.com',
-            displayName: 'Manager / HO (Dev Mode)',
-            role: 'Manager'
-          });
         }
       })
       .catch(err => {
-        console.error("Auth check failed", err);
-        if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-          setUser({
-            id: 'dev-manager-01',
-            email: 'dinhsang031@centralretail.com',
-            displayName: 'Manager / HO (Dev Mode)',
-            role: 'Manager'
-          });
+        if (err.name !== 'AbortError') {
+          console.error("Auth check failed", err);
         }
       })
       .finally(() => {
-         setLoggingIn(false);
+        clearTimeout(timeout);
+        setLoggingIn(false);
       });
   }, []);
+
+  // Before client mount, show nothing (SSR placeholder)
+  if (!mounted) {
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-gray-400">Loading...</p></div>;
+  }
 
   const t = {
     vi: {
@@ -219,6 +236,8 @@ function AuthenticatedApp({
   const isStore = user.role === "ST_Recruiter";
   const isAdmin = user.role === "Admin" || user.role === "Manager";
   const isGuest = user.role === "Guest" || !user.role;
+  // Feature flag: Enable Org Chart for local review and HRBP testing
+  const ENABLE_ORG_CHART = true;
 
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -365,12 +384,11 @@ function AuthenticatedApp({
                 <TabsTrigger value="reports" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                     {t[lang].tabReport}
                 </TabsTrigger>
-                {/* OrgChart tab - ẩn tạm thời chưa publish */}
-                {/* {(isHO || isAdmin) && (
+                {(isHO || isAdmin) && ENABLE_ORG_CHART && (
                     <TabsTrigger value="orgchart" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                         {t[lang].tabOrgChart}
                     </TabsTrigger>
-                )} */}
+                )}
                 {isAdmin && (
                     <TabsTrigger value="settings" className="px-6 py-3 data-[state=active]:bg-[#B91C1C] data-[state=active]:text-white transition-all">
                         {t[lang].tabConfig}
@@ -397,12 +415,7 @@ function AuthenticatedApp({
                 <Reports lang={lang} user={user} />
             </TabsContent>
 
-            {/* OrgChart content - ẩn tạm thời chưa publish */}
-            {/* {(isHO || isAdmin) && (
-              <TabsContent value="orgchart" className="w-full h-full min-h-[600px] animate-in fade-in slide-in-from-right-10 duration-300">
-                  <OrgChartStudio lang={lang} user={user} />
-              </TabsContent>
-            )} */}
+            {/* Org Chart Studio tab redirects to /org-chart standalone page (see handleTabChange) */}
             
             <TabsContent value="settings">
                 <div className="text-center p-10 text-muted-foreground bg-white rounded-lg shadow">

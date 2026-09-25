@@ -16,6 +16,8 @@ interface OrgNodeCardProps {
   hasChildren?: boolean;
   isCollapsed?: boolean;
   collapsedCount?: number;
+  isDiffView?: boolean;
+  diffType?: 'new_hire' | 'replace' | 'removed' | 'reassigned' | 'title_modified' | 'none';
   onToggleCollapse?: (nodeId: string) => void;
   onSelect?: (node: OrgNode) => void;
   onEdit?: (node: OrgNode) => void;
@@ -36,6 +38,8 @@ export const OrgNodeCard: React.FC<OrgNodeCardProps> = ({
   hasChildren = false,
   isCollapsed = false,
   collapsedCount = 0,
+  isDiffView = false,
+  diffType = 'none',
   onToggleCollapse,
   onSelect,
   onEdit,
@@ -75,9 +79,16 @@ export const OrgNodeCard: React.FC<OrgNodeCardProps> = ({
     .replace(/\s+/g, ' ')
     .trim();
 
+  // Uniform font sizing across all cards so managerial and staff titles are consistently aligned
+  const isLargeCard = (node.width || 185) >= 210;
+  const titleLen = cleanTitle.length;
+  const titleSizeClass = isLargeCard
+    ? (titleLen > 40 ? 'text-[11px] leading-[1.25]' : 'text-[12px] leading-[1.3]')
+    : (titleLen > 40 ? 'text-[10px] leading-[1.22]' : 'text-[11px] leading-[1.25]');
+
   // Status Styling
-  const isNewHire = node.status === 'new_hire' || (node.customLabel && node.customLabel.includes('New Hire'));
-  const isReplace = node.status === 'replace' || (node.customLabel && node.customLabel.includes('Replace')) || node.title?.toLowerCase().includes('(replace)');
+  const isNewHire = node.status === 'new_hire' || (node.customLabel && node.customLabel.includes('New Hire')) || diffType === 'new_hire';
+  const isReplace = node.status === 'replace' || (node.customLabel && node.customLabel.includes('Replace')) || node.title?.toLowerCase().includes('(replace)') || diffType === 'replace';
   const isVacant = node.status === 'vacant' || node.nickname?.toLowerCase() === 'vacant';
   const isHighlight = node.status === 'highlight' || !!node.highlightColor;
 
@@ -85,14 +96,26 @@ export const OrgNodeCard: React.FC<OrgNodeCardProps> = ({
   let borderStyle = 'border-slate-800';
   let textColor = 'text-slate-900';
 
-  if (isNewHire) {
-    containerBg = 'bg-emerald-50/90';
-    borderStyle = 'border-emerald-600 border-2';
+  if (node.isSupervisor) {
+    containerBg = 'bg-blue-50/95';
+    borderStyle = 'border-blue-600 border-2 shadow-md';
+    textColor = 'text-blue-950';
+  } else if (isNewHire) {
+    containerBg = 'bg-emerald-50/95';
+    borderStyle = 'border-emerald-600 border-2 shadow-sm ring-1 ring-emerald-400';
     textColor = 'text-emerald-950';
   } else if (isReplace) {
-    containerBg = 'bg-rose-50/90';
-    borderStyle = 'border-rose-500 border-2';
+    containerBg = 'bg-rose-50/95';
+    borderStyle = 'border-rose-500 border-2 shadow-sm ring-1 ring-rose-300';
     textColor = 'text-rose-950';
+  } else if (diffType === 'reassigned') {
+    containerBg = 'bg-amber-50/95';
+    borderStyle = 'border-amber-500 border-2 shadow-sm';
+    textColor = 'text-amber-950';
+  } else if (diffType === 'title_modified') {
+    containerBg = 'bg-blue-50/95';
+    borderStyle = 'border-blue-500 border-2 shadow-sm';
+    textColor = 'text-blue-950';
   } else if (isVacant) {
     containerBg = 'bg-slate-50/80';
     borderStyle = 'border-dashed border-slate-400';
@@ -101,6 +124,9 @@ export const OrgNodeCard: React.FC<OrgNodeCardProps> = ({
     containerBg = node.highlightColor || 'bg-amber-100';
     borderStyle = 'border-amber-500 border-2';
   }
+
+  // In diff mode: Dim untouched nodes slightly to let changes pop out visually
+  const isDiffDimmed = isDiffView && diffType === 'none';
 
   const displayName = showNicknames ? (node.nickname || node.holderName || '') : '';
 
@@ -128,12 +154,15 @@ export const OrgNodeCard: React.FC<OrgNodeCardProps> = ({
   return (
     <div
       style={{
-        width: node.width || 185,
-        minHeight: node.height || 72,
-        height: node.height || 72,
+        width: Math.max(node.width || 185, 185),
+        minHeight: Math.max(node.height || 76, 76),
+        height: Math.max(node.height || 76, 76),
         backgroundColor: node.highlightColor ? node.highlightColor : undefined
       }}
-      className={`relative group rounded p-1.5 flex flex-col justify-between text-center select-none shadow-xs transition-all border ${borderStyle} ${containerBg} ${
+      title={`${cleanTitle}${displayName ? ` (${displayName})` : ''} - ${node.dept || node.division || 'HO'}`}
+      className={`relative group rounded ${densityMode === 'compact' ? 'p-1' : 'p-1.5'} flex flex-col justify-between text-center select-none shadow-xs transition-all border ${borderStyle} ${containerBg} ${
+        isDiffDimmed ? 'opacity-65 hover:opacity-100' : 'opacity-100'
+      } ${
         isConnectSource
           ? 'ring-4 ring-blue-500 shadow-xl scale-105'
           : isConnectTargetCandidate
@@ -179,23 +208,29 @@ export const OrgNodeCard: React.FC<OrgNodeCardProps> = ({
         <Pencil className="w-2.5 h-2.5" />
       </button>
 
-      {/* 2-Line Fixed Height Title Section with perfectly aligned baseline */}
-      <div className="flex items-center justify-between gap-1 w-full min-h-[30px] pointer-events-none">
-        <div className={`text-[11px] font-bold tracking-tight leading-[1.25] flex-1 text-center line-clamp-2 ${textColor}`}>
+      {/* Adaptive Title Section with Tooltip - Never Truncates */}
+      <div className="flex items-start justify-between gap-1 w-full min-h-[30px] pointer-events-none">
+        <div 
+          title={cleanTitle}
+          className={`${titleSizeClass} font-bold tracking-tight flex-1 text-center break-words ${textColor}`}
+        >
           {cleanTitle}
         </div>
-        {shouldShowFlags() && <FlagBadgeGroup flags={node.flags} size={13} />}
+        {shouldShowFlags() && <FlagBadgeGroup flags={node.flags} size={12} />}
       </div>
 
       {/* Person Name / Nickname */}
       {densityMode !== 'position_only' && displayName ? (
-        <div className="flex items-center justify-center gap-1 text-[11px] font-medium leading-tight pointer-events-none">
+        <div 
+          title={displayName}
+          className={`flex items-center justify-center gap-1 ${isLargeCard ? 'text-[12px]' : 'text-[10.5px]'} font-semibold leading-normal pointer-events-none truncate max-w-full px-1 pt-0.5`}
+        >
           {isReplace ? (
-            <span className="text-red-700 font-bold">({displayName})</span>
+            <span className="text-rose-700 font-bold truncate">({displayName})</span>
           ) : isNewHire ? (
-            <span className="text-emerald-800 font-bold">({displayName})</span>
+            <span className="text-emerald-800 font-bold truncate">({displayName})</span>
           ) : (
-            <span className="text-slate-800">({displayName})</span>
+            <span className="text-slate-800 truncate">({displayName})</span>
           )}
         </div>
       ) : (
@@ -204,17 +239,33 @@ export const OrgNodeCard: React.FC<OrgNodeCardProps> = ({
 
       {/* Department Line */}
       {densityMode === 'full' && node.dept && (
-        <div className="flex items-center justify-center text-[9px] text-slate-400 border-t border-slate-100 pt-0.5 pointer-events-none">
-          <span className="truncate max-w-[150px] text-slate-500">{node.dept}</span>
+        <div 
+          title={node.dept}
+          className="flex items-center justify-center text-[8.5px] text-slate-400 border-t border-slate-100 pt-0.5 pointer-events-none overflow-hidden"
+        >
+          <span className="truncate max-w-full text-slate-500 font-medium">{node.dept}</span>
         </div>
       )}
 
-      {/* Proposal Custom Badge */}
-      {node.customLabel && (
-        <div className="absolute -top-2.5 -right-1 text-[9px] bg-emerald-600 text-white px-1.5 py-0.2 rounded-full font-bold shadow-xs pointer-events-none">
+      {/* Proposal Custom Badge / Diff Badge */}
+      {isDiffView && diffType !== 'none' ? (
+        <div className={`absolute -top-2.5 -right-1 text-[8.5px] text-white px-1.5 py-0.2 rounded-full font-bold shadow-xs pointer-events-none flex items-center gap-0.5 ${
+          diffType === 'new_hire' ? 'bg-emerald-600' :
+          diffType === 'replace' ? 'bg-rose-600' :
+          diffType === 'removed' ? 'bg-slate-700' :
+          diffType === 'reassigned' ? 'bg-amber-600' : 'bg-blue-600'
+        }`}>
+          {diffType === 'new_hire' && '+ Mới'}
+          {diffType === 'replace' && 'Thay thế'}
+          {diffType === 'removed' && 'Bãi bỏ'}
+          {diffType === 'reassigned' && '⇄ Đổi sếp'}
+          {diffType === 'title_modified' && '✎ Đổi tên'}
+        </div>
+      ) : node.customLabel ? (
+        <div className="absolute -top-2.5 -right-1 text-[8.5px] bg-emerald-600 text-white px-1.5 py-0.2 rounded-full font-bold shadow-xs pointer-events-none">
           {node.customLabel}
         </div>
-      )}
+      ) : null}
 
       {/* Interactive Expand / Collapse Pill Button */}
       {hasChildren && (
@@ -222,7 +273,7 @@ export const OrgNodeCard: React.FC<OrgNodeCardProps> = ({
           type="button"
           onClick={handleCollapseClick}
           title={isCollapsed ? `Expand ${collapsedCount} subordinate seats` : "Collapse subordinate seats"}
-          className={`absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-0.5 text-[9.5px] font-bold px-1.5 py-0.5 rounded-full shadow-md z-40 cursor-pointer transition-all hover:scale-105 ${
+          className={`absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-md z-40 cursor-pointer transition-all hover:scale-105 ${
             isCollapsed
               ? 'bg-blue-600 text-white border-2 border-white'
               : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-100'
@@ -234,7 +285,7 @@ export const OrgNodeCard: React.FC<OrgNodeCardProps> = ({
               <span>+{collapsedCount}</span>
             </>
           ) : (
-            <ChevronUp className="w-3 h-3 text-slate-600" />
+            <ChevronUp className="w-2.5 h-2.5 text-slate-600" />
           )}
         </button>
       )}

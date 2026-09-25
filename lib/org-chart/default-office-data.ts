@@ -21,22 +21,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-CRO-121-095-106-1",
-    "title": "Senior Digital Marketing Executive",
-    "division": "Crocs",
-    "dept": "Ecommerce",
-    "subDept": "Digital Marketing",
-    "jobGrade": "11",
-    "reportsToId": "SHO-CRO-121-124-038-1",
-    "reportsToTitle": "Ecommerce Manager",
-    "holderName": "Lý Hoàng Hải An",
-    "nickname": "An",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
     "id": "SHO-CRO-121-095-032-2",
     "title": "Digital Marketing Executive",
     "division": "Crocs",
@@ -47,6 +31,22 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "reportsToTitle": "Senior Digital Marketing Executive",
     "holderName": "Cao Thị Hồng Vân",
     "nickname": "Vân",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
+    "id": "SHO-CRO-121-095-106-1",
+    "title": "Senior Digital Marketing Executive",
+    "division": "Crocs",
+    "dept": "Ecommerce",
+    "subDept": "Digital Marketing",
+    "jobGrade": "11",
+    "reportsToId": "SHO-CRO-121-124-038-1",
+    "reportsToTitle": "Ecommerce Manager",
+    "holderName": "Lý Hoàng Hải An",
+    "nickname": "An",
     "flags": [
       "VN"
     ],
@@ -85,6 +85,22 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
+    "id": "SHO-CRO-121-148-039-1",
+    "title": "Ecommerce Operator",
+    "division": "Crocs",
+    "dept": "Ecommerce",
+    "subDept": "Marketplace",
+    "jobGrade": "11",
+    "reportsToId": "SHO-CRO-121-148-030-1",
+    "reportsToTitle": "Deputy Marketplace Manager",
+    "holderName": "Huỳnh Ngọc Ánh",
+    "nickname": "Ánh",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
     "id": "SHO-CRO-121-148-039-2",
     "title": "Ecommerce Operator",
     "division": "Crocs",
@@ -111,22 +127,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "reportsToTitle": "Deputy Marketplace Manager",
     "holderName": "Đỗ Hồng Minh Anh",
     "nickname": "Anh",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
-    "id": "SHO-CRO-121-148-039-1",
-    "title": "Ecommerce Operator",
-    "division": "Crocs",
-    "dept": "Ecommerce",
-    "subDept": "Marketplace",
-    "jobGrade": "11",
-    "reportsToId": "SHO-CRO-121-148-030-1",
-    "reportsToTitle": "Deputy Marketplace Manager",
-    "holderName": "Huỳnh Ngọc Ánh",
-    "nickname": "Ánh",
     "flags": [
       "VN"
     ],
@@ -181,22 +181,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-CRO-121-199-090-1",
-    "title": "Product Content and Online Customer Retention Executive",
-    "division": "Crocs",
-    "dept": "Ecommerce",
-    "subDept": "Website",
-    "jobGrade": "11",
-    "reportsToId": "SHO-CRO-121-199-031-1",
-    "reportsToTitle": "Deputy Website Manager",
-    "holderName": "Dương Thị Thảo Vân",
-    "nickname": "Vân",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
     "id": "SHO-CRO-121-199-039-1",
     "title": "Ecommerce Operator",
     "division": "Crocs",
@@ -207,6 +191,22 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "reportsToTitle": "Deputy Website Manager",
     "holderName": "Phạm Thị Hồng Chi",
     "nickname": "Chi",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
+    "id": "SHO-CRO-121-199-090-1",
+    "title": "Product Content and Online Customer Retention Executive",
+    "division": "Crocs",
+    "dept": "Ecommerce",
+    "subDept": "Website",
+    "jobGrade": "11",
+    "reportsToId": "SHO-CRO-121-199-031-1",
+    "reportsToTitle": "Deputy Website Manager",
+    "holderName": "Dương Thị Thảo Vân",
+    "nickname": "Vân",
     "flags": [
       "VN"
     ],
@@ -245,16 +245,16 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-CRO-145-187-071-1",
-    "title": "Marketing Admin",
+    "id": "SHO-CRO-145-187-072-1",
+    "title": "Marketing Executive",
     "division": "Crocs",
     "dept": "Marketing",
     "subDept": "Trade",
     "jobGrade": "11",
     "reportsToId": "SHO-CRO-145-147-073-1",
     "reportsToTitle": "Marketing Manager",
-    "holderName": "Trần Nguyên Phúc",
-    "nickname": "Phúc",
+    "holderName": "Nguyễn Vân Hà",
+    "nickname": "Hannah",
     "flags": [
       "VN"
     ],
@@ -277,16 +277,16 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-CRO-145-187-072-1",
-    "title": "Marketing Executive",
+    "id": "SHO-CRO-145-187-071-1",
+    "title": "Marketing Admin",
     "division": "Crocs",
     "dept": "Marketing",
     "subDept": "Trade",
     "jobGrade": "11",
     "reportsToId": "SHO-CRO-145-147-073-1",
     "reportsToTitle": "Marketing Manager",
-    "holderName": "Nguyễn Vân Hà",
-    "nickname": "Hannah",
+    "holderName": "Trần Nguyên Phúc",
+    "nickname": "Phúc",
     "flags": [
       "VN"
     ],
@@ -317,7 +317,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "14",
     "reportsToId": "SHO-CRO-149-157-084-1",
     "reportsToTitle": "Operations Manager",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -413,7 +413,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "14",
     "reportsToId": "SHO-CRO-149-157-084-1",
     "reportsToTitle": "Operations Manager",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -453,6 +453,22 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
+    "id": "SHO-CRO-152-160-077-3",
+    "title": "Merchandise Assistant",
+    "division": "Crocs",
+    "dept": "Product",
+    "subDept": "Product",
+    "jobGrade": "12",
+    "reportsToId": "SHO-CRO-152-160-010-1",
+    "reportsToTitle": "Brand Manager",
+    "holderName": "Lý Hà Thương",
+    "nickname": "Thương",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
     "id": "SHO-CRO-152-160-077-2",
     "title": "Merchandise Assistant",
     "division": "Crocs",
@@ -479,22 +495,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "reportsToTitle": "Brand Manager",
     "holderName": "Lê Thị Thanh Hà",
     "nickname": "Hà",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
-    "id": "SHO-CRO-152-160-077-3",
-    "title": "Merchandise Assistant",
-    "division": "Crocs",
-    "dept": "Product",
-    "subDept": "Product",
-    "jobGrade": "12",
-    "reportsToId": "SHO-CRO-152-160-010-1",
-    "reportsToTitle": "Brand Manager",
-    "holderName": "Lý Hà Thương",
-    "nickname": "Thương",
     "flags": [
       "VN"
     ],
@@ -605,7 +605,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "13",
     "reportsToId": "SHO-DYS-111-114-122-1",
     "reportsToTitle": "Service Center Manager",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -623,6 +623,22 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "reportsToTitle": "Assistant Service Center Manager",
     "holderName": "Nguyễn Hữu Thiện",
     "nickname": "Thiện",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
+    "id": "SHO-DYS-111-114-123-1",
+    "title": "Spare Parts Inventory  Executive",
+    "division": "Dyson Viet Nam",
+    "dept": "Dyson Service Center",
+    "subDept": "Dyson Service Center",
+    "jobGrade": "11",
+    "reportsToId": "SHO-DYS-111-114-122-1",
+    "reportsToTitle": "Service Center Manager",
+    "holderName": "Trương Công Nhật Huy",
+    "nickname": "Huy",
     "flags": [
       "VN"
     ],
@@ -655,22 +671,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "reportsToTitle": "Assistant Service Center Manager",
     "holderName": "Vũ Nguyễn Anh Thư",
     "nickname": "Thư",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
-    "id": "SHO-DYS-111-114-123-1",
-    "title": "Spare Parts Inventory  Executive",
-    "division": "Dyson Viet Nam",
-    "dept": "Dyson Service Center",
-    "subDept": "Dyson Service Center",
-    "jobGrade": "11",
-    "reportsToId": "SHO-DYS-111-114-122-1",
-    "reportsToTitle": "Service Center Manager",
-    "holderName": "Trương Công Nhật Huy",
-    "nickname": "Huy",
     "flags": [
       "VN"
     ],
@@ -741,22 +741,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-DYS-145-187-137-1",
-    "title": "Trade Marketing Executive",
-    "division": "Dyson Viet Nam",
-    "dept": "Marketing",
-    "subDept": "Trade",
-    "jobGrade": "11",
-    "reportsToId": "SHO-DYS-145-147-073-1",
-    "reportsToTitle": "Marketing Manager",
-    "holderName": "Nguyễn Thị Thiên Thảo",
-    "nickname": "Thảo",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
     "id": "SHO-DYS-145-187-072-1",
     "title": "Marketing Executive",
     "division": "Dyson Viet Nam",
@@ -767,6 +751,22 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "reportsToTitle": "Marketing Manager",
     "holderName": "Nguyễn Lê Thúy Hiền",
     "nickname": "Hiền",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
+    "id": "SHO-DYS-145-187-137-1",
+    "title": "Trade Marketing Executive",
+    "division": "Dyson Viet Nam",
+    "dept": "Marketing",
+    "subDept": "Trade",
+    "jobGrade": "11",
+    "reportsToId": "SHO-DYS-145-147-073-1",
+    "reportsToTitle": "Marketing Manager",
+    "holderName": "Nguyễn Thị Thiên Thảo",
+    "nickname": "Thảo",
     "flags": [
       "VN"
     ],
@@ -861,7 +861,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "16",
     "reportsToId": "SHO-DYS-114-117-050-1",
     "reportsToTitle": "Head of Dyson",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -885,7 +885,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-DYS-155-151-035-1",
+    "id": "NHO-DYS-155-151-035-3",
     "title": "District Manager",
     "division": "Dyson Viet Nam",
     "dept": "Sales & Operations",
@@ -893,8 +893,8 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "14",
     "reportsToId": "NHO-DYS-155-151-084-1",
     "reportsToTitle": "Operations Manager",
-    "holderName": "Nguyễn Ngọc Lan Anh",
-    "nickname": "Anh",
+    "holderName": "Trịnh Minh Quân",
+    "nickname": "Ryan",
     "flags": [
       "VN"
     ],
@@ -917,7 +917,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "NHO-DYS-155-151-035-3",
+    "id": "SHO-DYS-155-151-035-1",
     "title": "District Manager",
     "division": "Dyson Viet Nam",
     "dept": "Sales & Operations",
@@ -925,8 +925,8 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "14",
     "reportsToId": "NHO-DYS-155-151-084-1",
     "reportsToTitle": "Operations Manager",
-    "holderName": "Trịnh Minh Quân",
-    "nickname": "Ryan",
+    "holderName": "Nguyễn Ngọc Lan Anh",
+    "nickname": "Anh",
     "flags": [
       "VN"
     ],
@@ -973,7 +973,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "11",
     "reportsToId": "SHO-DYS-155-154-038-1",
     "reportsToTitle": "Ecommerce Manager",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -1013,22 +1013,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-DYS-155-156-037-1",
-    "title": "Ecommerce Executive",
-    "division": "Dyson Viet Nam",
-    "dept": "Sales & Operations",
-    "subDept": "Online/Website",
-    "jobGrade": "11",
-    "reportsToId": "SHO-DYS-155-154-038-1",
-    "reportsToTitle": "Ecommerce Manager",
-    "holderName": "Vũ Minh Khôi",
-    "nickname": "Khôi",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
     "id": "SHO-DYS-155-156-037-2",
     "title": "Ecommerce Executive",
     "division": "Dyson Viet Nam",
@@ -1045,6 +1029,22 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
+    "id": "SHO-DYS-155-156-037-1",
+    "title": "Ecommerce Executive",
+    "division": "Dyson Viet Nam",
+    "dept": "Sales & Operations",
+    "subDept": "Online/Website",
+    "jobGrade": "11",
+    "reportsToId": "SHO-DYS-155-154-038-1",
+    "reportsToTitle": "Ecommerce Manager",
+    "holderName": "Vũ Minh Khôi",
+    "nickname": "Khôi",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
     "id": "SHO-DYS-175-188-119-1",
     "title": "Senior Training Manager",
     "division": "Dyson Viet Nam",
@@ -1053,12 +1053,12 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "15",
     "reportsToId": "SHO-DYS-114-117-050-1",
     "reportsToTitle": "Head of Dyson",
-    "holderName": "Nguyễn Văn Minh",
-    "nickname": "Minh",
+    "holderName": "Vacant",
+    "nickname": "Vacant",
     "flags": [
       "VN"
     ],
-    "status": "active"
+    "status": "vacant"
   },
   {
     "id": "SHO-DYS-184-197-146-1",
@@ -1165,12 +1165,12 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "13",
     "reportsToId": "SHO-FIN-126-129-011-1",
     "reportsToTitle": "Business Controller",
-    "holderName": "",
-    "nickname": "Vacant",
+    "holderName": "Lê Trung Tín",
+    "nickname": "Tín",
     "flags": [
       "VN"
     ],
-    "status": "vacant"
+    "status": "active"
   },
   {
     "id": "SHO-FIN-120-123-045-1",
@@ -1237,22 +1237,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "NHO-FIN-142-145-064-1",
-    "title": "Inventory Checker",
-    "division": "Finance",
-    "dept": "FP&A Sports",
-    "subDept": "Inventory Check",
-    "jobGrade": "10",
-    "reportsToId": "SHO-FIN-120-123-045-1",
-    "reportsToTitle": "Financial Planning & Analysis Manager",
-    "holderName": "Nguyễn Thị Mừng",
-    "nickname": "Mừng",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
     "id": "SHO-FIN-142-145-064-2",
     "title": "Inventory Checker",
     "division": "Finance",
@@ -1269,6 +1253,22 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
+    "id": "NHO-FIN-142-145-064-1",
+    "title": "Inventory Checker",
+    "division": "Finance",
+    "dept": "FP&A Sports",
+    "subDept": "Inventory Check",
+    "jobGrade": "10",
+    "reportsToId": "SHO-FIN-120-123-045-1",
+    "reportsToTitle": "Financial Planning & Analysis Manager",
+    "holderName": "Nguyễn Thị Mừng",
+    "nickname": "Mừng",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
     "id": "SHO-FIN-126-129-011-1",
     "title": "Business Controller",
     "division": "Finance",
@@ -1279,38 +1279,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "reportsToTitle": "President, CRC Sports VN",
     "holderName": "Nguyễn Huy Phước",
     "nickname": "Phước",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
-    "id": "SHO-HOK-145-147-073-1",
-    "title": "Marketing Manager",
-    "division": "HOKA",
-    "dept": "Marketing",
-    "subDept": "Marketing",
-    "jobGrade": "14",
-    "reportsToId": "SHO-EXE-125-128-089-1",
-    "reportsToTitle": "President, CRC Sports VN",
-    "holderName": "Huỳnh Diễm Trang",
-    "nickname": "Trang",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
-    "id": "SHO-HOK-145-147-072-1",
-    "title": "Marketing Executive",
-    "division": "HOKA",
-    "dept": "Marketing",
-    "subDept": "Marketing",
-    "jobGrade": "11",
-    "reportsToId": "SHO-CRO-015-014-049-1",
-    "reportsToTitle": "Head of Crocs",
-    "holderName": "Nguyễn Thị Hà Vi",
-    "nickname": "Vi",
     "flags": [
       "VN"
     ],
@@ -1549,7 +1517,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "13",
     "reportsToId": "SHO-EXE-125-128-089-1",
     "reportsToTitle": "President, CRC Sports VN",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -1605,7 +1573,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-MAR-091-091-025-1",
+    "id": "SHO-MAR-091-091-025-6",
     "title": "Customer Service Executive",
     "division": "Marketing",
     "dept": "Customer Services",
@@ -1613,8 +1581,24 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "11",
     "reportsToId": "SHO-MAR-145-147-164-1",
     "reportsToTitle": "Senior Marketing Manager",
-    "holderName": "Lý Thúy Vi",
-    "nickname": "Vi",
+    "holderName": "Phạm Nguyễn Mỹ Hiền",
+    "nickname": "Hiền",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
+    "id": "SHO-MAR-091-091-025-7",
+    "title": "Customer Service Executive",
+    "division": "Marketing",
+    "dept": "Customer Services",
+    "subDept": "Customer Services",
+    "jobGrade": "11",
+    "reportsToId": "SHO-MAR-145-147-164-1",
+    "reportsToTitle": "Senior Marketing Manager",
+    "holderName": "Ngô Gia Nhi",
+    "nickname": "Nhi",
     "flags": [
       "VN"
     ],
@@ -1637,7 +1621,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-MAR-091-091-025-2",
+    "id": "SHO-MAR-091-091-025-3",
     "title": "Customer Service Executive",
     "division": "Marketing",
     "dept": "Customer Services",
@@ -1645,24 +1629,8 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "11",
     "reportsToId": "SHO-MAR-145-147-164-1",
     "reportsToTitle": "Senior Marketing Manager",
-    "holderName": "Ngọc Thu Huyền",
-    "nickname": "Huyền",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
-    "id": "SHO-MAR-091-091-025-6",
-    "title": "Customer Service Executive",
-    "division": "Marketing",
-    "dept": "Customer Services",
-    "subDept": "Customer Services",
-    "jobGrade": "11",
-    "reportsToId": "SHO-MAR-145-147-164-1",
-    "reportsToTitle": "Senior Marketing Manager",
-    "holderName": "Phạm Nguyễn Mỹ Hiền",
-    "nickname": "Hiền",
+    "holderName": "Trần Nguyễn Anh Thy",
+    "nickname": "Thy",
     "flags": [
       "VN"
     ],
@@ -1685,7 +1653,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-MAR-091-091-025-3",
+    "id": "SHO-MAR-091-091-025-2",
     "title": "Customer Service Executive",
     "division": "Marketing",
     "dept": "Customer Services",
@@ -1693,12 +1661,28 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "11",
     "reportsToId": "SHO-MAR-145-147-164-1",
     "reportsToTitle": "Senior Marketing Manager",
-    "holderName": "Trần Nguyễn Anh Thy",
-    "nickname": "Thy",
+    "holderName": "Ngọc Thu Huyền",
+    "nickname": "Huyền",
     "flags": [
       "VN"
     ],
     "status": "active"
+  },
+  {
+    "id": "SHO-MAR-091-091-025-1",
+    "title": "Customer Service Executive",
+    "division": "Marketing",
+    "dept": "Customer Services",
+    "subDept": "Customer Services",
+    "jobGrade": "11",
+    "reportsToId": "SHO-MAR-145-147-164-1",
+    "reportsToTitle": "Senior Marketing Manager",
+    "holderName": "Vacant",
+    "nickname": "Vacant",
+    "flags": [
+      "VN"
+    ],
+    "status": "vacant"
   },
   {
     "id": "SHO-MAR-091-091-024-1",
@@ -1727,22 +1711,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "reportsToTitle": "Senior Marketing Manager",
     "holderName": "Nguyễn Thị Cẩm Tiên",
     "nickname": "Tiên",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
-    "id": "SHO-MAR-091-091-025-7",
-    "title": "Customer Service Executive",
-    "division": "Marketing",
-    "dept": "Customer Services",
-    "subDept": "Customer Services",
-    "jobGrade": "11",
-    "reportsToId": "SHO-MAR-145-147-164-1",
-    "reportsToTitle": "Senior Marketing Manager",
-    "holderName": "Ngô Gia Nhi",
-    "nickname": "Nhi",
     "flags": [
       "VN"
     ],
@@ -1853,7 +1821,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "13",
     "reportsToId": "SHO-CRO-121-124-038-1",
     "reportsToTitle": "Ecommerce Manager",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -1869,7 +1837,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "11",
     "reportsToId": "SHO-FSH-189-160-010-1",
     "reportsToTitle": "Brand Manager",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -1941,6 +1909,22 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
+    "id": "SHO-ONL-094-096-091-1",
+    "title": "Product Owner",
+    "division": "Online",
+    "dept": "Digital Platform",
+    "subDept": "Digital Platform",
+    "jobGrade": "12",
+    "reportsToId": "SHO-ONL-094-096-034-1",
+    "reportsToTitle": "Digital Product Manager",
+    "holderName": "Đoàn Thùy Bảo Vy",
+    "nickname": "Vy",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
     "id": "SHO-ONL-094-096-091-2",
     "title": "Product Owner",
     "division": "Online",
@@ -1949,7 +1933,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "12",
     "reportsToId": "SHO-ONL-094-096-034-1",
     "reportsToTitle": "Digital Product Manager",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -1967,22 +1951,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "reportsToTitle": "Digital Product Manager",
     "holderName": "Nguyễn Thị Thủy Trúc",
     "nickname": "Trúc",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
-    "id": "SHO-ONL-094-096-091-1",
-    "title": "Product Owner",
-    "division": "Online",
-    "dept": "Digital Platform",
-    "subDept": "Digital Platform",
-    "jobGrade": "12",
-    "reportsToId": "SHO-ONL-094-096-034-1",
-    "reportsToTitle": "Digital Product Manager",
-    "holderName": "Đoàn Thùy Bảo Vy",
-    "nickname": "Vy",
     "flags": [
       "VN"
     ],
@@ -2109,7 +2077,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "13",
     "reportsToId": "SHO-ONL-121-124-038-1",
     "reportsToTitle": "Ecommerce Manager",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -2127,22 +2095,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "reportsToTitle": "Web Store Leader",
     "holderName": "Ngô Anh Quân",
     "nickname": "Quân",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
-    "id": "SHO-ONL-144-148-136-1",
-    "title": "Streaming Talent",
-    "division": "Online",
-    "dept": "Livestream",
-    "subDept": "Marketplace",
-    "jobGrade": "11",
-    "reportsToId": "SHO-ONL-121-148-075-1",
-    "reportsToTitle": "Marketplace Leader",
-    "holderName": "Lê Nguyễn Phúc Huy",
-    "nickname": "Huy",
     "flags": [
       "VN"
     ],
@@ -2181,6 +2133,22 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
+    "id": "SHO-ONL-144-148-136-1",
+    "title": "Streaming Talent",
+    "division": "Online",
+    "dept": "Livestream",
+    "subDept": "Marketplace",
+    "jobGrade": "11",
+    "reportsToId": "SHO-ONL-121-148-075-1",
+    "reportsToTitle": "Marketplace Leader",
+    "holderName": "Lê Nguyễn Phúc Huy",
+    "nickname": "Huy",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
     "id": "SHO-ONL-144-148-136-3",
     "title": "Streaming Talent",
     "division": "Online",
@@ -2213,7 +2181,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-ONL-147-157-039-1",
+    "id": "SHO-ONL-147-157-039-4",
     "title": "Ecommerce Operator",
     "division": "Online",
     "dept": "Omnichannel",
@@ -2221,8 +2189,8 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "11",
     "reportsToId": "SHO-ONL-147-157-080-1",
     "reportsToTitle": "Omnichannel Operations and Production Leader",
-    "holderName": "Phan Ngọc Huyền",
-    "nickname": "Huyền",
+    "holderName": "Nguyễn Thị Ẩn",
+    "nickname": "Ẩn",
     "flags": [
       "VN"
     ],
@@ -2245,7 +2213,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-ONL-147-157-039-4",
+    "id": "SHO-ONL-147-157-039-1",
     "title": "Ecommerce Operator",
     "division": "Online",
     "dept": "Omnichannel",
@@ -2253,8 +2221,8 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "11",
     "reportsToId": "SHO-ONL-147-157-080-1",
     "reportsToTitle": "Omnichannel Operations and Production Leader",
-    "holderName": "Nguyễn Thị Ẩn",
-    "nickname": "Ẩn",
+    "holderName": "Phan Ngọc Huyền",
+    "nickname": "Huyền",
     "flags": [
       "VN"
     ],
@@ -2293,22 +2261,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-ONL-147-161-090-1",
-    "title": "Product Content",
-    "division": "Online",
-    "dept": "Omnichannel",
-    "subDept": "Product Content",
-    "jobGrade": "11",
-    "reportsToId": "SHO-ONL-147-157-080-1",
-    "reportsToTitle": "Omnichannel Operations and Production Leader",
-    "holderName": "Mai Thục Ngân",
-    "nickname": "Ngân",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
     "id": "SHO-ONL-147-161-090-2",
     "title": "Product Content",
     "division": "Online",
@@ -2319,6 +2271,22 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "reportsToTitle": "Omnichannel Operations and Production Leader",
     "holderName": "Nguyễn Hà Bảo Thy",
     "nickname": "Thy",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
+    "id": "SHO-ONL-147-161-090-1",
+    "title": "Product Content",
+    "division": "Online",
+    "dept": "Omnichannel",
+    "subDept": "Product Content",
+    "jobGrade": "11",
+    "reportsToId": "SHO-ONL-147-157-080-1",
+    "reportsToTitle": "Omnichannel Operations and Production Leader",
+    "holderName": "Mai Thục Ngân",
+    "nickname": "Ngân",
     "flags": [
       "VN"
     ],
@@ -2349,7 +2317,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "17",
     "reportsToId": "SHO-EXE-125-128-089-1",
     "reportsToTitle": "President, CRC Sports VN",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -2365,12 +2333,12 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "16",
     "reportsToId": "SHO-EXE-125-128-089-1",
     "reportsToTitle": "President, CRC Sports VN",
-    "holderName": "",
-    "nickname": "Vacant",
+    "holderName": "Đặng Hoài Hương",
+    "nickname": "Emma",
     "flags": [
       "VN"
     ],
-    "status": "vacant"
+    "status": "active"
   },
   {
     "id": "SHO-ONL-150-158-040-1",
@@ -2381,12 +2349,12 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "11",
     "reportsToId": "SHO-ONL-148-154-053-1",
     "reportsToTitle": "Head of Online - Supersports",
-    "holderName": "Vũ Nguyễn Việt Linh",
-    "nickname": "Linh",
+    "holderName": "Vacant",
+    "nickname": "Vacant",
     "flags": [
       "VN"
     ],
-    "status": "active"
+    "status": "vacant"
   },
   {
     "id": "SHO-OPE-001-002-097-1",
@@ -2437,22 +2405,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-OPE-001-164-082-1",
-    "title": "Operations Admin Executive",
-    "division": "Operations",
-    "dept": "Admin",
-    "subDept": "South",
-    "jobGrade": "11",
-    "reportsToId": "SHO-OPE-001-002-083-1",
-    "reportsToTitle": "Operations Admin Supervisor",
-    "holderName": "Nguyễn Thị Hoàng Anh",
-    "nickname": "Anh",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
     "id": "SHO-OPE-001-164-005-1",
     "title": "Admin Executive",
     "division": "Operations",
@@ -2463,6 +2415,22 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "reportsToTitle": "Operations Admin Supervisor",
     "holderName": "Trương Thị Phương Nguyên",
     "nickname": "Nguyên",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
+    "id": "SHO-OPE-001-164-082-1",
+    "title": "Operations Admin Executive",
+    "division": "Operations",
+    "dept": "Admin",
+    "subDept": "South",
+    "jobGrade": "11",
+    "reportsToId": "SHO-OPE-001-002-083-1",
+    "reportsToTitle": "Operations Admin Supervisor",
+    "holderName": "Nguyễn Thị Hoàng Anh",
+    "nickname": "Anh",
     "flags": [
       "VN"
     ],
@@ -2597,22 +2565,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-PLA-004-183-028-1",
-    "title": "Database Management Executive",
-    "division": "Planning",
-    "dept": "BU Shared",
-    "subDept": "System & Support",
-    "jobGrade": "12",
-    "reportsToId": "SHO-PLA-151-159-055-1",
-    "reportsToTitle": "Head of Planning",
-    "holderName": "Vương Thùy Dung",
-    "nickname": "Dung",
-    "flags": [
-      "VN"
-    ],
-    "status": "active"
-  },
-  {
     "id": "SHO-PLA-004-183-095-1",
     "title": "Replenishment Analyst",
     "division": "Planning",
@@ -2629,6 +2581,22 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
+    "id": "SHO-PLA-004-183-028-1",
+    "title": "Database Management Executive",
+    "division": "Planning",
+    "dept": "BU Shared",
+    "subDept": "System & Support",
+    "jobGrade": "12",
+    "reportsToId": "SHO-PLA-151-159-055-1",
+    "reportsToTitle": "Head of Planning",
+    "holderName": "Vương Thùy Dung",
+    "nickname": "Dung",
+    "flags": [
+      "VN"
+    ],
+    "status": "active"
+  },
+  {
     "id": "SHO-PLA-151-159-055-1",
     "title": "Head of Planning",
     "division": "Planning",
@@ -2637,7 +2605,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "17",
     "reportsToId": "SHO-EXE-125-128-089-1",
     "reportsToTitle": "President, CRC Sports VN",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -2861,7 +2829,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "13",
     "reportsToId": "SHO-SPO-158-167-057-1",
     "reportsToTitle": "Head of Sports Brands",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -2893,7 +2861,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "12",
     "reportsToId": "SHO-SPO-158-167-057-1",
     "reportsToTitle": "Head of Sports Brands",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -2973,12 +2941,12 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "12",
     "reportsToId": "SHO-SUP-154-163-021-1",
     "reportsToTitle": "Category Manager",
-    "holderName": "",
-    "nickname": "Vacant",
+    "holderName": "Bùi Lý Ngọc Như",
+    "nickname": "Như",
     "flags": [
       "VN"
     ],
-    "status": "vacant"
+    "status": "active"
   },
   {
     "id": "SHO-SUP-161-170-058-1",
@@ -3013,22 +2981,6 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "status": "active"
   },
   {
-    "id": "SHO-SUP-176-189-014-1",
-    "title": "Buyer",
-    "division": "Supersports",
-    "dept": "Training & Lifestyle",
-    "subDept": "Training & Lifestyle",
-    "jobGrade": "13",
-    "reportsToId": "SHO-SUP-176-189-021-1",
-    "reportsToTitle": "Category Manager",
-    "holderName": "",
-    "nickname": "Vacant",
-    "flags": [
-      "VN"
-    ],
-    "status": "vacant"
-  },
-  {
     "id": "SHO-SUP-176-189-014-3",
     "title": "Buyer",
     "division": "Supersports",
@@ -3037,7 +2989,23 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "13",
     "reportsToId": "SHO-SUP-176-189-021-1",
     "reportsToTitle": "Category Manager",
-    "holderName": "",
+    "holderName": "Vacant",
+    "nickname": "Vacant",
+    "flags": [
+      "VN"
+    ],
+    "status": "vacant"
+  },
+  {
+    "id": "SHO-SUP-176-189-014-1",
+    "title": "Buyer",
+    "division": "Supersports",
+    "dept": "Training & Lifestyle",
+    "subDept": "Training & Lifestyle",
+    "jobGrade": "13",
+    "reportsToId": "SHO-SUP-176-189-021-1",
+    "reportsToTitle": "Category Manager",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"
@@ -3213,7 +3181,7 @@ export const DEFAULT_OFFICE_NODES: OrgNode[] = [
     "jobGrade": "12",
     "reportsToId": "SHO-WHO-186-201-148-1",
     "reportsToTitle": "Wholesale Manager",
-    "holderName": "",
+    "holderName": "Vacant",
     "nickname": "Vacant",
     "flags": [
       "VN"

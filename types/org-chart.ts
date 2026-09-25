@@ -38,6 +38,7 @@ export interface OrgNode {
   hasChildren?: boolean;         // Node has subordinate seats
   isCollapsed?: boolean;         // Subtree is currently collapsed
   collapsedCount?: number;       // Total hidden descendant seats
+  isSupervisor?: boolean;        // true if external supervisor node shown for context
 }
 
 export interface IndirectLink {
@@ -97,4 +98,32 @@ export interface OrgProposalState {
   showSumUpTable: boolean;
   showSharedSidebar: boolean;
   zoomLevel: number;
+  activeMode?: OrgChartMode;
+  justificationRows?: ProposalJustificationRow[];
+}
+
+export type OrgChartMode = 'current' | 'proposal' | 'diff';
+
+export interface ProposalChange {
+  id: string;
+  type: 'new_hire' | 'replace' | 'removed' | 'reassigned' | 'title_modified';
+  nodeId: string;
+  nodeTitle: string;
+  division: string;
+  dept?: string;
+  oldValue?: string;
+  newValue?: string;
+  description: string;
+}
+
+export interface ProposalJustificationRow {
+  id: string;
+  positionId: string;
+  title: string;
+  division: string;
+  changeType: 'new_hire' | 'replace' | 'reassigned' | 'restructure' | 'other';
+  justification: string;
+  timeline: string;
+  jobGrade?: string;
+  budgetImpact?: string;
 }

@@ -1,10 +1,10 @@
-import React, { useRef, useState } from 'react';
-import { OrgNode, IndirectLink, CustomDivider, CustomNote, DensityMode, HeadcountSummary, ViewTemplate } from '@/types/org-chart';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { OrgNode, IndirectLink, CustomDivider, CustomNote, DensityMode, HeadcountSummary, ViewTemplate, OrgChartMode, ProposalChange } from '@/types/org-chart';
+import { PillarPill, Headcount3YRow } from '@/lib/org-chart/department-blueprints';
 import { OrgNodeCard, AnchorPosition } from './OrgNodeCard';
 import { CustomNoteOverlay } from './CustomNoteOverlay';
-import { SharedSidebar } from './SharedSidebar';
 import { SumUpWidget } from './SumUpWidget';
-import { ZoomIn, ZoomOut, Maximize2, Move, Trash2, Edit2, XCircle } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Move, Trash2, Edit2, XCircle, RotateCcw } from 'lucide-react';
 
 interface OrgCanvasProps {
   nodes: OrgNode[];
@@ -13,11 +13,17 @@ interface OrgCanvasProps {
   notes: CustomNote[];
   template: ViewTemplate;
   selectedDivision?: string;
+  pillarPills?: PillarPill[];
+  headcount3Y?: Headcount3YRow[];
+  slideTitle?: string;
+  hasCRVShared?: boolean;
   densityMode: DensityMode;
   showNicknames: boolean;
   showSumUpTable: boolean;
   onToggleSumUpTable: () => void;
   summary: HeadcountSummary;
+  mode?: OrgChartMode;
+  diffMap?: Map<string, ProposalChange>;
   connectingSource?: { node: OrgNode; anchor: AnchorPosition } | null;
   onStartConnect?: (node: OrgNode, anchor: AnchorPosition) => void;
   onCompleteConnect?: (targetNode: OrgNode) => void;
@@ -39,6 +45,18 @@ interface OrgCanvasProps {
   canvasRef: React.RefObject<HTMLDivElement>;
 }
 
+export interface SmartGuideLine {
+  id: string;
+  type: 'vertical' | 'horizontal';
+  pos: number;
+  start: number;
+  end: number;
+  label?: string;
+}
+
+const getNodeW = (n?: OrgNode | null) => Math.max(n?.width || 185, 185);
+const getNodeH = (n?: OrgNode | null) => Math.max(n?.height || 76, 76);
+
 export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   nodes,
   indirectLinks,
@@ -46,11 +64,17 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   notes,
   template,
   selectedDivision,
+  pillarPills = [],
+  headcount3Y = [],
+  slideTitle,
+  hasCRVShared = false,
   densityMode,
   showNicknames,
   showSumUpTable,
   onToggleSumUpTable,
   summary,
+  mode = 'proposal',
+  diffMap,
   connectingSource,
   onStartConnect,
   onCompleteConnect,
@@ -71,20 +95,120 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   selectedNodeId,
   canvasRef
 }) => {
-  const [zoom, setZoom] = useState<number>(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState<number>(0.9); // Default 90% view as requested
+  const [isFitMode, setIsFitMode] = useState<boolean>(false);
+
+  // Dynamic bounds calculation with strictly preserved 4:3 (3x4) presentation slide aspect ratio
+  const allNodesMaxX = nodes.reduce((max, n) => Math.max(max, (n.x || 0) + getNodeW(n)), 0);
+  const allNodesMaxY = nodes.reduce((max, n) => Math.max(max, (n.y || 0) + getNodeH(n)), 0);
+  const reqBaseW = Math.max(canvasWidth, allNodesMaxX + 80, 880);
+  const reqBaseH = Math.max(canvasHeight, allNodesMaxY + 80, 660);
+
+  const isDyson = selectedDivision?.trim().toLowerCase().includes('dyson');
+  const isN1 = template === 'company_n1';
+  let effectiveCanvasWidth = reqBaseW;
+  let effectiveCanvasHeight = (isDyson || isN1) ? reqBaseH : Math.round(effectiveCanvasWidth * 0.75);
+
+  if (!isDyson && !isN1 && effectiveCanvasHeight < reqBaseH) {
+    effectiveCanvasHeight = reqBaseH;
+    effectiveCanvasWidth = Math.round(effectiveCanvasHeight * (4 / 3));
+  }
+
+  // Active Dynamic Smart Guides during drag (PowerPoint-style alignment rulers)
+  const [activeGuides, setActiveGuides] = useState<SmartGuideLine[]>([]);
+
+  // Pan offset state for Space+Drag panning
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState<boolean>(false);
+  const [isSpaceDown, setIsSpaceDown] = useState<boolean>(false);
+  const panStartRef = useRef<{ mouseX: number; mouseY: number; offsetX: number; offsetY: number } | null>(null);
+
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null);
   const [draggingDividerId, setDraggingDividerId] = useState<string | null>(null);
-  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [sidebarPos, setSidebarPos] = useState<{ x: number; y: number }>({
-    x: Math.max(1050, canvasWidth - 280),
-    y: 60
+
+  const dragStartPos = useRef<{ x: number; y: number; originX: number; originY: number }>({
+    x: 0,
+    y: 0,
+    originX: 0,
+    originY: 0
   });
 
-  const dragStartPos = useRef<{ x: number; y: number; originX: number; originY: number }>({ x: 0, y: 0, originX: 0, originY: 0 });
+  // Track subtree positions for hierarchical drag
+  const dragSubtreeRef = useRef<{
+    descendantIds: string[];
+    initialPositions: Map<string, { x: number; y: number }>;
+  } | null>(null);
 
-  // Handle Drag of Nodes
+  // Compute fit zoom to guarantee 100% chart fits within container in 1 single frame
+  const calculateFitZoom = useCallback(() => {
+    if (!containerRef.current) return 0.8;
+    const availableWidth = containerRef.current.clientWidth - 40;
+    const availableHeight = containerRef.current.clientHeight - 60;
+    if (availableWidth <= 0 || effectiveCanvasWidth <= 0 || availableHeight <= 0 || effectiveCanvasHeight <= 0) return 0.8;
+    const scaleX = availableWidth / effectiveCanvasWidth;
+    const scaleY = availableHeight / effectiveCanvasHeight;
+    const scale = Math.min(scaleX, scaleY);
+    return Math.max(0.2, Math.min(1.15, Math.round(scale * 100) / 100));
+  }, [effectiveCanvasWidth, effectiveCanvasHeight]);
+
+  // Space key listeners for panning mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat) {
+        // Only if not focused on input
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+        e.preventDefault();
+        setIsSpaceDown(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpaceDown(false);
+        setIsPanning(false);
+        panStartRef.current = null;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  // Always scroll to top when template or division changes so Head card is instantly visible
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 0;
+      containerRef.current.scrollLeft = 0;
+    }
+    if (selectedDivision?.trim().toLowerCase().includes('dyson')) {
+      const fit = calculateFitZoom();
+      setZoom(fit);
+      setIsFitMode(true);
+    }
+  }, [template, selectedDivision, calculateFitZoom]);
+
+
+  // Helper to get all descendant IDs of a node
+  const getDescendantIds = (nodeId: string): string[] => {
+    const descendants: string[] = [];
+    const directChildren = nodes.filter(n => n.reportsToId === nodeId);
+    directChildren.forEach(c => {
+      descendants.push(c.id);
+      descendants.push(...getDescendantIds(c.id));
+    });
+    return descendants;
+  };
+
+  // Handle Drag of Nodes (Hierarchical Subtree Drag)
   const handleNodeMouseDown = (e: React.MouseEvent, node: OrgNode) => {
+    // If space is held, don't drag nodes - let container handle panning
+    if (isSpaceDown) return;
+
     if (connectingSource) {
       e.stopPropagation();
       if (onCompleteConnect && node.id !== connectingSource.node.id) {
@@ -101,6 +225,15 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
       originX: node.x || 0,
       originY: node.y || 0
     };
+
+    const descIds = getDescendantIds(node.id);
+    const initialPositions = new Map<string, { x: number; y: number }>();
+    initialPositions.set(node.id, { x: node.x || 0, y: node.y || 0 });
+    descIds.forEach(id => {
+      const n = nodes.find(item => item.id === id);
+      if (n) initialPositions.set(id, { x: n.x || 0, y: n.y || 0 });
+    });
+    dragSubtreeRef.current = { descendantIds: descIds, initialPositions };
   };
 
   // Handle Drag of Notes
@@ -128,19 +261,146 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const canvasX = (e.clientX - rect.left) / zoom;
-      const canvasY = (e.clientY - rect.top) / zoom;
-      setMousePos({ x: canvasX, y: canvasY });
+    // Panning mode (Space+Drag)
+    if (isPanning && panStartRef.current) {
+      const dx = e.clientX - panStartRef.current.mouseX;
+      const dy = e.clientY - panStartRef.current.mouseY;
+      setPanOffset({
+        x: panStartRef.current.offsetX + dx,
+        y: panStartRef.current.offsetY + dy
+      });
+      return;
     }
 
     if (draggingNodeId) {
       const dx = (e.clientX - dragStartPos.current.x) / zoom;
       const dy = (e.clientY - dragStartPos.current.y) / zoom;
-      const newX = Math.max(10, Math.round((dragStartPos.current.originX + dx) / 10) * 10);
-      const newY = Math.max(10, Math.round((dragStartPos.current.originY + dy) / 10) * 10);
+      const rawX = dragStartPos.current.originX + dx;
+      const rawY = dragStartPos.current.originY + dy;
+
+      const draggingNode = nodes.find(n => n.id === draggingNodeId);
+      const dw = getNodeW(draggingNode);
+      const dh = getNodeH(draggingNode);
+
+      let snappedX = rawX;
+      let snappedY = rawY;
+      const newGuides: SmartGuideLine[] = [];
+      const SNAP_THRESHOLD = 8; // Snap sensitivity in pixels
+
+      const descendantSet = new Set(dragSubtreeRef.current?.descendantIds || []);
+      const candidateNodes = nodes.filter(n => n.id !== draggingNodeId && !descendantSet.has(n.id));
+
+      // 1. Dynamic Vertical Alignment (Centers, Left edges, Right edges)
+      const curCenterX = rawX + dw / 2;
+      let xSnapped = false;
+
+      for (const other of candidateNodes) {
+        const ow = getNodeW(other);
+        const oh = getNodeH(other);
+        const otherCenterX = (other.x || 0) + ow / 2;
+        const otherLeft = other.x || 0;
+        const otherRight = (other.x || 0) + ow;
+
+        if (!xSnapped && Math.abs(curCenterX - otherCenterX) <= SNAP_THRESHOLD) {
+          snappedX = otherCenterX - dw / 2;
+          xSnapped = true;
+          newGuides.push({
+            id: `v_center_${other.id}`,
+            type: 'vertical',
+            pos: otherCenterX,
+            start: Math.min(snappedY, other.y || 0) - 20,
+            end: Math.max(snappedY + dh, (other.y || 0) + oh) + 20,
+            label: 'Căn giữa'
+          });
+        } else if (!xSnapped && Math.abs(rawX - otherLeft) <= SNAP_THRESHOLD) {
+          snappedX = otherLeft;
+          xSnapped = true;
+          newGuides.push({
+            id: `v_left_${other.id}`,
+            type: 'vertical',
+            pos: otherLeft,
+            start: Math.min(snappedY, other.y || 0) - 20,
+            end: Math.max(snappedY + dh, (other.y || 0) + oh) + 20,
+            label: 'Căn trái'
+          });
+        } else if (!xSnapped && Math.abs(rawX + dw - otherRight) <= SNAP_THRESHOLD) {
+          snappedX = otherRight - dw;
+          xSnapped = true;
+          newGuides.push({
+            id: `v_right_${other.id}`,
+            type: 'vertical',
+            pos: otherRight,
+            start: Math.min(snappedY, other.y || 0) - 20,
+            end: Math.max(snappedY + dh, (other.y || 0) + oh) + 20,
+            label: 'Căn phải'
+          });
+        }
+      }
+
+      // 2. Dynamic Horizontal Alignment (Centers, Top edges, Bottom edges)
+      const curCenterY = rawY + dh / 2;
+      let ySnapped = false;
+
+      for (const other of candidateNodes) {
+        const ow = getNodeW(other);
+        const oh = getNodeH(other);
+        const otherCenterY = (other.y || 0) + oh / 2;
+        const otherTop = other.y || 0;
+        const otherBottom = (other.y || 0) + oh;
+
+        if (!ySnapped && Math.abs(curCenterY - otherCenterY) <= SNAP_THRESHOLD) {
+          snappedY = otherCenterY - dh / 2;
+          ySnapped = true;
+          newGuides.push({
+            id: `h_center_${other.id}`,
+            type: 'horizontal',
+            pos: otherCenterY,
+            start: Math.min(snappedX, other.x || 0) - 20,
+            end: Math.max(snappedX + dw, (other.x || 0) + ow) + 20,
+            label: 'Căn hàng'
+          });
+        } else if (!ySnapped && Math.abs(rawY - otherTop) <= SNAP_THRESHOLD) {
+          snappedY = otherTop;
+          ySnapped = true;
+          newGuides.push({
+            id: `h_top_${other.id}`,
+            type: 'horizontal',
+            pos: otherTop,
+            start: Math.min(snappedX, other.x || 0) - 20,
+            end: Math.max(snappedX + dw, (other.x || 0) + ow) + 20,
+            label: 'Căn đỉnh'
+          });
+        } else if (!ySnapped && Math.abs(rawY + dh - otherBottom) <= SNAP_THRESHOLD) {
+          snappedY = otherBottom - dh;
+          ySnapped = true;
+          newGuides.push({
+            id: `h_bottom_${other.id}`,
+            type: 'horizontal',
+            pos: otherBottom,
+            start: Math.min(snappedX, other.x || 0) - 20,
+            end: Math.max(snappedX + dw, (other.x || 0) + ow) + 20,
+            label: 'Căn đáy'
+          });
+        }
+      }
+
+      setActiveGuides(newGuides);
+
+      const newX = Math.max(10, Math.round(snappedX));
+      const newY = Math.max(10, Math.round(snappedY));
       onNodeMove(draggingNodeId, newX, newY);
+
+      // Move children together so subtree never breaks!
+      if (dragSubtreeRef.current) {
+        const deltaX = newX - dragStartPos.current.originX;
+        const deltaY = newY - dragStartPos.current.originY;
+        dragSubtreeRef.current.descendantIds.forEach(cId => {
+          const initPos = dragSubtreeRef.current?.initialPositions.get(cId);
+          if (initPos) {
+            onNodeMove(cId, Math.max(10, initPos.x + deltaX), Math.max(10, initPos.y + deltaY));
+          }
+        });
+      }
     } else if (draggingNoteId) {
       const dx = (e.clientX - dragStartPos.current.x) / zoom;
       const dy = (e.clientY - dragStartPos.current.y) / zoom;
@@ -158,6 +418,24 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
     setDraggingNodeId(null);
     setDraggingNoteId(null);
     setDraggingDividerId(null);
+    dragSubtreeRef.current = null;
+    setIsPanning(false);
+    panStartRef.current = null;
+    setActiveGuides([]);
+  };
+
+  // Container-level mousedown for panning
+  const handleContainerMouseDown = (e: React.MouseEvent) => {
+    if (isSpaceDown) {
+      e.preventDefault();
+      setIsPanning(true);
+      panStartRef.current = {
+        mouseX: e.clientX,
+        mouseY: e.clientY,
+        offsetX: panOffset.x,
+        offsetY: panOffset.y
+      };
+    }
   };
 
   const nodeMap = new Map<string, OrgNode>();
@@ -167,8 +445,8 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   let connectStartCoord: { x: number; y: number } | null = null;
   if (connectingSource) {
     const sNode = connectingSource.node;
-    const w = sNode.width || 175;
-    const h = sNode.height || 65;
+    const w = sNode.width || 165;
+    const h = sNode.height || 68;
     const nx = sNode.x || 0;
     const ny = sNode.y || 0;
 
@@ -194,81 +472,153 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
     }
   });
 
-  const renderedLabelKeys = new Set<string>();
-
   return (
-    <div className="relative w-full overflow-auto bg-slate-100 rounded-xl border border-slate-300 p-4 shadow-inner min-h-[700px]">
+    <div
+      ref={containerRef}
+      onMouseDown={handleContainerMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      className="relative w-full flex-1 rounded-xl border p-2 shadow-inner flex flex-col items-center justify-start transition-all duration-300 bg-slate-100 border-slate-300 overflow-auto"
+      style={{ cursor: isSpaceDown ? (isPanning ? 'grabbing' : 'grab') : 'default' }}
+    >
       {/* Floating Active Connection Mode Banner */}
       {connectingSource && (
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-blue-600 text-white px-4 py-2 rounded-full shadow-2xl animate-bounce">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-blue-600 text-white px-4 py-2 rounded-full shadow-2xl animate-bounce">
           <span className="text-xs font-bold">
-            🔗 Connecting from <u>{connectingSource.node.title}</u>: Click on target position to link line
+            🔗 Đang nối từ [{connectingSource.node.title}]: Nhấp vào vị trí đích để tạo liên kết
           </span>
           <button
             onClick={onCancelConnect}
             className="bg-white/20 hover:bg-white/40 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold cursor-pointer"
           >
-            <XCircle className="w-3.5 h-3.5" /> Cancel (ESC)
+            <XCircle className="w-3.5 h-3.5" /> Hủy
           </button>
         </div>
       )}
 
-      {/* Floating Zoom Controls */}
-      <div className="absolute top-6 right-6 z-40 flex items-center gap-1 bg-white/95 backdrop-blur-xs border border-slate-300 rounded-lg p-1 shadow-md">
+      {/* Floating Zoom Controls: Co vừa, 100%, Zoom Out, Zoom In */}
+      <div className="absolute top-3 right-4 z-40 flex items-center gap-1 bg-white/95 backdrop-blur-xs border border-slate-300 rounded-lg p-1 shadow-md">
         <button
-          onClick={() => setZoom(prev => Math.max(0.4, prev - 0.1))}
-          className="p-1.5 text-slate-700 hover:bg-slate-100 rounded cursor-pointer"
-          title="Zoom Out"
+          onClick={() => {
+            setIsFitMode(true);
+            setPanOffset({ x: 0, y: 0 });
+            setZoom(calculateFitZoom());
+          }}
+          className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all ${
+            isFitMode
+              ? 'bg-[#B91C1C] text-white shadow-xs'
+              : 'text-slate-700 hover:bg-slate-100 bg-slate-50'
+          }`}
+          title="Tự động co giãn vừa khung nhìn màn hình"
         >
-          <ZoomOut className="w-4 h-4" />
+          <Maximize2 className="w-3 h-3" />
+          <span>Co vừa</span>
         </button>
-        <span className="text-xs font-mono font-bold px-1.5 text-slate-800">
+
+        <button
+          onClick={() => {
+            setIsFitMode(false);
+            setZoom(1);
+          }}
+          className={`px-2 py-1 rounded text-xs font-semibold cursor-pointer transition-all ${
+            !isFitMode && Math.round(zoom * 100) === 100
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-slate-700 hover:bg-slate-100 bg-slate-50'
+          }`}
+          title="Kích thước gốc 100%"
+        >
+          100%
+        </button>
+
+        <div className="w-[1px] h-3.5 bg-slate-200 mx-0.5" />
+
+        <button
+          onClick={() => {
+            setIsFitMode(false);
+            setZoom(prev => Math.max(0.2, Math.round((prev - 0.1) * 10) / 10));
+          }}
+          className="p-1 text-slate-700 hover:bg-slate-100 rounded cursor-pointer"
+          title="Thu nhỏ"
+        >
+          <ZoomOut className="w-3.5 h-3.5" />
+        </button>
+
+        <span className="text-xs font-mono font-bold px-1 text-slate-800 min-w-[34px] text-center">
           {Math.round(zoom * 100)}%
         </span>
+
         <button
-          onClick={() => setZoom(prev => Math.min(1.8, prev + 0.1))}
-          className="p-1.5 text-slate-700 hover:bg-slate-100 rounded cursor-pointer"
-          title="Zoom In"
+          onClick={() => {
+            setIsFitMode(false);
+            setZoom(prev => Math.min(1.8, Math.round((prev + 0.1) * 10) / 10));
+          }}
+          className="p-1 text-slate-700 hover:bg-slate-100 rounded cursor-pointer"
+          title="Phóng to"
         >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => setZoom(1)}
-          className="p-1.5 text-slate-700 hover:bg-slate-100 rounded cursor-pointer"
-          title="Reset Zoom"
-        >
-          <Maximize2 className="w-4 h-4" />
+          <ZoomIn className="w-3.5 h-3.5" />
         </button>
       </div>
 
       {/* Floating Headcount Summary Widget */}
-      <div className="absolute bottom-6 left-6 z-40">
-        <SumUpWidget
-          summary={summary}
-          isVisible={showSumUpTable}
-          onToggleVisible={onToggleSumUpTable}
-        />
-      </div>
+      {showSumUpTable && (
+        <div className="absolute bottom-4 left-6 z-40">
+          <SumUpWidget
+            summary={summary}
+            isVisible={showSumUpTable}
+            onToggleVisible={onToggleSumUpTable}
+          />
+        </div>
+      )}
 
-      {/* Printable / Exportable Canvas Area */}
+      {/* Printable / Exportable Canvas Area wrapped in visual centering container */}
       <div
-        ref={canvasRef}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
         style={{
-          transform: `scale(${zoom})`,
-          transformOrigin: 'top left',
-          width: Math.max(1300, canvasWidth),
-          height: Math.max(760, canvasHeight)
+          width: Math.round(effectiveCanvasWidth * zoom),
+          height: Math.round(effectiveCanvasHeight * zoom)
         }}
-        className="relative bg-white shadow-2xl rounded-sm border border-slate-200 transition-transform duration-75 overflow-visible select-none"
+        className="relative shrink-0 my-8 mx-auto transition-all duration-100"
       >
-        {/* SVG Canvas for Connectors, Orthogonal Dotted Lines & Dividers */}
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none z-0"
-          style={{ width: '100%', height: '100%' }}
+        <div
+          ref={canvasRef}
+          style={{
+            transform: `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`,
+            transformOrigin: 'top left',
+            width: effectiveCanvasWidth,
+            height: effectiveCanvasHeight
+          }}
+          className="relative bg-white shadow-2xl transition-all duration-100 select-none rounded-sm border border-slate-200 shrink-0"
         >
-          <defs>
+          {/* Top-Left Division Banner (Omitted for N-1) */}
+          {template !== 'company_n1' && selectedDivision && (
+            <div className="absolute left-8 top-6 z-20 pointer-events-none select-none">
+              <div className="flex items-center gap-2.5">
+                <span className="w-1.5 h-6 bg-slate-900 rounded-full" />
+                <h1 className="text-xl font-bold tracking-tight text-slate-900 font-sans uppercase">
+                  {selectedDivision.trim().toLowerCase().endsWith('division')
+                    ? selectedDivision.trim()
+                    : `${selectedDivision.trim()} Division`}
+                </h1>
+              </div>
+            </div>
+          )}
+
+          {/* Inner Diagram Canvas */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: effectiveCanvasWidth,
+              height: effectiveCanvasHeight
+            }}
+          >
+
+          {/* SVG Canvas for Connectors, Orthogonal Dotted Lines & Dividers */}
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none z-0"
+            style={{ width: '100%', height: '100%' }}
+          >
+            <defs>
             <marker
               id="arrow-solid"
               viewBox="0 0 10 10"
@@ -294,60 +644,151 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
             </marker>
           </defs>
 
-          {/* 1. Grouped Direct Reporting Lines (Isolated Horizontal Bus per Parent) */}
+          {/* 1. Direct Reporting Lines (Column-Aware Bus Tree & Column Stacks) */}
           {Array.from(childrenByParent.entries()).map(([parentId, children]) => {
             const parent = nodeMap.get(parentId);
             if (!parent || parent.x === undefined || parent.y === undefined) return null;
+            if (parent.isCollapsed) return null;
 
-            const parentCenterX = (parent.x || 0) + (parent.width || 180) / 2;
-            const parentBottomY = (parent.y || 0) + (parent.height || 65);
+            const pw = getNodeW(parent);
+            const ph = getNodeH(parent);
+            const parentCenterX = Math.round(parent.x + pw / 2);
+            const parentBottomY = parent.y + ph;
 
-            // Group children by their Y level (sub-row)
-            const rowMap = new Map<number, OrgNode[]>();
-            children.forEach(c => {
-              const cy = c.y || 0;
-              if (!rowMap.has(cy)) rowMap.set(cy, []);
-              rowMap.get(cy)!.push(c);
+            // Group children into columns based on X coordinate (tolerance 35px)
+            const columns: OrgNode[][] = [];
+            const sortedChildren = [...children].sort((a, b) => (a.x || 0) - (b.x || 0));
+
+            sortedChildren.forEach(child => {
+              const cx = child.x || 0;
+              const existingCol = columns.find(col => col[0] && Math.abs((col[0].x || 0) - cx) <= 35);
+              if (existingCol) {
+                existingCol.push(child);
+              } else {
+                columns.push([child]);
+              }
+            });
+
+            // Sort children within each column top-to-bottom by Y coordinate
+            columns.forEach(col => col.sort((a, b) => (a.y || 0) - (b.y || 0)));
+
+            // Case A: Single vertical column directly below parent
+            if (columns.length === 1 && columns[0] && columns[0][0]) {
+              const col = columns[0];
+              const firstChild = col[0]!;
+              const firstChildCenterX = Math.round((firstChild.x || 0) + getNodeW(firstChild) / 2);
+              const firstChildTopY = firstChild.y || 0;
+
+              return (
+                <g key={`bus_col_${parentId}`}>
+                  {/* Stem from parent to first child */}
+                  {Math.abs(parentCenterX - firstChildCenterX) < 5 ? (
+                    <path
+                      d={`M ${parentCenterX} ${parentBottomY} V ${firstChildTopY}`}
+                      fill="none"
+                      stroke="#1e293b"
+                      strokeWidth="1.5"
+                      markerEnd="url(#arrow-solid)"
+                    />
+                  ) : (
+                    <path
+                      d={`M ${parentCenterX} ${parentBottomY} V ${Math.round(parentBottomY + (firstChildTopY - parentBottomY) / 2)} H ${firstChildCenterX} V ${firstChildTopY}`}
+                      fill="none"
+                      stroke="#1e293b"
+                      strokeWidth="1.5"
+                      markerEnd="url(#arrow-solid)"
+                    />
+                  )}
+
+                  {/* Sequential chain between children in the same column (never crosses a node) */}
+                  {col.map((c, idx) => {
+                    if (idx === 0) return null;
+                    const prev = col[idx - 1];
+                    if (!prev) return null;
+                    const prevCenterX = Math.round((prev.x || 0) + getNodeW(prev) / 2);
+                    const prevBottomY = (prev.y || 0) + getNodeH(prev);
+                    const currTopY = c.y || 0;
+
+                    return (
+                      <path
+                        key={`chain_${prev.id}_${c.id}`}
+                        d={`M ${prevCenterX} ${prevBottomY} V ${currTopY}`}
+                        fill="none"
+                        stroke="#1e293b"
+                        strokeWidth="1.5"
+                        markerEnd="url(#arrow-solid)"
+                      />
+                    );
+                  })}
+                </g>
+              );
+            }
+
+            // Case B: Multi-column branching
+            const minTopY = Math.min(...children.map(c => c.y || 0));
+            const busY = Math.round(parentBottomY + Math.max(15, (minTopY - parentBottomY) / 2));
+
+            let minColCenterX = Infinity;
+            let maxColCenterX = -Infinity;
+
+            const colData: { col: OrgNode[]; colCenterX: number; firstChildTopY: number }[] = [];
+            columns.forEach(col => {
+              const firstChild = col[0];
+              if (!firstChild) return;
+              const colCenterX = Math.round((firstChild.x || 0) + getNodeW(firstChild) / 2);
+              if (colCenterX < minColCenterX) minColCenterX = colCenterX;
+              if (colCenterX > maxColCenterX) maxColCenterX = colCenterX;
+              colData.push({ col, colCenterX, firstChildTopY: firstChild.y || 0 });
             });
 
             return (
-              <g key={`group_bus_${parentId}`}>
-                {Array.from(rowMap.entries()).map(([rowY, rowChildren], rIdx) => {
-                  const minChildX = Math.min(...rowChildren.map(c => (c.x || 0) + (c.width || 180) / 2));
-                  const maxChildX = Math.max(...rowChildren.map(c => (c.x || 0) + (c.width || 180) / 2));
-                  const busY = parentBottomY + (rowY - parentBottomY) * 0.45;
+              <g key={`bus_multi_${parentId}`}>
+                {/* Stem from parent down to bus */}
+                <path
+                  d={`M ${parentCenterX} ${parentBottomY} V ${busY}`}
+                  fill="none"
+                  stroke="#1e293b"
+                  strokeWidth="1.5"
+                />
 
+                {/* Horizontal Bus */}
+                <path
+                  d={`M ${Math.min(minColCenterX, parentCenterX)} ${busY} H ${Math.max(maxColCenterX, parentCenterX)}`}
+                  fill="none"
+                  stroke="#1e293b"
+                  strokeWidth="1.5"
+                />
+
+                {/* Drops to each column */}
+                {colData.map(({ col, colCenterX, firstChildTopY }) => {
+                  const leadChild = col[0];
+                  if (!leadChild) return null;
                   return (
-                    <g key={`subrow_${parentId}_${rIdx}`}>
-                      {/* Vertical stem from parent down to bus */}
+                    <g key={`col_branch_${leadChild.id}`}>
+                      {/* Drop from bus to top child of column */}
                       <path
-                        d={`M ${parentCenterX} ${parentBottomY} V ${busY}`}
+                        d={`M ${colCenterX} ${busY} V ${firstChildTopY}`}
                         fill="none"
-                        stroke="#0f172a"
+                        stroke="#1e293b"
                         strokeWidth="1.5"
+                        markerEnd="url(#arrow-solid)"
                       />
 
-                      {/* Isolated Horizontal Bus (Only spans between this parent's children) */}
-                      {rowChildren.length > 1 && (
-                        <path
-                          d={`M ${Math.min(minChildX, parentCenterX)} ${busY} H ${Math.max(maxChildX, parentCenterX)}`}
-                          fill="none"
-                          stroke="#0f172a"
-                          strokeWidth="1.5"
-                        />
-                      )}
-
-                      {/* Vertical drop lines with arrow for each child in this row */}
-                      {rowChildren.map(child => {
-                        const childCenterX = (child.x || 0) + (child.width || 180) / 2;
-                        const childTopY = child.y || 0;
+                      {/* Sequential chain between children in the same column */}
+                      {col.map((c, idx) => {
+                        if (idx === 0) return null;
+                        const prev = col[idx - 1];
+                        if (!prev) return null;
+                        const prevCenterX = Math.round((prev.x || 0) + getNodeW(prev) / 2);
+                        const prevBottomY = (prev.y || 0) + getNodeH(prev);
+                        const currTopY = c.y || 0;
 
                         return (
                           <path
-                            key={`drop_${child.id}`}
-                            d={`M ${childCenterX} ${busY} V ${childTopY}`}
+                            key={`chain_sub_${prev.id}_${c.id}`}
+                            d={`M ${prevCenterX} ${prevBottomY} V ${currTopY}`}
                             fill="none"
-                            stroke="#0f172a"
+                            stroke="#1e293b"
                             strokeWidth="1.5"
                             markerEnd="url(#arrow-solid)"
                           />
@@ -360,89 +801,113 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
             );
           })}
 
-          {/* 2. Indirect Matrix Lines (Orthogonal Right-Angle Path, Dashed) */}
+          {/* 2. Indirect Matrix Lines (Dashed, Orthogonal Right-Angle Path) */}
           {indirectLinks.map(link => {
             const fromNode = nodeMap.get(link.fromId);
             const toNode = nodeMap.get(link.toId);
             if (!fromNode || !toNode || fromNode.x === undefined || toNode.x === undefined) return null;
 
-            const fromCenterX = (fromNode.x || 0) + (fromNode.width || 175) / 2;
-            const fromCenterY = (fromNode.y || 0) + (fromNode.height || 65) / 2;
-            const toCenterX = (toNode.x || 0) + (toNode.width || 175) / 2;
-            const toCenterY = (toNode.y || 0) + (toNode.height || 65) / 2;
+            const fromCenterX = (fromNode.x || 0) + getNodeW(fromNode) / 2;
+            const fromCenterY = (fromNode.y || 0) + getNodeH(fromNode) / 2;
+            const toCenterX = (toNode.x || 0) + getNodeW(toNode) / 2;
+            const toCenterY = (toNode.y || 0) + getNodeH(toNode) / 2;
 
-            let pathD = '';
-            let labelX = 0;
-            let labelY = 0;
+            const isLeftToRight = fromCenterX < toCenterX;
+            const startX = isLeftToRight ? (fromNode.x || 0) + getNodeW(fromNode) : (fromNode.x || 0);
+            const endX = isLeftToRight ? (toNode.x || 0) : (toNode.x || 0) + getNodeW(toNode);
 
-            if (Math.abs(fromCenterY - toCenterY) < 30) {
-              const startX = fromCenterX < toCenterX ? (fromNode.x || 0) + (fromNode.width || 175) : (fromNode.x || 0);
-              const endX = fromCenterX < toCenterX ? (toNode.x || 0) : (toNode.x || 0) + (toNode.width || 175);
-              pathD = `M ${startX} ${fromCenterY} H ${endX}`;
-              labelX = (startX + endX) / 2;
-              labelY = fromCenterY - 6;
-            } else {
-              const startX = fromCenterX;
-              const startY = (fromNode.y || 0) + (fromNode.height || 65);
-              const endX = toCenterX;
-              const endY = toNode.y || 0;
-              const midY = startY + (endY - startY) * 0.45;
-
-              pathD = `M ${startX} ${startY} V ${midY} H ${endX} V ${endY}`;
-              labelX = (startX + endX) / 2;
-              labelY = midY - 5;
-            }
-
-            let shouldRenderLabel = false;
-            if (link.label) {
-              const locKey = `${Math.round(labelX / 80)}_${Math.round(labelY / 30)}_${link.label}`;
-              if (!renderedLabelKeys.has(locKey)) {
-                renderedLabelKeys.add(locKey);
-                shouldRenderLabel = true;
-              }
-            }
+            const midX = Math.round(startX + (endX - startX) / 2);
 
             return (
-              <g key={link.id}>
+              <g key={`ind_${link.id}`}>
                 <path
-                  d={pathD}
+                  d={`M ${startX} ${fromCenterY} H ${midX} V ${toCenterY} H ${endX}`}
                   fill="none"
                   stroke="#475569"
                   strokeWidth="1.5"
                   strokeDasharray="5,4"
                   markerEnd="url(#arrow-dashed)"
                 />
-                {shouldRenderLabel && (
-                  <text
-                    x={labelX}
-                    y={labelY}
-                    fill="#334155"
-                    fontSize="9.5"
-                    fontWeight="700"
-                    fontFamily="sans-serif"
-                    textAnchor="middle"
-                  >
-                    {link.label}
-                  </text>
-                )}
               </g>
             );
           })}
 
-          {/* 3. Live Interactive Rubberband Connecting Line in Connect Mode */}
-          {connectStartCoord && (
-            <path
-              d={`M ${connectStartCoord.x} ${connectStartCoord.y} L ${mousePos.x} ${mousePos.y}`}
-              fill="none"
+          {/* 3. Real-time Connection preview when connecting */}
+          {connectingSource && connectStartCoord && (
+            <line
+              x1={connectStartCoord.x}
+              y1={connectStartCoord.y}
+              x2={connectingSource.node.x || 0}
+              y2={connectingSource.node.y || 0}
               stroke="#2563eb"
-              strokeWidth="2.5"
-              strokeDasharray="6,4"
-              className="animate-pulse"
+              strokeWidth="2"
+              strokeDasharray="4,4"
             />
           )}
+
+          {/* 4. Dynamic Smart Guides (PowerPoint-style alignment rulers during drag) */}
+          {activeGuides.map(guide => {
+            if (guide.type === 'vertical') {
+              return (
+                <g key={guide.id} className="pointer-events-none z-50">
+                  <line
+                    x1={guide.pos}
+                    y1={Math.max(0, guide.start)}
+                    x2={guide.pos}
+                    y2={guide.end}
+                    stroke="#ec4899"
+                    strokeWidth="1.5"
+                    strokeDasharray="5,3"
+                  />
+                  <circle cx={guide.pos} cy={Math.max(0, guide.start)} r="3.5" fill="#ec4899" />
+                  <circle cx={guide.pos} cy={guide.end} r="3.5" fill="#ec4899" />
+                  {guide.label && (
+                    <text
+                      x={guide.pos + 5}
+                      y={Math.max(20, guide.start + 14)}
+                      fill="#be185d"
+                      fontSize="9"
+                      fontWeight="bold"
+                      className="select-none"
+                    >
+                      {guide.label}
+                    </text>
+                  )}
+                </g>
+              );
+            } else {
+              return (
+                <g key={guide.id} className="pointer-events-none z-50">
+                  <line
+                    x1={Math.max(0, guide.start)}
+                    y1={guide.pos}
+                    x2={guide.end}
+                    y2={guide.pos}
+                    stroke="#ec4899"
+                    strokeWidth="1.5"
+                    strokeDasharray="5,3"
+                  />
+                  <circle cx={Math.max(0, guide.start)} cy={guide.pos} r="3.5" fill="#ec4899" />
+                  <circle cx={guide.end} cy={guide.pos} r="3.5" fill="#ec4899" />
+                  {guide.label && (
+                    <text
+                      x={Math.max(20, guide.start + 10)}
+                      y={guide.pos - 5}
+                      fill="#be185d"
+                      fontSize="9"
+                      fontWeight="bold"
+                      className="select-none"
+                    >
+                      {guide.label}
+                    </text>
+                  )}
+                </g>
+              );
+            }
+          })}
         </svg>
 
-        {/* 4. Interactive Custom Dividers with Drag Handle & Actions */}
+        {/* 4. Render Custom Dividers */}
         {dividers.map(div => {
           if (div.type === 'vertical') {
             return (
@@ -452,53 +917,36 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                   position: 'absolute',
                   left: div.position,
                   top: 20,
-                  height: canvasHeight - 40,
-                  zIndex: 15
+                  bottom: 20,
+                  width: 2,
+                  zIndex: 5
                 }}
-                className="group select-none"
+                className="bg-slate-900 flex flex-col justify-between"
               >
-                <div className="w-[3px] h-full bg-slate-900 shadow-xs relative" />
-
+                {/* Drag handle */}
                 <div
-                  onMouseDown={(e) => handleDividerMouseDown(e, div)}
-                  className="absolute -top-3 -left-3.5 w-8 h-8 bg-white border-2 border-slate-900 rounded-full flex items-center justify-center cursor-ew-resize shadow-md hover:bg-slate-100 z-30"
-                  title="Drag to reposition divider"
+                  onMouseDown={e => handleDividerMouseDown(e, div)}
+                  className="absolute -top-3.5 -left-3.5 w-7 h-7 bg-white border-2 border-slate-900 rounded-full shadow-md cursor-ew-resize flex items-center justify-center hover:scale-110 transition-transform"
+                  title="Kéo để thay đổi phân vùng"
                 >
                   <Move className="w-3.5 h-3.5 text-slate-800" />
                 </div>
 
-                <div className="absolute top-7 -left-12 hidden group-hover:flex items-center gap-1 bg-white border border-slate-300 rounded-md p-1 shadow-md z-30">
-                  <button
-                    onClick={() => onDividerEdit(div)}
-                    className="p-1 hover:bg-blue-50 text-blue-600 rounded text-xs cursor-pointer"
-                    title="Edit Divider Labels"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={() => onDividerDelete(div.id)}
-                    className="p-1 hover:bg-red-50 text-red-600 rounded text-xs cursor-pointer"
-                    title="Delete Divider"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-
+                {/* Left Label */}
                 {div.labelLeft && (
                   <div
-                    onClick={() => onDividerEdit(div)}
-                    style={{ position: 'absolute', right: 15, bottom: 0 }}
-                    className="text-[11px] font-bold text-slate-900 text-right whitespace-nowrap cursor-pointer hover:text-blue-600"
+                    style={{ position: 'absolute', right: 15, top: 0 }}
+                    className="text-[11px] font-bold text-slate-900 text-right whitespace-nowrap"
                   >
                     {div.labelLeft}
                   </div>
                 )}
 
+                {/* Right Label */}
                 {div.labelRight && (
                   <div
-                    onClick={() => onDividerEdit(div)}
-                    style={{ position: 'absolute', left: 15, bottom: 0 }}
-                    className="text-[11px] font-bold text-slate-900 text-left whitespace-nowrap cursor-pointer hover:text-blue-600"
+                    style={{ position: 'absolute', left: 15, top: 0 }}
+                    className="text-[11px] font-bold text-slate-900 text-left whitespace-nowrap"
                   >
                     {div.labelRight}
                   </div>
@@ -509,7 +957,9 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
           return null;
         })}
 
-        {/* 5. Render HTML Node Cards */}
+
+
+                {/* 5. Render HTML Node Cards */}
         {nodes.map(node => (
           <div
             key={node.id}
@@ -532,18 +982,20 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
               hasChildren={node.hasChildren}
               isCollapsed={node.isCollapsed}
               collapsedCount={node.collapsedCount}
+              isDiffView={false}
+              diffType="none"
               onToggleCollapse={onToggleCollapse}
-              onSelect={onNodeSelect}
-              onEdit={onNodeSelect}
-              onAnchorClick={onStartConnect}
-              onDelete={onNodeDelete}
-              onToggleStatus={onNodeToggleStatus}
+              onSelect={mode === 'current' ? undefined : onNodeSelect}
+              onEdit={mode === 'current' ? undefined : onNodeSelect}
+              onAnchorClick={mode === 'current' ? undefined : onStartConnect}
+              onDelete={mode === 'current' ? undefined : onNodeDelete}
+              onToggleStatus={mode === 'current' ? undefined : onNodeToggleStatus}
               isDragging={draggingNodeId === node.id}
             />
           </div>
         ))}
 
-        {/* 6. Render Interactive Custom Notes with Drag & Edit */}
+        {/* 6. Render Interactive Custom Notes */}
         {notes.map(note => (
           <div
             key={note.id}
@@ -557,18 +1009,9 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
             />
           </div>
         ))}
-
-        {/* 7. Render Draggable Sidebar ONLY in Division Views (Hidden in N-1 view) */}
-        {template !== 'company_n1' && (
-          <SharedSidebar
-            x={sidebarPos.x}
-            y={sidebarPos.y}
-            width={230}
-            title="CBS VN Shared"
-            onMove={(nx, ny) => setSidebarPos({ x: nx, y: ny })}
-          />
-        )}
+        </div>
       </div>
     </div>
+  </div>
   );
 };
