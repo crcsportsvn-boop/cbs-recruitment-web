@@ -4,27 +4,36 @@ import * as XLSX from 'xlsx';
 import { OrgProposalState, OrgNode, HeadcountSummary, ProposalChange, ProposalJustificationRow } from '@/types/org-chart';
 
 /**
- * Trigger a named file download from a Blob.
- * Uses data URI conversion to ensure filename is respected cross-browser.
+ * Reliable cross-browser blob download.
+ *
+ * Key design decisions:
+ * 1. Force `application/octet-stream` MIME type → prevents Chrome/Firefox from opening
+ *    PDFs in the built-in viewer or images inline — forcing a true file download.
+ * 2. Long revoke timeout (60 s) → Chrome needs time to register the download and
+ *    resolve the filename from the `download` attribute before the blob URL is gone.
+ * 3. `setAttribute` + `dispatchEvent(MouseEvent)` → more reliable than `.click()`
+ *    across async contexts where the original user-gesture stack has unwound.
  */
-function downloadBlob(blob: Blob, filename: string): Promise<void> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        resolve();
-      }, 500);
-    };
-    reader.readAsDataURL(blob);
-  });
+function downloadBlob(originalBlob: Blob, filename: string): void {
+  // Re-wrap as octet-stream so browsers never try to open the content inline
+  const blob = new Blob([originalBlob], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.setAttribute('download', filename); // setAttribute is more reliable than .download = 
+  a.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+  document.body.appendChild(a);
+
+  // dispatchEvent with explicit window view is more reliable than a.click() in async
+  a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: false, view: window }));
+
+  // Long timeout: give Chrome 60 s to register the download before revoking the URL.
+  // Revoking too early causes Chrome to fall back to the blob UUID as filename.
+  setTimeout(() => {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, 60_000);
 }
 
 /**
@@ -75,10 +84,9 @@ function applyCloneCleanup(clonedElement: HTMLElement, exportW: number, exportH:
 }
 
 /**
- * Exports the HTML Canvas element to high-resolution PNG image.
- * Uses toDataURL (not blob URL) so Chrome always respects the filename.
+ * Renders element to canvas and returns the blob.
  */
-export async function exportToImage(element: HTMLElement, filename: string = 'CBS_Org_Chart.png'): Promise<void> {
+async function renderToBlob(element: HTMLElement): Promise<{ blob: Blob; canvas: HTMLCanvasElement }> {
   if (typeof document !== 'undefined' && (document as any).fonts?.ready) {
     try { await (document as any).fonts.ready; } catch { /* ignore */ }
   }
@@ -104,72 +112,65 @@ export async function exportToImage(element: HTMLElement, filename: string = 'CB
     onclone: (_clonedDoc, clonedElement) => applyCloneCleanup(clonedElement, exportW, exportH)
   });
 
-  // Use dataURL directly – Chrome always honors the .download attribute on data URIs
-  const dataUrl = canvas.toDataURL('image/png', 1.0);
-  const a = document.createElement('a');
-  a.href = dataUrl;
-  a.download = filename;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => document.body.removeChild(a), 500);
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => { if (b) resolve(b); else reject(new Error('toBlob failed')); },
+      'image/png',
+      1.0
+    );
+  });
+
+  return { blob, canvas };
 }
 
 /**
- * Exports the HTML Canvas element to PDF (A4 or A3 Landscape).
- * jsPDF.save() has its own reliable download mechanism.
+ * Exports the canvas element to high-resolution PNG.
+ */
+export async function exportToImage(element: HTMLElement, filename: string = 'CBS_Org_Chart.png'): Promise<void> {
+  const { blob } = await renderToBlob(element);
+  downloadBlob(blob, filename);
+}
+
+/**
+ * Exports the canvas element to PDF (A4 or A3 Landscape).
+ * Uses pdf.output('arraybuffer') instead of pdf.save() to control the download
+ * ourselves — this prevents Chrome's PDF viewer from intercepting the blob.
  */
 export async function exportToPDF(
   element: HTMLElement,
   filename: string = 'CBS_Org_Chart.pdf',
   paperFormat: 'a4' | 'a3' = 'a4'
 ): Promise<void> {
-  if (typeof document !== 'undefined' && (document as any).fonts?.ready) {
-    try { await (document as any).fonts.ready; } catch { /* ignore */ }
-  }
+  const { blob: imgBlob, canvas } = await renderToBlob(element);
 
-  const rawStyleW = parseInt(element.style.width, 10);
-  const rawStyleH = parseInt(element.style.height, 10);
-  const exportW = Math.max(rawStyleW || element.scrollWidth || element.offsetWidth, 1440);
-  const exportH = Math.max(rawStyleH || element.scrollHeight || element.offsetHeight, 810);
-
-  const canvas = await html2canvas(element, {
-    scale: 2.5,
-    useCORS: true,
-    logging: false,
-    backgroundColor: '#ffffff',
-    width: exportW,
-    height: exportH,
-    windowWidth: exportW,
-    windowHeight: exportH,
-    scrollX: 0,
-    scrollY: 0,
-    x: 0,
-    y: 0,
-    onclone: (_clonedDoc, clonedElement) => applyCloneCleanup(clonedElement, exportW, exportH)
+  // Convert PNG blob → data URI for jsPDF embedding
+  const imgData = await new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.readAsDataURL(imgBlob);
   });
 
-  // Use dataURL for embedding into PDF
-  const imgData = canvas.toDataURL('image/png', 1.0);
-
   const isA3 = paperFormat === 'a3';
-  const pdfWidth = isA3 ? 420 : 297;
-  const pdfHeight = isA3 ? 297 : 210;
+  const pdfW = isA3 ? 420 : 297;
+  const pdfH = isA3 ? 297 : 210;
   const margin = 8;
 
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: paperFormat });
 
-  const contentWidth = pdfWidth - margin * 2;
-  const contentHeight = pdfHeight - margin * 2;
-  const ratio = Math.min(contentWidth / canvas.width, contentHeight / canvas.height);
-  const finalWidth = canvas.width * ratio;
-  const finalHeight = canvas.height * ratio;
-  const posX = (pdfWidth - finalWidth) / 2;
-  const posY = (pdfHeight - finalHeight) / 2;
+  const cw = pdfW - margin * 2;
+  const ch = pdfH - margin * 2;
+  const ratio = Math.min(cw / canvas.width, ch / canvas.height);
+  const fw = canvas.width * ratio;
+  const fh = canvas.height * ratio;
+  const px = (pdfW - fw) / 2;
+  const py = (pdfH - fh) / 2;
 
-  pdf.addImage(imgData, 'PNG', posX, posY, finalWidth, finalHeight);
-  // jsPDF.save() uses its own FileSaver mechanism – reliable in all browsers
-  pdf.save(filename);
+  pdf.addImage(imgData, 'PNG', px, py, fw, fh);
+
+  // Use arraybuffer output → wrap as Blob → downloadBlob (avoids Chrome PDF viewer interception)
+  const pdfArrayBuffer = pdf.output('arraybuffer');
+  const pdfBlob = new Blob([pdfArrayBuffer], { type: 'application/pdf' });
+  downloadBlob(pdfBlob, filename);
 }
 
 /**
@@ -210,12 +211,20 @@ export function exportProposalExcel(
     'Chức Danh': d.nodeTitle,
     'Phòng Ban': d.division,
     'Bộ Phận': d.dept || '',
-    'Loại Thay Đổi': d.type === 'new_hire' ? 'Tuyển Mới (New Hire BP)' : d.type === 'replace' ? 'Thay Thế (Replace)' : d.type === 'reassigned' ? 'Điều Chuyển Báo Cáo' : d.type === 'title_modified' ? 'Sửa Chức Danh' : 'Bãi Bỏ',
+    'Loại Thay Đổi':
+      d.type === 'new_hire' ? 'Tuyển Mới (New Hire BP)' :
+      d.type === 'replace' ? 'Thay Thế (Replace)' :
+      d.type === 'reassigned' ? 'Điều Chuyển Báo Cáo' :
+      d.type === 'title_modified' ? 'Sửa Chức Danh' : 'Bãi Bỏ',
     'Giá Trị Trước': d.oldValue || '-',
     'Giá Trị Sau': d.newValue || '-',
     'Chi Tiết Biến Động': d.description
   }));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(diffData.length > 0 ? diffData : [{ 'Thông Báo': 'Không có biến động so với sơ đồ hiện tại' }]), 'Diff_Summary');
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet(diffData.length > 0 ? diffData : [{ 'Thông Báo': 'Không có biến động so với sơ đồ hiện tại' }]),
+    'Diff_Summary'
+  );
 
   const justData = justificationRows.map((j, idx) => ({
     'STT': idx + 1,
@@ -228,7 +237,11 @@ export function exportProposalExcel(
     'Cấp Bậc (Grade)': j.jobGrade || '',
     'Ngân Sách / Chi Phí': j.budgetImpact || ''
   }));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(justData.length > 0 ? justData : [{ 'Thông Báo': 'Chưa có ghi chú thuyết minh' }]), 'Proposal_Justification');
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.json_to_sheet(justData.length > 0 ? justData : [{ 'Thông Báo': 'Chưa có ghi chú thuyết minh' }]),
+    'Proposal_Justification'
+  );
 
   const summaryData = [
     { 'Chỉ Số Định Biên': 'Tổng số ghế định biên hiện tại (Total Seats)', 'Số Lượng': summary.totalSeats },
@@ -240,18 +253,15 @@ export function exportProposalExcel(
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), 'Headcount_Summary');
 
-  // XLSX: convert to array then to Blob → use FileReader to get dataURL so filename is honored
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  downloadBlob(blob, filename);
+  downloadBlob(new Blob([wbout]), filename);
 }
 
 /**
  * Exports proposal state to a downloadable JSON file (.cbsorg)
  */
 export function exportProposalJSON(state: OrgProposalState, filename: string = 'CBS_Org_Proposal.cbsorg'): void {
-  const jsonStr = JSON.stringify(state, null, 2);
-  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   downloadBlob(blob, filename);
 }
 
@@ -262,12 +272,8 @@ export function importProposalJSON(file: File): Promise<OrgProposalState> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      try {
-        const text = e.target?.result as string;
-        resolve(JSON.parse(text) as OrgProposalState);
-      } catch {
-        reject(new Error('Invalid CBS Org proposal JSON file'));
-      }
+      try { resolve(JSON.parse(e.target?.result as string) as OrgProposalState); }
+      catch { reject(new Error('Invalid CBS Org proposal JSON file')); }
     };
     reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsText(file);
