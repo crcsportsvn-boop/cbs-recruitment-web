@@ -813,7 +813,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       {/* Node Edit / Reporting Relationship Modal with Cycle Prevention */}
       {selectedNode && (
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-lg bg-white">
+          <DialogContent className="sm:max-w-lg bg-white overflow-hidden">
             <DialogHeader>
               <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-red-600" />
@@ -821,7 +821,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
               </DialogTitle>
             </DialogHeader>
 
-            <div className="grid gap-3 py-2 text-xs">
+            <div className="grid gap-3 py-2 text-xs w-full">
               <div className="grid gap-1">
                 <Label htmlFor="node-title" className="font-semibold text-slate-700">Chức Danh Vị Trí (Position Title)</Label>
                 <Input
@@ -853,7 +853,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
                       reportsToTitle: parent ? parent.title : undefined
                     });
                   }}
-                  className="border border-slate-300 rounded-md text-xs py-1.5 px-2 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-red-500 font-semibold"
+                  className="w-full border border-slate-300 rounded-md text-xs py-1.5 px-2 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-red-500 font-semibold"
                 >
                   <option value="">(Không có / Vị trí đứng đầu - Root)</option>
                   {proposalNodes
