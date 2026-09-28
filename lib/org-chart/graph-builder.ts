@@ -689,11 +689,42 @@ export function buildDynamicN1Layout(
     }
   });
 
+  // Exclude Trang (Marketing Manager in Hoka) as requested (she is redundant in N-1)
+  const filteredBrandHeads = brandHeads.filter(n => {
+    const isHokaMkt = (n.division || '').toLowerCase().includes('hoka') &&
+      (n.title.toLowerCase().includes('marketing') || (n.nickname || '').toLowerCase() === 'trang');
+    return !isHokaMkt;
+  });
+
+  // Ensure Liam - Hoka Brand Manager is present
+  const liamHoka = rawNodes.find(n =>
+    (n.nickname || '').trim().toLowerCase() === 'liam' ||
+    ((n.division || '').toLowerCase().includes('hoka') && n.title.toLowerCase().includes('brand manager')) ||
+    n.id === 'SHO-HOK-146-149-010-1'
+  ) || {
+    id: 'SHO-HOK-146-149-010-1',
+    title: 'Hoka Brand Manager',
+    nickname: 'Liam',
+    division: 'HOKA',
+    dept: 'Merchandise',
+    flags: ['VN'],
+    status: 'active'
+  } as OrgNode;
+
+  const finalBrandHeads = filteredBrandHeads.filter(n => !(n.division || '').toLowerCase().includes('hoka'));
+  finalBrandHeads.push({
+    ...liamHoka,
+    title: liamHoka.title.toLowerCase().includes('hoka') ? liamHoka.title : 'Hoka Brand Manager',
+    nickname: liamHoka.nickname || 'Liam',
+    division: 'HOKA',
+    flags: liamHoka.flags && liamHoka.flags.length > 0 ? liamHoka.flags : ['VN']
+  });
+
   // Ensure unique primary head per brand division
   const uniqueBrandHeads: OrgNode[] = [];
   const seenDivisions = new Set<string>();
 
-  brandHeads.forEach(head => {
+  finalBrandHeads.forEach(head => {
     const divKey = (head.division || head.title).toLowerCase();
     if (!seenDivisions.has(divKey)) {
       seenDivisions.add(divKey);
@@ -847,23 +878,6 @@ export function buildDynamicN1Layout(
     });
   }
 
-  const regSportsDl = virtualLeaders.find(vl => vl.code === 'THL_REG_SPORTS_DL');
-  if (regSportsDl) {
-    positionedNodes.push({
-      id: regSportsDl.code,
-      title: regSportsDl.title,
-      nickname: regSportsDl.nickname,
-      flags: regSportsDl.flags,
-      status: 'active',
-      isVirtual: true,
-      reportsToId: buCrc.code,
-      x: 430,
-      y: 135,
-      width: CARD_W,
-      height: CARD_H
-    });
-  }
-
   const regHoka = virtualLeaders.find(vl => vl.code === 'THL_REG_HOKA');
   if (regHoka) {
     positionedNodes.push({
@@ -874,8 +888,25 @@ export function buildDynamicN1Layout(
       status: 'active',
       isVirtual: true,
       reportsToId: buCrc.code,
+      x: 430,
+      y: 225,
+      width: CARD_W,
+      height: CARD_H
+    });
+  }
+
+  const regSportsDl = virtualLeaders.find(vl => vl.code === 'THL_REG_SPORTS_DL');
+  if (regSportsDl) {
+    positionedNodes.push({
+      id: regSportsDl.code,
+      title: regSportsDl.title,
+      nickname: regSportsDl.nickname,
+      flags: regSportsDl.flags,
+      status: 'active',
+      isVirtual: true,
+      reportsToId: buCrc.code,
       x: 625,
-      y: 135,
+      y: 225,
       width: CARD_W,
       height: CARD_H
     });
@@ -899,24 +930,21 @@ export function buildDynamicN1Layout(
     height: CARD_H
   });
 
-  // Link President to Group Regional Leaders (Dotted indirect line)
-  indirectLinks.push({
-    id: 'ind_pres_cmg',
-    fromId: buCmg.code,
-    toId: presId,
-    label: ''
-  });
-  indirectLinks.push({
-    id: 'ind_pres_crc',
-    fromId: buCrc.code,
-    toId: presId,
-    label: ''
-  });
-
-  // 5. Layout Direct Reporting Brand Heads under President & Regional Leaders (Left side, starting at y: 320)
-  // Per requirement: keep only CEO direct N-1 Heads (no sub-managers/staff)
+  // 5. Layout Direct Reporting Brand Heads under Regional Leaders (Left side, starting at y: 340)
+  // Per requirement: Brands report directly to their regional leaders (solid lines), and indirectly to Andrew (dashed line)
   let currentBrandX = 40;
-  const brandStartY = 320;
+  const brandStartY = 340;
+
+  const getDirectRegionalReport = (head: OrgNode): string => {
+    const text = `${head.division || ''} ${head.title || ''}`.toLowerCase();
+    if (text.includes('dyson')) return regDyson?.code || catTech?.code || buCmg.code;
+    if (text.includes('crocs') || text.includes('footwear')) return regFootwear?.code || catFashion?.code || buCmg.code;
+    if (text.includes('hoka')) return regHoka?.code || buCrc.code;
+    if (text.includes('sports brands') || text.includes('sports') || text.includes('supersports') || text.includes('ssp')) {
+      return regSportsDl?.code || buCrc.code;
+    }
+    return presId;
+  };
 
   uniqueBrandHeads.forEach(head => {
     positionedNodes.push({
@@ -925,11 +953,20 @@ export function buildDynamicN1Layout(
       y: brandStartY,
       width: CARD_W,
       height: CARD_H,
-      reportsToId: presId,
+      reportsToId: getDirectRegionalReport(head),
       hasChildren: false,
       isCollapsed: false
     });
-    currentBrandX += CARD_W + H_GAP;
+
+    // Indirect matrix reporting up to BU President Andrew
+    indirectLinks.push({
+      id: `ind_pres_brand_${head.id}`,
+      fromId: head.id,
+      toId: presId,
+      label: ''
+    });
+
+    currentBrandX += CARD_W + 10;
   });
 
   // Vertical Divider separating Brand Organization and Supporting Functions
@@ -1001,12 +1038,37 @@ export function buildDynamicN1Layout(
 
   const groupCol1: (OrgNode | undefined)[] = [hrHead, busController];
   const groupCol2: OrgNode[] = [
-    { id: 'grp_it_head', title: 'IT Head', nickname: 'Luan', isVirtual: true, status: 'active' } as OrgNode,
-    { id: 'grp_scm_head', title: 'SCM Head', nickname: 'Oanh', isVirtual: true, status: 'active' } as OrgNode,
-    { id: 'grp_legal_head', title: 'Legal Head', nickname: 'Duong', isVirtual: true, status: 'active' } as OrgNode
+    { id: 'grp_it_head', title: 'IT Head', nickname: 'Luan', dept: 'IT', flags: ['VN'], isVirtual: true, status: 'active' } as OrgNode,
+    { id: 'grp_scm_head', title: 'SCM Head', nickname: 'Oanh', dept: 'SCM', flags: ['VN'], isVirtual: true, status: 'active' } as OrgNode,
+    { id: 'grp_legal_head', title: 'Legal Head', nickname: 'Duong', dept: 'Legal', flags: ['VN'], isVirtual: true, status: 'active' } as OrgNode
   ];
 
   let currentGroupX = currentSupportX + 25;
+
+  // Add Virtual Leader for CRV Supporting Functions Heads (sitting above Group Support)
+  const crvSupportHead = virtualLeaders.find(vl => vl.code === 'CRV_SUPPORTING_HEADS') || {
+    code: 'CRV_SUPPORTING_HEADS',
+    title: 'Supporting Function Heads CRV',
+    nickname: '',
+    flags: ['VN'],
+    reportsToCode: '',
+    divisionScope: 'CRV Corporate Functions'
+  };
+
+  const crvSupportX = Math.round(currentGroupX + (CARD_W + H_GAP) / 2);
+  positionedNodes.push({
+    id: crvSupportHead.code,
+    title: crvSupportHead.title,
+    nickname: crvSupportHead.nickname || '',
+    flags: crvSupportHead.flags && crvSupportHead.flags.length > 0 ? crvSupportHead.flags : ['VN'],
+    status: 'active',
+    isVirtual: true,
+    x: crvSupportX,
+    y: 40,
+    width: CARD_W,
+    height: CARD_H
+  });
+
   [groupCol1, groupCol2].forEach(col => {
     col.forEach((node, rIdx) => {
       if (!node) return;
@@ -1016,9 +1078,17 @@ export function buildDynamicN1Layout(
         y: supportStartY + rIdx * (CARD_H + 20),
         width: CARD_W,
         height: CARD_H,
-        reportsToId: presId,
+        reportsToId: crvSupportHead.code,
         hasChildren: false,
         isCollapsed: false
+      });
+
+      // Indirect matrix reporting up to Andrew
+      indirectLinks.push({
+        id: `ind_pres_group_${node.id}`,
+        fromId: node.id,
+        toId: presId,
+        label: ''
       });
     });
     currentGroupX += CARD_W + H_GAP;

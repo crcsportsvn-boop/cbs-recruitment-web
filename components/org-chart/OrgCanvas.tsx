@@ -801,36 +801,212 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
             );
           })}
 
-          {/* 2. Indirect Matrix Lines (Dashed, Orthogonal Right-Angle Path) */}
-          {indirectLinks.map(link => {
-            const fromNode = nodeMap.get(link.fromId);
-            const toNode = nodeMap.get(link.toId);
-            if (!fromNode || !toNode || fromNode.x === undefined || toNode.x === undefined) return null;
+          {/* 2. Indirect Matrix Lines (Aligned Bus for N-1, Orthogonal for other templates) */}
+          {(() => {
+            if (isN1) {
+              const presNode = nodes.find(
+                n => n.id === 'VN_BU_PRES' || n.title.toLowerCase().includes('president, crc sports') ||
+                n.title.toLowerCase().includes('president') || n.title.toLowerCase().includes('managing director')
+              ) || nodeMap.get('VN_BU_PRES');
 
-            const fromCenterX = (fromNode.x || 0) + getNodeW(fromNode) / 2;
-            const fromCenterY = (fromNode.y || 0) + getNodeH(fromNode) / 2;
-            const toCenterX = (toNode.x || 0) + getNodeW(toNode) / 2;
-            const toCenterY = (toNode.y || 0) + getNodeH(toNode) / 2;
+              const dividerX = dividers.find(d => d.type === 'vertical')?.position || 840;
 
-            const isLeftToRight = fromCenterX < toCenterX;
-            const startX = isLeftToRight ? (fromNode.x || 0) + getNodeW(fromNode) : (fromNode.x || 0);
-            const endX = isLeftToRight ? (toNode.x || 0) : (toNode.x || 0) + getNodeW(toNode);
+              // Left side: Brand Organization heads
+              const n1BrandNodes = nodes
+                .filter(n => (n.x || 0) < dividerX && (n.y || 0) >= 300)
+                .sort((a, b) => (a.x || 0) - (b.x || 0));
 
-            const midX = Math.round(startX + (endX - startX) / 2);
+              // Right side: Group Support nodes (reporting to CRV Support Function Heads)
+              const n1GroupNodes = nodes.filter(
+                n => n.reportsToId === 'CRV_SUPPORTING_HEADS' || n.id.startsWith('grp_') ||
+                n.title.toLowerCase().includes('gm human resources') ||
+                n.title.toLowerCase().includes('business controller')
+              );
 
-            return (
-              <g key={`ind_${link.id}`}>
-                <path
-                  d={`M ${startX} ${fromCenterY} H ${midX} V ${toCenterY} H ${endX}`}
-                  fill="none"
-                  stroke="#475569"
-                  strokeWidth="1.5"
-                  strokeDasharray="5,4"
-                  markerEnd="url(#arrow-dashed)"
-                />
-              </g>
-            );
-          })}
+              // Group into columns
+              const groupCols: OrgNode[][] = [];
+              n1GroupNodes.forEach(n => {
+                const col = groupCols.find(c => c[0] && Math.abs((c[0].x || 0) - (n.x || 0)) < 35);
+                if (col) col.push(n);
+                else groupCols.push([n]);
+              });
+              groupCols.sort((a, b) => (a[0]?.x || 0) - (b[0]?.x || 0));
+              groupCols.forEach(col => col.sort((a, b) => (a.y || 0) - (b.y || 0)));
+
+              const handledLinkIds = new Set<string>();
+              if (presNode) {
+                indirectLinks.forEach(link => {
+                  if (link.toId === presNode.id || link.toId === 'VN_BU_PRES') {
+                    if (
+                      n1BrandNodes.some(b => b.id === link.fromId) ||
+                      n1GroupNodes.some(g => g.id === link.fromId)
+                    ) {
+                      handledLinkIds.add(link.id);
+                    }
+                  }
+                });
+              }
+
+              const otherLinks = indirectLinks.filter(l => !handledLinkIds.has(l.id));
+
+              const presX = presNode?.x || 920;
+              const presY = presNode?.y || 40;
+              const presW = getNodeW(presNode);
+              const presH = getNodeH(presNode);
+              const presMidY = Math.round(presY + presH / 2);
+              const presLeftX = presX;
+              const presRightX = presX + presW;
+
+              const brandBusY = 318;
+              const groupBusY = 138;
+
+              return (
+                <g key="n1_matrix_bus_group">
+                  {/* Left Matrix Bus: Brand Organization up to President Andrew */}
+                  {presNode && n1BrandNodes.length > 0 && n1BrandNodes[0] && (() => {
+                    const firstPinX = Math.round((n1BrandNodes[0].x || 0) + getNodeW(n1BrandNodes[0]) / 2) - 30;
+                    const busEndX = Math.min(dividerX - 25, presLeftX - 35);
+
+                    return (
+                      <g key="n1_brand_matrix_bus">
+                        {/* Upward pins from each Brand Head into the horizontal bus */}
+                        {n1BrandNodes.map(bn => {
+                          const cx = Math.round((bn.x || 0) + getNodeW(bn) / 2);
+                          const pinX = cx - 30;
+                          const topY = bn.y || 340;
+                          return (
+                            <path
+                              key={`brand_pin_${bn.id}`}
+                              d={`M ${pinX} ${topY} V ${brandBusY}`}
+                              fill="none"
+                              stroke="#475569"
+                              strokeWidth="1.5"
+                              strokeDasharray="5,4"
+                              markerEnd="url(#arrow-dashed)"
+                            />
+                          );
+                        })}
+
+                        {/* Aligned horizontal bus routing up to Andrew's left edge */}
+                        <path
+                          d={`M ${firstPinX} ${brandBusY} H ${busEndX} V ${presMidY} H ${presLeftX}`}
+                          fill="none"
+                          stroke="#475569"
+                          strokeWidth="1.5"
+                          strokeDasharray="5,4"
+                        />
+                      </g>
+                    );
+                  })()}
+
+                  {/* Right Matrix Bus: CRV Group Support up to President Andrew */}
+                  {presNode && groupCols.length > 0 && (() => {
+                    const colPins = groupCols
+                      .filter(col => col.length > 0 && col[0])
+                      .map(col => {
+                        const lead = col[0]!;
+                        const cx = Math.round((lead.x || 0) + getNodeW(lead) / 2);
+                        return {
+                          id: lead.id,
+                          pinX: cx - 30,
+                          topY: lead.y || 160
+                        };
+                      });
+
+                    if (colPins.length === 0) return null;
+                    const lastPinX = colPins[colPins.length - 1]?.pinX || 1700;
+                    const channelX = Math.round((groupCols[0]?.[0]?.x || 1485) - 25);
+
+                    return (
+                      <g key="n1_group_matrix_bus">
+                        {/* Upward pins from each group support column lead into horizontal bus */}
+                        {colPins.map(p => (
+                          <path
+                            key={`group_pin_${p.id}`}
+                            d={`M ${p.pinX} ${p.topY} V ${groupBusY}`}
+                            fill="none"
+                            stroke="#475569"
+                            strokeWidth="1.5"
+                            strokeDasharray="5,4"
+                            markerEnd="url(#arrow-dashed)"
+                          />
+                        ))}
+
+                        {/* Aligned horizontal bus routing into Andrew's right edge */}
+                        <path
+                          d={`M ${lastPinX} ${groupBusY} H ${channelX} V ${presMidY} H ${presRightX}`}
+                          fill="none"
+                          stroke="#475569"
+                          strokeWidth="1.5"
+                          strokeDasharray="5,4"
+                        />
+                      </g>
+                    );
+                  })()}
+
+                  {/* Render any non-handled indirect links standardly */}
+                  {otherLinks.map(link => {
+                    const fromNode = nodeMap.get(link.fromId);
+                    const toNode = nodeMap.get(link.toId);
+                    if (!fromNode || !toNode || fromNode.x === undefined || toNode.x === undefined) return null;
+
+                    const fromCenterX = (fromNode.x || 0) + getNodeW(fromNode) / 2;
+                    const fromCenterY = (fromNode.y || 0) + getNodeH(fromNode) / 2;
+                    const toCenterX = (toNode.x || 0) + getNodeW(toNode) / 2;
+                    const toCenterY = (toNode.y || 0) + getNodeH(toNode) / 2;
+
+                    const isLeftToRight = fromCenterX < toCenterX;
+                    const startX = isLeftToRight ? (fromNode.x || 0) + getNodeW(fromNode) : (fromNode.x || 0);
+                    const endX = isLeftToRight ? (toNode.x || 0) : (toNode.x || 0) + getNodeW(toNode);
+                    const midX = Math.round(startX + (endX - startX) / 2);
+
+                    return (
+                      <g key={`ind_${link.id}`}>
+                        <path
+                          d={`M ${startX} ${fromCenterY} H ${midX} V ${toCenterY} H ${endX}`}
+                          fill="none"
+                          stroke="#475569"
+                          strokeWidth="1.5"
+                          strokeDasharray="5,4"
+                          markerEnd="url(#arrow-dashed)"
+                        />
+                      </g>
+                    );
+                  })}
+                </g>
+              );
+            }
+
+            // Default rendering for other templates (e.g. division templates)
+            return indirectLinks.map(link => {
+              const fromNode = nodeMap.get(link.fromId);
+              const toNode = nodeMap.get(link.toId);
+              if (!fromNode || !toNode || fromNode.x === undefined || toNode.x === undefined) return null;
+
+              const fromCenterX = (fromNode.x || 0) + getNodeW(fromNode) / 2;
+              const fromCenterY = (fromNode.y || 0) + getNodeH(fromNode) / 2;
+              const toCenterX = (toNode.x || 0) + getNodeW(toNode) / 2;
+              const toCenterY = (toNode.y || 0) + getNodeH(toNode) / 2;
+
+              const isLeftToRight = fromCenterX < toCenterX;
+              const startX = isLeftToRight ? (fromNode.x || 0) + getNodeW(fromNode) : (fromNode.x || 0);
+              const endX = isLeftToRight ? (toNode.x || 0) : (toNode.x || 0) + getNodeW(toNode);
+              const midX = Math.round(startX + (endX - startX) / 2);
+
+              return (
+                <g key={`ind_${link.id}`}>
+                  <path
+                    d={`M ${startX} ${fromCenterY} H ${midX} V ${toCenterY} H ${endX}`}
+                    fill="none"
+                    stroke="#475569"
+                    strokeWidth="1.5"
+                    strokeDasharray="5,4"
+                    markerEnd="url(#arrow-dashed)"
+                  />
+                </g>
+              );
+            });
+          })()}
 
           {/* 3. Real-time Connection preview when connecting */}
           {connectingSource && connectStartCoord && (

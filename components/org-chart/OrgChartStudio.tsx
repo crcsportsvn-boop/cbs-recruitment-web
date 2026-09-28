@@ -47,7 +47,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
   const [showSumUpTable, setShowSumUpTable] = useState<boolean>(false);
 
   // 3-Way Mode: 'current' (As-Is baseline) | 'proposal' (To-Be authoring) | 'diff' (Comparison visual)
-  const [mode, setMode] = useState<OrgChartMode>('proposal');
+  const [mode, setMode] = useState<OrgChartMode>('current');
 
   // Baseline "Current / As-Is" Store (Loaded from Excel or default seed)
   const [currentNodes, setCurrentNodes] = useState<OrgNode[]>(DEFAULT_OFFICE_NODES);
@@ -420,11 +420,10 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
             if (draft.justificationRows) setJustificationRows(draft.justificationRows);
             if (draft.template) setTemplate(draft.template);
             if (draft.selectedDivision) setSelectedDivision(draft.selectedDivision);
-            if (draft.densityMode) setDensityMode(draft.densityMode);
-            if (draft.activeMode) setMode(draft.activeMode);
-
-            applyLayout(draft.activeMode || mode, draft.template || template, draft.selectedDivision || selectedDivision, collapsedNodeIds);
-            notify('info', 'Đã khôi phục dữ liệu bản nháp đề xuất đã lưu trước đó.');
+            // Keep default mode as 'current' (as-is) per user requirement
+            setMode('current');
+            applyLayout('current', draft.template || template, draft.selectedDivision || selectedDivision, collapsedNodeIds);
+            notify('info', 'Đã nạp bản nháp đề xuất vào bộ nhớ. View mặc định là Hiện Tại (As-Is).');
             return;
           }
         }
