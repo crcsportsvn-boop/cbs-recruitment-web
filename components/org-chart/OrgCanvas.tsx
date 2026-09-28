@@ -483,7 +483,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
 
   const n1BrandNodes = isN1 ? nodes.filter(n =>
     (n.x || 0) < dividerX &&
-    (n.y || 0) >= 300 &&
+    (n.y || 0) >= 150 &&
     !n.title.toLowerCase().includes('supersports') &&
     !(n.division || '').toLowerCase().includes('supersports') &&
     !(n.nickname || '').toLowerCase().includes('thảo')
@@ -491,7 +491,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
 
   const sspNode = isN1 ? nodes.find(n =>
     (n.x || 0) < dividerX &&
-    (n.y || 0) >= 300 &&
+    (n.y || 0) >= 150 &&
     (n.title.toLowerCase().includes('supersports') ||
      (n.division || '').toLowerCase().includes('supersports') ||
      (n.nickname || '').toLowerCase().includes('thảo'))
@@ -500,6 +500,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   const coeNodes = isN1 ? nodes.filter(n =>
     (n.x || 0) >= dividerX &&
     n.reportsToId !== 'CRV_SUPPORTING_HEADS' &&
+    n.reportsToId !== 'CRV_GROUP_BOX' &&
     !n.id.startsWith('grp_') &&
     !n.title.toLowerCase().includes('gm human resources') &&
     !n.title.toLowerCase().includes('business controller') &&
@@ -510,6 +511,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
 
   const crvNodes = isN1 ? nodes.filter(n =>
     n.reportsToId === 'CRV_SUPPORTING_HEADS' ||
+    n.reportsToId === 'CRV_GROUP_BOX' ||
     n.id.startsWith('grp_') ||
     n.title.toLowerCase().includes('gm human resources') ||
     n.title.toLowerCase().includes('business controller')
@@ -531,18 +533,33 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
     maxY: (sspNode.y || 0) + getNodeH(sspNode) + 14,
   } : null;
 
+  // Cân đối 2 box COE và CRV Supporting function có cùng chiều rộng và chiều cao:
+  const rawCoeMinX = coeNodes.length > 0 ? Math.min(...coeNodes.map(n => n.x || 0)) - 16 : 0;
+  const rawCoeMaxX = coeNodes.length > 0 ? Math.max(...coeNodes.map(n => (n.x || 0) + getNodeW(n))) + 16 : 0;
+  const rawCoeMinY = coeNodes.length > 0 ? Math.min(...coeNodes.map(n => n.y || 0)) - 35 : 0;
+  const rawCoeMaxY = coeNodes.length > 0 ? Math.max(...coeNodes.map(n => (n.y || 0) + getNodeH(n))) + 16 : 0;
+
+  const rawCrvMinX = crvNodes.length > 0 ? Math.min(...crvNodes.map(n => n.x || 0)) - 16 : 0;
+  const rawCrvMaxX = crvNodes.length > 0 ? Math.max(...crvNodes.map(n => (n.x || 0) + getNodeW(n))) + 16 : 0;
+  const rawCrvMinY = crvNodes.length > 0 ? Math.min(...crvNodes.map(n => n.y || 0)) - 35 : 0;
+  const rawCrvMaxY = crvNodes.length > 0 ? Math.max(...crvNodes.map(n => (n.y || 0) + getNodeH(n))) + 16 : 0;
+
+  const commonSupportWidth = Math.max(rawCoeMaxX - rawCoeMinX, rawCrvMaxX - rawCrvMinX, 600);
+  const commonSupportHeight = Math.max(rawCoeMaxY - rawCoeMinY, rawCrvMaxY - rawCrvMinY, 320);
+  const commonSupportMinY = Math.min(rawCoeMinY, rawCrvMinY);
+
   const coeBox = isN1 && coeNodes.length > 0 ? {
-    minX: Math.min(...coeNodes.map(n => n.x || 0)) - 16,
-    maxX: Math.max(...coeNodes.map(n => (n.x || 0) + getNodeW(n))) + 16,
-    minY: Math.min(...coeNodes.map(n => n.y || 0)) - 45,
-    maxY: Math.max(...coeNodes.map(n => (n.y || 0) + getNodeH(n))) + 16,
+    minX: rawCoeMinX,
+    maxX: rawCoeMinX + commonSupportWidth,
+    minY: commonSupportMinY,
+    maxY: commonSupportMinY + commonSupportHeight,
   } : null;
 
   const crvBox = isN1 && crvNodes.length > 0 ? {
-    minX: Math.min(...crvNodes.map(n => n.x || 0)) - 16,
-    maxX: Math.max(...crvNodes.map(n => (n.x || 0) + getNodeW(n))) + 16,
-    minY: Math.min(...crvNodes.map(n => n.y || 0)) - 55,
-    maxY: Math.max(...crvNodes.map(n => (n.y || 0) + getNodeH(n))) + 16,
+    minX: rawCrvMinX,
+    maxX: rawCrvMinX + commonSupportWidth,
+    minY: commonSupportMinY,
+    maxY: commonSupportMinY + commonSupportHeight,
   } : null;
 
   return (
@@ -744,7 +761,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                 </div>
               )}
 
-              {/* 4. Other Supporting Functions (CRV) Box - Không màu */}
+              {/* 4. CRV Supporting Functions Box - Không màu */}
               {crvBox && (
                 <div
                   className="absolute rounded-xl transition-all shadow-xs"
@@ -760,35 +777,8 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                   }}
                 >
                   <div className="absolute top-2.5 left-4 text-xs font-bold text-slate-800 underline decoration-slate-400 underline-offset-4 tracking-wide select-none">
-                    Other Supporting functions
+                    CRV Supporting function
                   </div>
-                  {(() => {
-                    const col1Nodes = crvNodes.filter(n =>
-                      n.title.toLowerCase().includes('hr') ||
-                      n.title.toLowerCase().includes('business controller')
-                    );
-                    const col2Nodes = crvNodes.filter(n => !col1Nodes.includes(n));
-                    const col1Lead = col1Nodes[0];
-                    const col2Lead = col2Nodes[0];
-                    const col1Center = col1Lead?.x !== undefined ? (col1Lead.x - crvBox.minX + getNodeW(col1Lead) / 2) : 100;
-                    const col2Center = col2Lead?.x !== undefined ? (col2Lead.x - crvBox.minX + getNodeW(col2Lead) / 2) : 300;
-                    return (
-                      <>
-                        <div
-                          className="absolute top-7 text-[11px] italic font-semibold text-slate-500 select-none whitespace-nowrap"
-                          style={{ left: col1Center, transform: 'translateX(-50%)' }}
-                        >
-                          Sitting with CBS
-                        </div>
-                        <div
-                          className="absolute top-7 text-[11px] italic font-semibold text-slate-500 select-none whitespace-nowrap"
-                          style={{ left: col2Center, transform: 'translateX(-50%)' }}
-                        >
-                          Sitting in their own BU
-                        </div>
-                      </>
-                    );
-                  })()}
                 </div>
               )}
             </div>
@@ -827,8 +817,26 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
 
           {/* 1. Direct Reporting Lines (Column-Aware Bus Tree & Column Stacks) */}
           {Array.from(childrenByParent.entries()).map(([parentId, children]) => {
-            // In N-1 view, Andrew and CRV Supporting Head direct connections are handled cleanly via dedicated custom buses below
-            if (isN1 && (parentId === 'VN_BU_PRES' || parentId === presNode?.id || parentId === 'CRV_SUPPORTING_HEADS')) {
+            // In N-1 view, Andrew, CRV Supporting Head, and box-internal groups are handled cleanly via dedicated custom buses below
+            if (isN1 && (
+              parentId === 'VN_BU_PRES' ||
+              parentId === presNode?.id ||
+              parentId === 'CRV_SUPPORTING_HEADS' ||
+              parentId === 'COE_GROUP_BOX' ||
+              parentId === 'CRV_GROUP_BOX' ||
+              parentId.includes('COE_') ||
+              parentId.includes('CRV_')
+            )) {
+              return null;
+            }
+
+            // In N-1 view, completely suppress connector lines for any node inside COE or CRV boxes
+            if (isN1 && children.some(c =>
+              c.reportsToId === 'COE_GROUP_BOX' ||
+              c.reportsToId === 'CRV_GROUP_BOX' ||
+              (coeBox && (c.x || 0) >= coeBox.minX - 5 && (c.x || 0) <= coeBox.maxX + 5 && (c.y || 0) >= coeBox.minY - 5 && (c.y || 0) <= coeBox.maxY + 5) ||
+              (crvBox && (c.x || 0) >= crvBox.minX - 5 && (c.x || 0) <= crvBox.maxX + 5 && (c.y || 0) >= crvBox.minY - 5 && (c.y || 0) <= crvBox.maxY + 5)
+            )) {
               return null;
             }
 
@@ -990,48 +998,32 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
           {/* 1.B: Custom Direct Reporting Lines for N-1 View */}
           {isN1 && presNode && (
             <g key="n1_direct_custom_lines">
-              {/* Andrew stem and horizontal bus to Thao on left and COE Box on right */}
+              {/* Andrew stem and horizontal bus to Thao directly below and COE Box on right */}
               {(() => {
                 const presCenterX = Math.round((presNode.x || 0) + getNodeW(presNode) / 2);
                 const presBottomY = (presNode.y || 0) + getNodeH(presNode);
-                const presDirectBusY = presBottomY + 18;
+                const presDirectBusY = presBottomY + 15;
 
-                const sspCenterX = sspNode ? Math.round((sspNode.x || 0) + getNodeW(sspNode) / 2) : 0;
-                const sspTopY = sspNode?.y || 360;
+                const sspCenterX = sspNode ? Math.round((sspNode.x || 0) + getNodeW(sspNode) / 2) : presCenterX;
+                const sspTopY = sspNode?.y || 190;
                 const coeBoxCenterX = coeBox ? Math.round((coeBox.minX + coeBox.maxX) / 2) : 0;
 
                 return (
                   <>
-                    {/* Vertical stem from Andrew */}
+                    {/* Direct vertical drop from Andrew to Thao Supersports directly below */}
                     <path
-                      d={`M ${presCenterX} ${presBottomY} V ${presDirectBusY}`}
+                      d={`M ${presCenterX} ${presBottomY} V ${sspTopY}`}
                       fill="none"
                       stroke="#0f172a"
                       strokeWidth="1.5"
+                      markerEnd="url(#arrow-solid)"
                     />
 
-                    {sspNode && coeBox && (
+                    {coeBox && (
                       <>
-                        {/* Horizontal bus from Thao to COE Box */}
+                        {/* Branch from Andrew direct bus over to COE Box */}
                         <path
-                          d={`M ${sspCenterX} ${presDirectBusY} H ${coeBoxCenterX}`}
-                          fill="none"
-                          stroke="#0f172a"
-                          strokeWidth="1.5"
-                        />
-
-                        {/* Direct solid drop to Thao Supersports */}
-                        <path
-                          d={`M ${sspCenterX} ${presDirectBusY} V ${sspTopY}`}
-                          fill="none"
-                          stroke="#0f172a"
-                          strokeWidth="1.5"
-                          markerEnd="url(#arrow-solid)"
-                        />
-
-                        {/* Direct solid drop to COE Supporting Function box */}
-                        <path
-                          d={`M ${coeBoxCenterX} ${presDirectBusY} V ${coeBox.minY}`}
+                          d={`M ${presCenterX} ${presDirectBusY} H ${coeBoxCenterX} V ${coeBox.minY}`}
                           fill="none"
                           stroke="#0f172a"
                           strokeWidth="1.5"
@@ -1065,15 +1057,13 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
             if (isN1) {
               if (!presNode) return null;
 
-              const presX = presNode.x || 910;
+              const presX = presNode.x || 845;
               const presY = presNode.y || 40;
               const presW = getNodeW(presNode);
               const presH = getNodeH(presNode);
               const presMidY = Math.round(presY + presH / 2);
               const presLeftX = presX;
               const presRightX = presX + presW;
-              const presBottomY = presY + presH;
-              const presDirectBusY = presBottomY + 18;
 
               return (
                 <g key="n1_matrix_bus_group">
@@ -1081,20 +1071,18 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                   {n1BrandNodes.length > 0 && (() => {
                     const firstBrand = n1BrandNodes[0];
                     if (!firstBrand) return null;
-                    const minBrandY = Math.min(...n1BrandNodes.map(b => b.y || 340));
-                    const brandBusY = minBrandY - 22;
-                    const firstPinX = Math.round((firstBrand.x || 0) + getNodeW(firstBrand) / 2) - 35;
-                    const busEndX = brandBox && sspBox
-                      ? Math.round(brandBox.maxX + (sspBox.minX - brandBox.maxX) / 2)
-                      : Math.min(dividerX - 25, presLeftX - 35);
+                    const minBrandY = Math.min(...n1BrandNodes.map(b => b.y || 190));
+                    const brandBusY = minBrandY - 35;
+                    const firstPinX = Math.round((firstBrand.x || 0) + getNodeW(firstBrand) / 2) - 25;
+                    const busEndX = Math.min(presLeftX - 20, 825);
 
                     return (
                       <g key="n1_brand_matrix_bus">
                         {/* Upward pins from each of the 4 Brand Heads into the horizontal bus */}
                         {n1BrandNodes.map(bn => {
                           const cx = Math.round((bn.x || 0) + getNodeW(bn) / 2);
-                          const pinX = cx - 35;
-                          const cardTopY = bn.y || 340;
+                          const pinX = cx - 25;
+                          const cardTopY = bn.y || 190;
                           return (
                             <path
                               key={`brand_pin_${bn.id}`}
@@ -1107,7 +1095,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                           );
                         })}
 
-                        {/* Aligned horizontal bus routing up to Andrew's left edge */}
+                        {/* Aligned horizontal bus routing up and directly into Andrew's left edge */}
                         <path
                           d={`M ${firstPinX} ${brandBusY} H ${busEndX} V ${presMidY} H ${presLeftX}`}
                           fill="none"
@@ -1120,15 +1108,15 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                     );
                   })()}
 
-                  {/* Right Matrix Bus: CRV Group Support box up to President Andrew */}
+                  {/* Right Matrix Bus: CRV Group Support box up directly into President Andrew's right edge */}
                   {crvBox && (() => {
-                    const crvBusY = presDirectBusY - 4;
-                    const crvChannelX = Math.round(presRightX - 20);
+                    const crvBusY = Math.min(...n1BrandNodes.map(b => b.y || 190)) - 35;
+                    const crvChannelX = presRightX + 25;
 
                     return (
                       <g key="n1_group_matrix_bus">
                         <path
-                          d={`M ${crvBox.minX} ${crvBusY} H ${crvChannelX} V ${presBottomY}`}
+                          d={`M ${crvBox.minX} ${crvBusY} H ${crvChannelX} V ${presMidY} H ${presRightX}`}
                           fill="none"
                           stroke="#475569"
                           strokeWidth="1.5"

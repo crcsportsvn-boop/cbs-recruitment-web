@@ -766,87 +766,9 @@ export function buildDynamicN1Layout(
   const dividers: CustomDivider[] = [];
   const notes: CustomNote[] = [];
 
-  // 3. Layout Regional Leaders on the Left (x: 40 to 650)
-  // CMG Branch
-  const buCmg = virtualLeaders.find(vl => vl.code === 'THL_BU_PRES_CMG') || {
-    code: 'THL_BU_PRES_CMG',
-    title: 'BU President CMG THL',
-    nickname: 'Damien',
-    flags: ['MY', 'TH', 'VN'],
-    reportsToCode: '',
-    divisionScope: 'CMG'
-  };
-  positionedNodes.push({
-    id: buCmg.code,
-    title: buCmg.title,
-    nickname: buCmg.nickname,
-    flags: buCmg.flags,
-    status: 'active',
-    isVirtual: true,
-    x: 137,
-    y: 40,
-    width: CARD_W,
-    height: CARD_H
-  });
-
-  // CRC Branch
-  const buCrc = virtualLeaders.find(vl => vl.code === 'THL_BU_PRES_CRC') || {
-    code: 'THL_BU_PRES_CRC',
-    title: 'BU President CRC Sports THL',
-    nickname: 'Alex',
-    flags: ['MY', 'TH', 'VN'],
-    reportsToCode: '',
-    divisionScope: 'CRC Sports'
-  };
-  positionedNodes.push({
-    id: buCrc.code,
-    title: buCrc.title,
-    nickname: buCrc.nickname,
-    flags: buCrc.flags,
-    status: 'active',
-    isVirtual: true,
-    x: 527,
-    y: 40,
-    width: CARD_W,
-    height: CARD_H
-  });
-
-  // Category Heads (y: 135)
-  const catTech = virtualLeaders.find(vl => vl.code === 'THL_CAT_TECH_BEAUTY');
-  if (catTech) {
-    positionedNodes.push({
-      id: catTech.code,
-      title: catTech.title,
-      nickname: catTech.nickname,
-      flags: catTech.flags,
-      status: 'active',
-      isVirtual: true,
-      reportsToId: buCmg.code,
-      x: 40,
-      y: 135,
-      width: CARD_W,
-      height: CARD_H
-    });
-  }
-
-  const catFashion = virtualLeaders.find(vl => vl.code === 'THL_CAT_FASHION');
-  if (catFashion) {
-    positionedNodes.push({
-      id: catFashion.code,
-      title: catFashion.title,
-      nickname: catFashion.nickname,
-      flags: catFashion.flags,
-      status: 'active',
-      isVirtual: true,
-      reportsToId: buCmg.code,
-      x: 235,
-      y: 135,
-      width: CARD_W,
-      height: CARD_H
-    });
-  }
-
-  // Regional Brand Heads (y: 225)
+  // 3. Layout Regional Leaders on the Left at y: 40 (x: 40 to 650)
+  // Per requirement: Pavi, Joyce, Alex, Damien are completely removed from N-1.
+  // K Ming, Penny, Joel, Hermann are placed at the top (y: 40).
   const regDyson = virtualLeaders.find(vl => vl.code === 'THL_REG_DYSON');
   if (regDyson) {
     positionedNodes.push({
@@ -856,9 +778,9 @@ export function buildDynamicN1Layout(
       flags: regDyson.flags,
       status: 'active',
       isVirtual: true,
-      reportsToId: catTech?.code || buCmg.code,
+      reportsToId: '',
       x: 40,
-      y: 225,
+      y: 40,
       width: CARD_W,
       height: CARD_H
     });
@@ -873,9 +795,9 @@ export function buildDynamicN1Layout(
       flags: regFootwear.flags,
       status: 'active',
       isVirtual: true,
-      reportsToId: catFashion?.code || buCmg.code,
+      reportsToId: '',
       x: 235,
-      y: 225,
+      y: 40,
       width: CARD_W,
       height: CARD_H
     });
@@ -890,9 +812,9 @@ export function buildDynamicN1Layout(
       flags: regHoka.flags,
       status: 'active',
       isVirtual: true,
-      reportsToId: buCrc.code,
+      reportsToId: '',
       x: 430,
-      y: 225,
+      y: 40,
       width: CARD_W,
       height: CARD_H
     });
@@ -907,16 +829,16 @@ export function buildDynamicN1Layout(
       flags: regSportsDl.flags,
       status: 'active',
       isVirtual: true,
-      reportsToId: buCrc.code,
+      reportsToId: '',
       x: 625,
-      y: 225,
+      y: 40,
       width: CARD_W,
       height: CARD_H
     });
   }
 
-  // 4. Layout VN President (MD) at top right of regional tree
-  const presX = 910;
+  // 4. Layout VN President (MD) at top right of regional tree (directly above Thao SSP)
+  const presX = 845;
   const presY = 40;
   positionedNodes.push({
     id: presId,
@@ -933,39 +855,52 @@ export function buildDynamicN1Layout(
     height: CARD_H
   });
 
-  // 5. Layout Direct Reporting Brand Heads under Regional Leaders (Left side, starting at y: 340)
-  // Per requirement: Brands report directly to their regional leaders (solid lines), and indirectly to Andrew (dashed line)
-  // Except Thao Supersports who reports directly to CEO Andrew
-  let currentBrandX = 40;
-  const brandStartY = 340;
+  // 5. Layout Direct Reporting Brand Heads under Regional Leaders (Tịnh tiến lên y: 190)
+  // Per requirement: Brands report directly to their regional leaders (solid vertical lines),
+  // and indirectly to Andrew (dashed line). Thao Supersports reports directly to CEO Andrew.
+  const brandStartY = 190;
 
   const getDirectRegionalReport = (head: OrgNode): string => {
     const text = `${head.division || ''} ${head.title || ''} ${head.nickname || ''}`.toLowerCase();
-    if (text.includes('dyson')) return regDyson?.code || catTech?.code || buCmg.code;
-    if (text.includes('crocs') || text.includes('footwear')) return regFootwear?.code || catFashion?.code || buCmg.code;
-    if (text.includes('hoka')) return regHoka?.code || buCrc.code;
-    // Supersports reports directly to CEO Andrew, not Hermann!
+    if (text.includes('dyson')) return regDyson?.code || 'THL_REG_DYSON';
+    if (text.includes('crocs') || text.includes('footwear')) return regFootwear?.code || 'THL_REG_FOOTWEAR';
+    if (text.includes('hoka')) return regHoka?.code || 'THL_REG_HOKA';
     if (text.includes('supersports') || text.includes('ssp') || text.includes('thảo') || text.includes('thao')) {
       return presId;
     }
     if (text.includes('sports brands') || text.includes('sports')) {
-      return regSportsDl?.code || buCrc.code;
+      return regSportsDl?.code || 'THL_REG_SPORTS_DL';
     }
     return presId;
   };
 
-  uniqueBrandHeads.forEach((head, idx) => {
+  // Fixed positions aligned perfectly under Regional Leaders:
+  // Dyson (40) -> K Ming (40)
+  // Crocs (235) -> Penny (235)
+  // Hoka Liam (430) -> Joel (430)
+  // Sports Brands April (625) -> Hermann (625)
+  // Supersports Thao (845) -> Andrew (845)
+  const brandXMap: Record<string, number> = {
+    dyson: 40,
+    crocs: 235,
+    hoka: 430,
+    sports: 625,
+    ssp: 845
+  };
+
+  uniqueBrandHeads.forEach(head => {
     const text = `${head.division || ''} ${head.title || ''} ${head.nickname || ''}`.toLowerCase();
     const isSSP = text.includes('supersports') || text.includes('ssp') || text.includes('thảo') || text.includes('thao');
-
-    // Add visual gap between Brand box (Dyson, Crocs, Liam, April) and Supersports (Thao) box
-    if (isSSP && idx > 0) {
-      currentBrandX += 25;
-    }
+    let posX = 40;
+    if (text.includes('dyson')) posX = brandXMap.dyson ?? 40;
+    else if (text.includes('crocs') || text.includes('footwear')) posX = brandXMap.crocs ?? 235;
+    else if (text.includes('hoka')) posX = brandXMap.hoka ?? 430;
+    else if (isSSP) posX = brandXMap.ssp ?? 845;
+    else if (text.includes('sports')) posX = brandXMap.sports ?? 625;
 
     positionedNodes.push({
       ...head,
-      x: currentBrandX,
+      x: posX,
       y: brandStartY,
       width: CARD_W,
       height: CARD_H,
@@ -983,12 +918,10 @@ export function buildDynamicN1Layout(
         label: ''
       });
     }
-
-    currentBrandX += CARD_W + 10;
   });
 
   // Vertical Divider separating Brand Organization and Supporting Functions
-  const dividerX = Math.max(currentBrandX + 15, 700);
+  const dividerX = 1050;
   dividers.push({
     id: 'div_brand_support',
     type: 'vertical',
@@ -999,7 +932,6 @@ export function buildDynamicN1Layout(
 
   // 6. Layout Supporting Functions:
   // Per user requirement: keep only direct N-1 of CEO (Heads) + CS Leader (Gianna) + Group Support.
-  // No other individual employees!
   const coeMkt = rawNodes.find(n => n.title.toLowerCase().includes('senior marketing manager')) || supportHeads.find(n => n.title.toLowerCase().includes('marketing'));
   const coeOnline = rawNodes.find(n =>
     (n.nickname || '').trim().toLowerCase() === 'emma' ||
@@ -1030,8 +962,8 @@ export function buildDynamicN1Layout(
     [coeBusDev, coeDC, coeExpansion]
   ];
 
-  let currentSupportX = dividerX + 35;
-  const supportStartY = 200;
+  let currentSupportX = dividerX + 35; // 1085
+  const supportStartY = 190;
 
   coeCols.forEach(col => {
     col.forEach((node, rIdx) => {
@@ -1042,7 +974,7 @@ export function buildDynamicN1Layout(
         y: supportStartY + rIdx * (CARD_H + 20),
         width: CARD_W,
         height: CARD_H,
-        reportsToId: presId,
+        reportsToId: 'COE_GROUP_BOX',
         hasChildren: false,
         isCollapsed: false
       });
@@ -1050,20 +982,23 @@ export function buildDynamicN1Layout(
     currentSupportX += CARD_W + H_GAP;
   });
 
-  // Group Support (HR Head, Business Controller, IT Head, SCM Head, Legal Head)
+  // Group Support (CRV): Balanced into 3 columns to match COE box width
   const hrHead = rawNodes.find(n => n.title.toLowerCase().includes('gm human resources') || n.title.toLowerCase().includes('hr head'));
   const busController = rawNodes.find(n => n.title.toLowerCase().includes('business controller'));
 
-  const groupCol1: (OrgNode | undefined)[] = [hrHead, busController];
-  const groupCol2: OrgNode[] = [
+  const crvCol1: (OrgNode | undefined)[] = [hrHead, busController];
+  const crvCol2: OrgNode[] = [
     { id: 'grp_it_head', title: 'IT Head', nickname: 'Luan', dept: 'IT', flags: ['VN'], isVirtual: true, status: 'active' } as OrgNode,
-    { id: 'grp_scm_head', title: 'SCM Head', nickname: 'Oanh', dept: 'SCM', flags: ['VN'], isVirtual: true, status: 'active' } as OrgNode,
+    { id: 'grp_scm_head', title: 'SCM Head', nickname: 'Oanh', dept: 'SCM', flags: ['VN'], isVirtual: true, status: 'active' } as OrgNode
+  ];
+  const crvCol3: OrgNode[] = [
     { id: 'grp_legal_head', title: 'Legal Head', nickname: 'Duong', dept: 'Legal', flags: ['VN'], isVirtual: true, status: 'active' } as OrgNode
   ];
 
-  let currentGroupX = currentSupportX + 25;
+  const crvCols = [crvCol1, crvCol2, crvCol3];
+  let currentGroupX = currentSupportX + 35; // 1705
 
-  // Add Virtual Leader for CRV Supporting Functions Heads (sitting above Group Support)
+  // Add Virtual Leader for CRV Supporting Functions Heads (sitting at y: 40 above Column 2 of CRV)
   const crvSupportHead = virtualLeaders.find(vl => vl.code === 'CRV_SUPPORTING_HEADS') || {
     code: 'CRV_SUPPORTING_HEADS',
     title: 'Supporting Function Heads CRV',
@@ -1073,7 +1008,7 @@ export function buildDynamicN1Layout(
     divisionScope: 'CRV Corporate Functions'
   };
 
-  const crvSupportX = Math.round(currentGroupX + (CARD_W + H_GAP) / 2);
+  const crvCol2X = currentGroupX + CARD_W + H_GAP;
   positionedNodes.push({
     id: crvSupportHead.code,
     title: crvSupportHead.title,
@@ -1081,13 +1016,14 @@ export function buildDynamicN1Layout(
     flags: crvSupportHead.flags && crvSupportHead.flags.length > 0 ? crvSupportHead.flags : ['VN'],
     status: 'active',
     isVirtual: true,
-    x: crvSupportX,
+    reportsToId: '',
+    x: crvCol2X,
     y: 40,
     width: CARD_W,
     height: CARD_H
   });
 
-  [groupCol1, groupCol2].forEach(col => {
+  crvCols.forEach(col => {
     col.forEach((node, rIdx) => {
       if (!node) return;
       positionedNodes.push({
@@ -1096,24 +1032,16 @@ export function buildDynamicN1Layout(
         y: supportStartY + rIdx * (CARD_H + 20),
         width: CARD_W,
         height: CARD_H,
-        reportsToId: crvSupportHead.code,
+        reportsToId: 'CRV_GROUP_BOX',
         hasChildren: false,
         isCollapsed: false
-      });
-
-      // Indirect matrix reporting up to Andrew
-      indirectLinks.push({
-        id: `ind_pres_group_${node.id}`,
-        fromId: node.id,
-        toId: presId,
-        label: ''
       });
     });
     currentGroupX += CARD_W + H_GAP;
   });
 
   // Calculate dynamic canvas dimensions with 4:3 (3x4) aspect ratio
-  const maxOccupiedX = Math.max(currentBrandX, currentSupportX, currentGroupX) + 60;
+  const maxOccupiedX = Math.max(dividerX, currentSupportX, currentGroupX) + 60;
   const maxOccupiedY = Math.max(
     ...positionedNodes.map(n => (n.y || 0) + (n.height || CARD_H))
   ) + 60;
