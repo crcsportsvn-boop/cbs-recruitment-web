@@ -771,8 +771,8 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       id: `divider_${Date.now()}`,
       type: 'vertical',
       position: 840,
-      labelLeft: 'Khối Thương Hiệu (Brands)',
-      labelRight: 'Khối Chức Năng Hỗ Trợ (Supporting Functions)'
+      labelLeft: 'Brand Organization',
+      labelRight: 'Supporting Functions'
     };
     setDividers(prev => [...prev, newDivider]);
     notify('success', 'Đã thêm vạch ngăn phân vùng. Bạn có thể kéo thả để định vị.');

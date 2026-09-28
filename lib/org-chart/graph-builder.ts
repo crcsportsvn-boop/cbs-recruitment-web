@@ -938,8 +938,8 @@ export function buildDynamicN1Layout(
     id: 'div_brand_support',
     type: 'vertical',
     position: dividerX,
-    labelLeft: 'Khối Kinh Doanh (Brand Organization)',
-    labelRight: 'Khối Chức Năng Hỗ Trợ (Supporting Functions)'
+    labelLeft: 'Brand Organization',
+    labelRight: 'Supporting Functions'
   });
 
   // 6. Layout Supporting Functions:
@@ -961,7 +961,12 @@ export function buildDynamicN1Layout(
   const coePlanning = rawNodes.find(n => n.title.toLowerCase().includes('head of planning'));
   const coeWholesale = rawNodes.find(n => n.title.toLowerCase().includes('wholesale manager'));
   const coeBusDev = rawNodes.find(n => n.title.toLowerCase().includes('business development manager'));
-  const coeDC = rawNodes.find(n => n.title.toLowerCase().includes('senior project division manager') || n.title.toLowerCase().includes('project'));
+  const coeDC = rawNodes.find(n =>
+    n.title.toLowerCase().includes('senior project division manager') ||
+    n.title.toLowerCase().includes('senior project manager') ||
+    (n.division?.toLowerCase() === 'project' && n.title.toLowerCase().includes('manager')) ||
+    (n.nickname || '').toLowerCase() === 'khoa'
+  );
   const coeExpansion = rawNodes.find(n => n.title.toLowerCase().includes('store expansion') || n.title.toLowerCase().includes('leasing'));
 
   const coeCols: (OrgNode | undefined)[][] = [
