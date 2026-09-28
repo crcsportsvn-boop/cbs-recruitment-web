@@ -706,7 +706,7 @@ export function buildDynamicN1Layout(
     title: 'Hoka Brand Manager',
     nickname: 'Liam',
     division: 'HOKA',
-    dept: 'Merchandise',
+    dept: 'Hoka',
     flags: ['VN'],
     status: 'active'
   } as OrgNode;
@@ -717,6 +717,7 @@ export function buildDynamicN1Layout(
     title: liamHoka.title.toLowerCase().includes('hoka') ? liamHoka.title : 'Hoka Brand Manager',
     nickname: liamHoka.nickname || 'Liam',
     division: 'HOKA',
+    dept: 'Hoka',
     flags: liamHoka.flags && liamHoka.flags.length > 0 ? liamHoka.flags : ['VN']
   });
 

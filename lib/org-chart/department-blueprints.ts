@@ -121,7 +121,7 @@ export const DEPARTMENT_BLUEPRINTS: Record<string, DepartmentBlueprint> = {
       { id: 'pill_mkt', label: 'Marketing', x: 540, y: 260, width: 130 }
     ],
     cards: [
-      { id: 'hoka_bm', title: 'Brand Manager', nickname: 'Liam', x: 350, y: 310, reportsToId: 'THL_REG_HOKA', dept: 'Merchandise' },
+      { id: 'hoka_bm', title: 'Brand Manager', nickname: 'Liam', x: 350, y: 310, reportsToId: 'THL_REG_HOKA', dept: 'Hoka' },
       { id: 'hoka_buyer', title: 'Buyer', nickname: 'Quang', x: 350, y: 370, reportsToId: 'hoka_bm', dept: 'Merchandise' },
       { id: 'hoka_vm', title: 'Sr.VM Executive', nickname: 'Trang', x: 350, y: 430, status: 'new_hire', customLabel: 'New-Jul 2026', reportsToId: 'hoka_bm', dept: 'Merchandise' },
       { id: 'hoka_mkt_mgr', title: 'Marketing Mgr.', nickname: 'Trang', x: 540, y: 310, reportsToId: 'THL_REG_MKT_HOKA', dept: 'Marketing' },
