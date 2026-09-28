@@ -472,6 +472,79 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
     }
   });
 
+  // Compute N-1 groupings & boxes when in Organization N-1 view
+  const dividerX = dividers.find(d => d.type === 'vertical')?.position || 840;
+
+  const presNode = isN1 ? (
+    nodes.find(n => n.id === 'VN_BU_PRES' || n.title.toLowerCase().includes('president, crc sports') ||
+      n.title.toLowerCase().includes('president') || n.title.toLowerCase().includes('managing director')
+    ) || nodeMap.get('VN_BU_PRES')
+  ) : undefined;
+
+  const n1BrandNodes = isN1 ? nodes.filter(n =>
+    (n.x || 0) < dividerX &&
+    (n.y || 0) >= 300 &&
+    !n.title.toLowerCase().includes('supersports') &&
+    !(n.division || '').toLowerCase().includes('supersports') &&
+    !(n.nickname || '').toLowerCase().includes('thảo')
+  ).sort((a, b) => (a.x || 0) - (b.x || 0)) : [];
+
+  const sspNode = isN1 ? nodes.find(n =>
+    (n.x || 0) < dividerX &&
+    (n.y || 0) >= 300 &&
+    (n.title.toLowerCase().includes('supersports') ||
+     (n.division || '').toLowerCase().includes('supersports') ||
+     (n.nickname || '').toLowerCase().includes('thảo'))
+  ) : undefined;
+
+  const coeNodes = isN1 ? nodes.filter(n =>
+    (n.x || 0) >= dividerX &&
+    n.reportsToId !== 'CRV_SUPPORTING_HEADS' &&
+    !n.id.startsWith('grp_') &&
+    !n.title.toLowerCase().includes('gm human resources') &&
+    !n.title.toLowerCase().includes('business controller') &&
+    n.id !== 'CRV_SUPPORTING_HEADS' &&
+    n.id !== 'VN_BU_PRES' &&
+    !n.title.toLowerCase().includes('president')
+  ) : [];
+
+  const crvNodes = isN1 ? nodes.filter(n =>
+    n.reportsToId === 'CRV_SUPPORTING_HEADS' ||
+    n.id.startsWith('grp_') ||
+    n.title.toLowerCase().includes('gm human resources') ||
+    n.title.toLowerCase().includes('business controller')
+  ) : [];
+
+  const crvHeadNode = isN1 ? nodes.find(n => n.id === 'CRV_SUPPORTING_HEADS') : undefined;
+
+  const brandBox = isN1 && n1BrandNodes.length > 0 ? {
+    minX: Math.min(...n1BrandNodes.map(n => n.x || 0)) - 14,
+    maxX: Math.max(...n1BrandNodes.map(n => (n.x || 0) + getNodeW(n))) + 14,
+    minY: Math.min(...n1BrandNodes.map(n => n.y || 0)) - 14,
+    maxY: Math.max(...n1BrandNodes.map(n => (n.y || 0) + getNodeH(n))) + 14,
+  } : null;
+
+  const sspBox = isN1 && sspNode ? {
+    minX: (sspNode.x || 0) - 14,
+    maxX: (sspNode.x || 0) + getNodeW(sspNode) + 14,
+    minY: (sspNode.y || 0) - 14,
+    maxY: (sspNode.y || 0) + getNodeH(sspNode) + 14,
+  } : null;
+
+  const coeBox = isN1 && coeNodes.length > 0 ? {
+    minX: Math.min(...coeNodes.map(n => n.x || 0)) - 16,
+    maxX: Math.max(...coeNodes.map(n => (n.x || 0) + getNodeW(n))) + 16,
+    minY: Math.min(...coeNodes.map(n => n.y || 0)) - 45,
+    maxY: Math.max(...coeNodes.map(n => (n.y || 0) + getNodeH(n))) + 16,
+  } : null;
+
+  const crvBox = isN1 && crvNodes.length > 0 ? {
+    minX: Math.min(...crvNodes.map(n => n.x || 0)) - 16,
+    maxX: Math.max(...crvNodes.map(n => (n.x || 0) + getNodeW(n))) + 16,
+    minY: Math.min(...crvNodes.map(n => n.y || 0)) - 55,
+    maxY: Math.max(...crvNodes.map(n => (n.y || 0) + getNodeH(n))) + 16,
+  } : null;
+
   return (
     <div
       ref={containerRef}
@@ -613,9 +686,117 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
             }}
           >
 
+          {/* Group Boxes for N-1 View (Background Layer, z-0) */}
+          {isN1 && (
+            <div className="absolute inset-0 pointer-events-none z-0">
+              {/* 1. Brand Group Box (trừ SSP) - Màu box xanh biển nhạt */}
+              {brandBox && (
+                <div
+                  className="absolute rounded-xl transition-all shadow-xs"
+                  style={{
+                    left: brandBox.minX,
+                    top: brandBox.minY,
+                    width: brandBox.maxX - brandBox.minX,
+                    height: brandBox.maxY - brandBox.minY,
+                    backgroundColor: '#eff6ff',
+                    borderColor: '#93c5fd',
+                    borderWidth: '1.5px',
+                    borderStyle: 'solid'
+                  }}
+                />
+              )}
+
+              {/* 2. Supersports (Thảo) Box - Màu box xanh biển nhạt */}
+              {sspBox && (
+                <div
+                  className="absolute rounded-xl transition-all shadow-xs"
+                  style={{
+                    left: sspBox.minX,
+                    top: sspBox.minY,
+                    width: sspBox.maxX - sspBox.minX,
+                    height: sspBox.maxY - sspBox.minY,
+                    backgroundColor: '#eff6ff',
+                    borderColor: '#93c5fd',
+                    borderWidth: '1.5px',
+                    borderStyle: 'solid'
+                  }}
+                />
+              )}
+
+              {/* 3. COE Supporting Function Box - Không màu */}
+              {coeBox && (
+                <div
+                  className="absolute rounded-xl transition-all shadow-xs"
+                  style={{
+                    left: coeBox.minX,
+                    top: coeBox.minY,
+                    width: coeBox.maxX - coeBox.minX,
+                    height: coeBox.maxY - coeBox.minY,
+                    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+                    borderColor: '#94a3b8',
+                    borderWidth: '1.5px',
+                    borderStyle: 'solid'
+                  }}
+                >
+                  <div className="absolute top-2.5 left-4 text-xs font-bold text-slate-800 underline decoration-slate-400 underline-offset-4 tracking-wide select-none">
+                    COE Supporting Function
+                  </div>
+                </div>
+              )}
+
+              {/* 4. Other Supporting Functions (CRV) Box - Không màu */}
+              {crvBox && (
+                <div
+                  className="absolute rounded-xl transition-all shadow-xs"
+                  style={{
+                    left: crvBox.minX,
+                    top: crvBox.minY,
+                    width: crvBox.maxX - crvBox.minX,
+                    height: crvBox.maxY - crvBox.minY,
+                    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+                    borderColor: '#94a3b8',
+                    borderWidth: '1.5px',
+                    borderStyle: 'solid'
+                  }}
+                >
+                  <div className="absolute top-2.5 left-4 text-xs font-bold text-slate-800 underline decoration-slate-400 underline-offset-4 tracking-wide select-none">
+                    Other Supporting functions
+                  </div>
+                  {(() => {
+                    const col1Nodes = crvNodes.filter(n =>
+                      n.title.toLowerCase().includes('hr') ||
+                      n.title.toLowerCase().includes('business controller')
+                    );
+                    const col2Nodes = crvNodes.filter(n => !col1Nodes.includes(n));
+                    const col1Lead = col1Nodes[0];
+                    const col2Lead = col2Nodes[0];
+                    const col1Center = col1Lead?.x !== undefined ? (col1Lead.x - crvBox.minX + getNodeW(col1Lead) / 2) : 100;
+                    const col2Center = col2Lead?.x !== undefined ? (col2Lead.x - crvBox.minX + getNodeW(col2Lead) / 2) : 300;
+                    return (
+                      <>
+                        <div
+                          className="absolute top-7 text-[11px] italic font-semibold text-slate-500 select-none whitespace-nowrap"
+                          style={{ left: col1Center, transform: 'translateX(-50%)' }}
+                        >
+                          Sitting with CBS
+                        </div>
+                        <div
+                          className="absolute top-7 text-[11px] italic font-semibold text-slate-500 select-none whitespace-nowrap"
+                          style={{ left: col2Center, transform: 'translateX(-50%)' }}
+                        >
+                          Sitting in their own BU
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* SVG Canvas for Connectors, Orthogonal Dotted Lines & Dividers */}
           <svg
-            className="absolute inset-0 w-full h-full pointer-events-none z-0"
+            className="absolute inset-0 w-full h-full pointer-events-none z-10"
             style={{ width: '100%', height: '100%' }}
           >
             <defs>
@@ -646,6 +827,11 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
 
           {/* 1. Direct Reporting Lines (Column-Aware Bus Tree & Column Stacks) */}
           {Array.from(childrenByParent.entries()).map(([parentId, children]) => {
+            // In N-1 view, Andrew and CRV Supporting Head direct connections are handled cleanly via dedicated custom buses below
+            if (isN1 && (parentId === 'VN_BU_PRES' || parentId === presNode?.id || parentId === 'CRV_SUPPORTING_HEADS')) {
+              return null;
+            }
+
             const parent = nodeMap.get(parentId);
             if (!parent || parent.x === undefined || parent.y === undefined) return null;
             if (parent.isCollapsed) return null;
@@ -801,88 +987,122 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
             );
           })}
 
+          {/* 1.B: Custom Direct Reporting Lines for N-1 View */}
+          {isN1 && presNode && (
+            <g key="n1_direct_custom_lines">
+              {/* Andrew stem and horizontal bus to Thao on left and COE Box on right */}
+              {(() => {
+                const presCenterX = Math.round((presNode.x || 0) + getNodeW(presNode) / 2);
+                const presBottomY = (presNode.y || 0) + getNodeH(presNode);
+                const presDirectBusY = presBottomY + 18;
+
+                const sspCenterX = sspNode ? Math.round((sspNode.x || 0) + getNodeW(sspNode) / 2) : 0;
+                const sspTopY = sspNode?.y || 360;
+                const coeBoxCenterX = coeBox ? Math.round((coeBox.minX + coeBox.maxX) / 2) : 0;
+
+                return (
+                  <>
+                    {/* Vertical stem from Andrew */}
+                    <path
+                      d={`M ${presCenterX} ${presBottomY} V ${presDirectBusY}`}
+                      fill="none"
+                      stroke="#0f172a"
+                      strokeWidth="1.5"
+                    />
+
+                    {sspNode && coeBox && (
+                      <>
+                        {/* Horizontal bus from Thao to COE Box */}
+                        <path
+                          d={`M ${sspCenterX} ${presDirectBusY} H ${coeBoxCenterX}`}
+                          fill="none"
+                          stroke="#0f172a"
+                          strokeWidth="1.5"
+                        />
+
+                        {/* Direct solid drop to Thao Supersports */}
+                        <path
+                          d={`M ${sspCenterX} ${presDirectBusY} V ${sspTopY}`}
+                          fill="none"
+                          stroke="#0f172a"
+                          strokeWidth="1.5"
+                          markerEnd="url(#arrow-solid)"
+                        />
+
+                        {/* Direct solid drop to COE Supporting Function box */}
+                        <path
+                          d={`M ${coeBoxCenterX} ${presDirectBusY} V ${coeBox.minY}`}
+                          fill="none"
+                          stroke="#0f172a"
+                          strokeWidth="1.5"
+                          markerEnd="url(#arrow-solid)"
+                        />
+                      </>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* Direct solid drop from CRV Supporting Head down to CRV Box */}
+              {crvHeadNode && crvBox && (() => {
+                const crvHeadCenterX = Math.round((crvHeadNode.x || 0) + getNodeW(crvHeadNode) / 2);
+                const crvHeadBottomY = (crvHeadNode.y || 0) + getNodeH(crvHeadNode);
+                return (
+                  <path
+                    d={`M ${crvHeadCenterX} ${crvHeadBottomY} V ${crvBox.minY}`}
+                    fill="none"
+                    stroke="#0f172a"
+                    strokeWidth="1.5"
+                    markerEnd="url(#arrow-solid)"
+                  />
+                );
+              })()}
+            </g>
+          )}
+
           {/* 2. Indirect Matrix Lines (Aligned Bus for N-1, Orthogonal for other templates) */}
           {(() => {
             if (isN1) {
-              const presNode = nodes.find(
-                n => n.id === 'VN_BU_PRES' || n.title.toLowerCase().includes('president, crc sports') ||
-                n.title.toLowerCase().includes('president') || n.title.toLowerCase().includes('managing director')
-              ) || nodeMap.get('VN_BU_PRES');
+              if (!presNode) return null;
 
-              const dividerX = dividers.find(d => d.type === 'vertical')?.position || 840;
-
-              // Left side: Brand Organization heads
-              const n1BrandNodes = nodes
-                .filter(n => (n.x || 0) < dividerX && (n.y || 0) >= 300)
-                .sort((a, b) => (a.x || 0) - (b.x || 0));
-
-              // Right side: Group Support nodes (reporting to CRV Support Function Heads)
-              const n1GroupNodes = nodes.filter(
-                n => n.reportsToId === 'CRV_SUPPORTING_HEADS' || n.id.startsWith('grp_') ||
-                n.title.toLowerCase().includes('gm human resources') ||
-                n.title.toLowerCase().includes('business controller')
-              );
-
-              // Group into columns
-              const groupCols: OrgNode[][] = [];
-              n1GroupNodes.forEach(n => {
-                const col = groupCols.find(c => c[0] && Math.abs((c[0].x || 0) - (n.x || 0)) < 35);
-                if (col) col.push(n);
-                else groupCols.push([n]);
-              });
-              groupCols.sort((a, b) => (a[0]?.x || 0) - (b[0]?.x || 0));
-              groupCols.forEach(col => col.sort((a, b) => (a.y || 0) - (b.y || 0)));
-
-              const handledLinkIds = new Set<string>();
-              if (presNode) {
-                indirectLinks.forEach(link => {
-                  if (link.toId === presNode.id || link.toId === 'VN_BU_PRES') {
-                    if (
-                      n1BrandNodes.some(b => b.id === link.fromId) ||
-                      n1GroupNodes.some(g => g.id === link.fromId)
-                    ) {
-                      handledLinkIds.add(link.id);
-                    }
-                  }
-                });
-              }
-
-              const otherLinks = indirectLinks.filter(l => !handledLinkIds.has(l.id));
-
-              const presX = presNode?.x || 920;
-              const presY = presNode?.y || 40;
+              const presX = presNode.x || 910;
+              const presY = presNode.y || 40;
               const presW = getNodeW(presNode);
               const presH = getNodeH(presNode);
               const presMidY = Math.round(presY + presH / 2);
               const presLeftX = presX;
               const presRightX = presX + presW;
-
-              const brandBusY = 318;
-              const groupBusY = 138;
+              const presBottomY = presY + presH;
+              const presDirectBusY = presBottomY + 18;
 
               return (
                 <g key="n1_matrix_bus_group">
-                  {/* Left Matrix Bus: Brand Organization up to President Andrew */}
-                  {presNode && n1BrandNodes.length > 0 && n1BrandNodes[0] && (() => {
-                    const firstPinX = Math.round((n1BrandNodes[0].x || 0) + getNodeW(n1BrandNodes[0]) / 2) - 30;
-                    const busEndX = Math.min(dividerX - 25, presLeftX - 35);
+                  {/* Left Matrix Bus: Brand Organization (Dyson, Crocs, Liam, April) up to President Andrew */}
+                  {n1BrandNodes.length > 0 && (() => {
+                    const firstBrand = n1BrandNodes[0];
+                    if (!firstBrand) return null;
+                    const minBrandY = Math.min(...n1BrandNodes.map(b => b.y || 340));
+                    const brandBusY = minBrandY - 22;
+                    const firstPinX = Math.round((firstBrand.x || 0) + getNodeW(firstBrand) / 2) - 35;
+                    const busEndX = brandBox && sspBox
+                      ? Math.round(brandBox.maxX + (sspBox.minX - brandBox.maxX) / 2)
+                      : Math.min(dividerX - 25, presLeftX - 35);
 
                     return (
                       <g key="n1_brand_matrix_bus">
-                        {/* Upward pins from each Brand Head into the horizontal bus */}
+                        {/* Upward pins from each of the 4 Brand Heads into the horizontal bus */}
                         {n1BrandNodes.map(bn => {
                           const cx = Math.round((bn.x || 0) + getNodeW(bn) / 2);
-                          const pinX = cx - 30;
-                          const topY = bn.y || 340;
+                          const pinX = cx - 35;
+                          const cardTopY = bn.y || 340;
                           return (
                             <path
                               key={`brand_pin_${bn.id}`}
-                              d={`M ${pinX} ${topY} V ${brandBusY}`}
+                              d={`M ${pinX} ${cardTopY} V ${brandBusY}`}
                               fill="none"
                               stroke="#475569"
                               strokeWidth="1.5"
                               strokeDasharray="5,4"
-                              markerEnd="url(#arrow-dashed)"
                             />
                           );
                         })}
@@ -894,76 +1114,21 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                           stroke="#475569"
                           strokeWidth="1.5"
                           strokeDasharray="5,4"
+                          markerEnd="url(#arrow-dashed)"
                         />
                       </g>
                     );
                   })()}
 
-                  {/* Right Matrix Bus: CRV Group Support up to President Andrew */}
-                  {presNode && groupCols.length > 0 && (() => {
-                    const colPins = groupCols
-                      .filter(col => col.length > 0 && col[0])
-                      .map(col => {
-                        const lead = col[0]!;
-                        const cx = Math.round((lead.x || 0) + getNodeW(lead) / 2);
-                        return {
-                          id: lead.id,
-                          pinX: cx - 30,
-                          topY: lead.y || 160
-                        };
-                      });
-
-                    if (colPins.length === 0) return null;
-                    const lastPinX = colPins[colPins.length - 1]?.pinX || 1700;
-                    const channelX = Math.round((groupCols[0]?.[0]?.x || 1485) - 25);
+                  {/* Right Matrix Bus: CRV Group Support box up to President Andrew */}
+                  {crvBox && (() => {
+                    const crvBusY = presDirectBusY - 4;
+                    const crvChannelX = Math.round(presRightX - 20);
 
                     return (
                       <g key="n1_group_matrix_bus">
-                        {/* Upward pins from each group support column lead into horizontal bus */}
-                        {colPins.map(p => (
-                          <path
-                            key={`group_pin_${p.id}`}
-                            d={`M ${p.pinX} ${p.topY} V ${groupBusY}`}
-                            fill="none"
-                            stroke="#475569"
-                            strokeWidth="1.5"
-                            strokeDasharray="5,4"
-                            markerEnd="url(#arrow-dashed)"
-                          />
-                        ))}
-
-                        {/* Aligned horizontal bus routing into Andrew's right edge */}
                         <path
-                          d={`M ${lastPinX} ${groupBusY} H ${channelX} V ${presMidY} H ${presRightX}`}
-                          fill="none"
-                          stroke="#475569"
-                          strokeWidth="1.5"
-                          strokeDasharray="5,4"
-                        />
-                      </g>
-                    );
-                  })()}
-
-                  {/* Render any non-handled indirect links standardly */}
-                  {otherLinks.map(link => {
-                    const fromNode = nodeMap.get(link.fromId);
-                    const toNode = nodeMap.get(link.toId);
-                    if (!fromNode || !toNode || fromNode.x === undefined || toNode.x === undefined) return null;
-
-                    const fromCenterX = (fromNode.x || 0) + getNodeW(fromNode) / 2;
-                    const fromCenterY = (fromNode.y || 0) + getNodeH(fromNode) / 2;
-                    const toCenterX = (toNode.x || 0) + getNodeW(toNode) / 2;
-                    const toCenterY = (toNode.y || 0) + getNodeH(toNode) / 2;
-
-                    const isLeftToRight = fromCenterX < toCenterX;
-                    const startX = isLeftToRight ? (fromNode.x || 0) + getNodeW(fromNode) : (fromNode.x || 0);
-                    const endX = isLeftToRight ? (toNode.x || 0) : (toNode.x || 0) + getNodeW(toNode);
-                    const midX = Math.round(startX + (endX - startX) / 2);
-
-                    return (
-                      <g key={`ind_${link.id}`}>
-                        <path
-                          d={`M ${startX} ${fromCenterY} H ${midX} V ${toCenterY} H ${endX}`}
+                          d={`M ${crvBox.minX} ${crvBusY} H ${crvChannelX} V ${presBottomY}`}
                           fill="none"
                           stroke="#475569"
                           strokeWidth="1.5"
@@ -972,7 +1137,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                         />
                       </g>
                     );
-                  })}
+                  })()}
                 </g>
               );
             }
@@ -1143,7 +1308,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
               position: 'absolute',
               left: node.x || 0,
               top: node.y || 0,
-              zIndex: selectedNodeId === node.id ? 30 : 10
+              zIndex: selectedNodeId === node.id ? 30 : 20
             }}
             onMouseDown={e => handleNodeMouseDown(e, node)}
           >

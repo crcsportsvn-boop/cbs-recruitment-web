@@ -759,7 +759,10 @@ export function buildDynamicN1Layout(
   );
 
   const positionedNodes: OrgNode[] = [];
-  const indirectLinks: IndirectLink[] = [...customIndirectLinks];
+  const indirectLinks: IndirectLink[] = customIndirectLinks.filter(l =>
+    !l.id.startsWith('ind_pres_') && l.fromId !== presId && l.toId !== presId &&
+    l.fromId !== 'THL_BU_PRES_CRC' && l.toId !== 'THL_BU_PRES_CRC'
+  );
   const dividers: CustomDivider[] = [];
   const notes: CustomNote[] = [];
 
@@ -913,7 +916,7 @@ export function buildDynamicN1Layout(
   }
 
   // 4. Layout VN President (MD) at top right of regional tree
-  const presX = 920;
+  const presX = 910;
   const presY = 40;
   positionedNodes.push({
     id: presId,
@@ -932,21 +935,34 @@ export function buildDynamicN1Layout(
 
   // 5. Layout Direct Reporting Brand Heads under Regional Leaders (Left side, starting at y: 340)
   // Per requirement: Brands report directly to their regional leaders (solid lines), and indirectly to Andrew (dashed line)
+  // Except Thao Supersports who reports directly to CEO Andrew
   let currentBrandX = 40;
   const brandStartY = 340;
 
   const getDirectRegionalReport = (head: OrgNode): string => {
-    const text = `${head.division || ''} ${head.title || ''}`.toLowerCase();
+    const text = `${head.division || ''} ${head.title || ''} ${head.nickname || ''}`.toLowerCase();
     if (text.includes('dyson')) return regDyson?.code || catTech?.code || buCmg.code;
     if (text.includes('crocs') || text.includes('footwear')) return regFootwear?.code || catFashion?.code || buCmg.code;
     if (text.includes('hoka')) return regHoka?.code || buCrc.code;
-    if (text.includes('sports brands') || text.includes('sports') || text.includes('supersports') || text.includes('ssp')) {
+    // Supersports reports directly to CEO Andrew, not Hermann!
+    if (text.includes('supersports') || text.includes('ssp') || text.includes('thảo') || text.includes('thao')) {
+      return presId;
+    }
+    if (text.includes('sports brands') || text.includes('sports')) {
       return regSportsDl?.code || buCrc.code;
     }
     return presId;
   };
 
-  uniqueBrandHeads.forEach(head => {
+  uniqueBrandHeads.forEach((head, idx) => {
+    const text = `${head.division || ''} ${head.title || ''} ${head.nickname || ''}`.toLowerCase();
+    const isSSP = text.includes('supersports') || text.includes('ssp') || text.includes('thảo') || text.includes('thao');
+
+    // Add visual gap between Brand box (Dyson, Crocs, Liam, April) and Supersports (Thao) box
+    if (isSSP && idx > 0) {
+      currentBrandX += 25;
+    }
+
     positionedNodes.push({
       ...head,
       x: currentBrandX,
@@ -958,13 +974,15 @@ export function buildDynamicN1Layout(
       isCollapsed: false
     });
 
-    // Indirect matrix reporting up to BU President Andrew
-    indirectLinks.push({
-      id: `ind_pres_brand_${head.id}`,
-      fromId: head.id,
-      toId: presId,
-      label: ''
-    });
+    // Indirect matrix reporting up to BU President Andrew (only for Brand group, not SSP who reports directly)
+    if (!isSSP) {
+      indirectLinks.push({
+        id: `ind_pres_brand_${head.id}`,
+        fromId: head.id,
+        toId: presId,
+        label: ''
+      });
+    }
 
     currentBrandX += CARD_W + 10;
   });
@@ -1013,7 +1031,7 @@ export function buildDynamicN1Layout(
   ];
 
   let currentSupportX = dividerX + 35;
-  const supportStartY = 160;
+  const supportStartY = 200;
 
   coeCols.forEach(col => {
     col.forEach((node, rIdx) => {
