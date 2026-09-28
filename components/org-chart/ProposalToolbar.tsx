@@ -29,7 +29,10 @@ import {
   FileText,
   ChevronUp,
   Settings,
-  Loader2
+  Loader2,
+  Pencil,
+  Copy,
+  Check
 } from 'lucide-react';
 
 interface ProposalToolbarProps {
@@ -63,6 +66,13 @@ interface ProposalToolbarProps {
   isSyncingSheet?: boolean;
   onSyncGoogleSheet?: () => void;
   onRefreshFromSheet?: () => void;
+  activeProposalId?: number;
+  unlockedProposalCount?: number;
+  proposalNames?: Record<number, string>;
+  onSelectProposal?: (id: number) => void;
+  onAddNewProposal?: () => void;
+  onOpenRenameDialog?: () => void;
+  onCopyAsIsToProposal?: () => void;
 }
 
 export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
@@ -95,7 +105,14 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
   isUploading = false,
   isSyncingSheet = false,
   onSyncGoogleSheet,
-  onRefreshFromSheet
+  onRefreshFromSheet,
+  activeProposalId = 1,
+  unlockedProposalCount = 1,
+  proposalNames = { 1: 'Đề Xuất 1', 2: 'Đề Xuất 2', 3: 'Đề Xuất 3', 4: 'Đề Xuất 4', 5: 'Đề Xuất 5' },
+  onSelectProposal,
+  onAddNewProposal,
+  onOpenRenameDialog,
+  onCopyAsIsToProposal
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftInputRef = useRef<HTMLInputElement>(null);
@@ -170,18 +187,83 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               <span>Hiện Tại</span>
             </button>
 
-            <button
-              onClick={() => onModeChange('proposal')}
-              className={`px-3 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            {/* Split Button for Đề Xuất */}
+            <div
+              className={`inline-flex items-center rounded-md transition-all ${
                 mode === 'proposal'
                   ? 'bg-[#B91C1C] text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
               }`}
-              title="Chỉnh sửa mô phỏng cơ cấu tổ chức đề xuất"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>Đề Xuất</span>
-            </button>
+              <button
+                onClick={() => onModeChange('proposal')}
+                className="px-2.5 py-1 text-xs font-bold flex items-center gap-1.5 cursor-pointer rounded-l-md hover:opacity-90"
+                title={`Chuyển sang ${proposalNames[activeProposalId] || `Đề Xuất ${activeProposalId}`}`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>{proposalNames[activeProposalId] || `Đề Xuất ${activeProposalId}`}</span>
+              </button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={`px-1.5 py-1 text-xs font-bold rounded-r-md cursor-pointer border-l ${
+                      mode === 'proposal'
+                        ? 'border-red-700/60 hover:bg-red-800 text-white'
+                        : 'border-slate-300 hover:bg-slate-300/80 text-slate-700'
+                    }`}
+                    title="Chọn hoặc đổi tên đề xuất"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56 bg-white shadow-xl border border-slate-200 p-1">
+                  <DropdownMenuLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-2 py-1">
+                    Danh Sách Đề Xuất
+                  </DropdownMenuLabel>
+
+                  {Array.from({ length: unlockedProposalCount }, (_, i) => i + 1).map((id) => (
+                    <DropdownMenuItem
+                      key={id}
+                      onClick={() => onSelectProposal?.(id)}
+                      className={`text-xs cursor-pointer px-2 py-1.5 rounded flex items-center justify-between font-semibold ${
+                        activeProposalId === id
+                          ? 'bg-red-50 text-red-700 font-bold'
+                          : 'text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="w-4 text-center text-[11px] text-slate-400">#{id}</span>
+                        <span className="truncate">{proposalNames[id] || `Đề Xuất ${id}`}</span>
+                      </div>
+                      {activeProposalId === id && <Check className="w-3.5 h-3.5 text-red-600 shrink-0" />}
+                    </DropdownMenuItem>
+                  ))}
+
+                  <DropdownMenuSeparator className="my-1" />
+
+                  {onOpenRenameDialog && (
+                    <DropdownMenuItem
+                      onClick={onOpenRenameDialog}
+                      className="text-xs cursor-pointer px-2 py-1.5 text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Đổi tên đề xuất đang chọn</span>
+                    </DropdownMenuItem>
+                  )}
+
+                  {unlockedProposalCount < 5 && onAddNewProposal && (
+                    <DropdownMenuItem
+                      onClick={onAddNewProposal}
+                      className="text-xs cursor-pointer px-2 py-1.5 text-emerald-700 hover:bg-emerald-50 font-semibold flex items-center gap-2"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Thêm Đề Xuất {unlockedProposalCount + 1} (Tối đa 5)</span>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
 
@@ -332,7 +414,7 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
                   ) : (
                     <Save className="w-4 h-4 text-blue-600" />
                   )}
-                  <span>Lưu lên Google Sheet (org-propose)</span>
+                  <span>Lưu lên Google Sheet (org-propose{activeProposalId > 1 ? activeProposalId : ''})</span>
                 </DropdownMenuItem>
               )}
 
@@ -472,6 +554,22 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               <span>Ghi chú</span>
             </Button>
 
+            {onCopyAsIsToProposal && (
+              <>
+                <div className="w-[1px] h-4 bg-slate-300 mx-1" />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onCopyAsIsToProposal}
+                  className="text-xs h-7 gap-1 border-amber-400 text-amber-800 hover:bg-amber-50 font-bold bg-white cursor-pointer shadow-2xs"
+                  title="Sao chép toàn bộ cơ cấu Hiện Tại sang bản đề xuất này"
+                >
+                  <Copy className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Đồng bộ từ Hiện Tại</span>
+                </Button>
+              </>
+            )}
+
             {onSyncGoogleSheet && (
               <>
                 <div className="w-[1px] h-4 bg-slate-300 mx-1" />
@@ -481,7 +579,7 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
                   disabled={isSyncingSheet}
                   onClick={onSyncGoogleSheet}
                   className="text-xs h-7 gap-1 border-blue-500 text-blue-700 hover:bg-blue-50 font-bold bg-white cursor-pointer shadow-2xs"
-                  title="Ghi bản đề xuất này vào sheet org-propose trên Google Sheet HO"
+                  title={`Ghi bản đề xuất này vào sheet org-propose${activeProposalId > 1 ? activeProposalId : ''} trên Google Sheet HO`}
                 >
                   {isSyncingSheet ? (
                     <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />

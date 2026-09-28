@@ -114,6 +114,22 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
   const [uploadProgressText, setUploadProgressText] = useState<string>('Đang xử lý...');
   const [isSyncingSheet, setIsSyncingSheet] = useState<boolean>(false);
 
+  // Multi-proposal state (1 to 5)
+  const [activeProposalId, setActiveProposalId] = useState<number>(1);
+  const [unlockedProposalCount, setUnlockedProposalCount] = useState<number>(1);
+  const [proposalNames, setProposalNames] = useState<Record<number, string>>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('cbs_org_proposal_names') : null;
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return { 1: 'Đề Xuất 1', 2: 'Đề Xuất 2', 3: 'Đề Xuất 3', 4: 'Đề Xuất 4', 5: 'Đề Xuất 5' };
+  });
+  const [proposalsCache, setProposalsCache] = useState<Record<number, OrgNode[]>>({});
+
+  // Rename Proposal Dialog State
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState<boolean>(false);
+  const [renameInput, setRenameInput] = useState<string>('');
+
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Compute Diff Changes dynamically between Current and Proposal
@@ -168,21 +184,25 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
     setHasCRVShared(!!layout.hasCRVShared);
   };
 
-  // Helper to sync nodes back to Google Sheet HO (org-asis, org-propose, or both)
-  const syncToGoogleSheets = async (target: 'asis' | 'propose' | 'both', nodesToSync: OrgNode[]) => {
+  // Helper to sync nodes back to Google Sheet HO (org-asis, specific org-propose, or both)
+  const syncToGoogleSheets = async (
+    target: 'asis' | 'propose' | 'both',
+    nodesToSync: OrgNode[],
+    propId: number = activeProposalId
+  ) => {
     try {
       setIsSyncingSheet(true);
       const res = await fetch('/api/org-chart/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target, nodes: nodesToSync })
+        body: JSON.stringify({ target, proposalId: propId, nodes: nodesToSync })
       });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Lỗi khi ghi dữ liệu vào Google Sheets');
       }
-      const targetName = target === 'both' ? 'org-asis và org-propose' : target === 'asis' ? 'org-asis' : 'org-propose';
-      notify('success', `Đã lưu thành công ${nodesToSync.length} vị trí vào Google Sheet HO [${targetName}]!`);
+      const sheetLabel = target === 'asis' ? 'org-asis' : `org-propose${propId > 1 ? propId : ''}`;
+      notify('success', `Đã lưu thành công ${nodesToSync.length} vị trí vào Google Sheet HO [${sheetLabel}]!`);
       return true;
     } catch (err: any) {
       console.error('syncToGoogleSheets error:', err);
@@ -194,7 +214,68 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
   };
 
   const handleSyncGoogleSheet = () => {
-    syncToGoogleSheets('propose', proposalNodes);
+    syncToGoogleSheets('propose', proposalNodes, activeProposalId);
+  };
+
+  // Switch between Proposal 1 to 5
+  const handleSelectProposal = (targetId: number) => {
+    if (targetId === activeProposalId && mode === 'proposal') return;
+
+    // Cache current working proposal before switching
+    setProposalsCache(prev => ({ ...prev, [activeProposalId]: proposalNodes }));
+
+    const cached = proposalsCache[targetId];
+    const targetNodes: OrgNode[] = cached && cached.length > 0 ? cached : JSON.parse(JSON.stringify(currentNodes));
+
+    setActiveProposalId(targetId);
+    if (unlockedProposalCount < targetId) {
+      setUnlockedProposalCount(targetId);
+    }
+    setProposalNodes(targetNodes);
+    setMode('proposal');
+
+    applyLayout('proposal', template, selectedDivision, collapsedNodeIds, targetNodes);
+    notify('info', `Đang làm việc trên ${proposalNames[targetId] || `Đề Xuất ${targetId}`} (Sheet org-propose${targetId > 1 ? targetId : ''})`);
+  };
+
+  // Add next proposal (up to 5)
+  const handleAddNewProposal = () => {
+    if (unlockedProposalCount >= 5) {
+      notify('info', 'Đã đạt tối đa 5 phương án đề xuất.');
+      return;
+    }
+    const nextId = unlockedProposalCount + 1;
+    setUnlockedProposalCount(nextId);
+    handleSelectProposal(nextId);
+    notify('success', `Đã mở ${proposalNames[nextId] || `Đề Xuất ${nextId}`} (Sheet org-propose${nextId}).`);
+  };
+
+  // Open rename dialog for currently active proposal
+  const handleOpenRenameDialog = () => {
+    setRenameInput(proposalNames[activeProposalId] || `Đề Xuất ${activeProposalId}`);
+    setIsRenameDialogOpen(true);
+  };
+
+  // Save renamed proposal
+  const handleSaveProposalName = () => {
+    const trimmed = renameInput.trim();
+    if (!trimmed) return;
+    const updated = { ...proposalNames, [activeProposalId]: trimmed };
+    setProposalNames(updated);
+    try {
+      localStorage.setItem('cbs_org_proposal_names', JSON.stringify(updated));
+    } catch (e) {}
+    setIsRenameDialogOpen(false);
+    notify('success', `Đã đổi tên Đề Xuất ${activeProposalId} thành "${trimmed}"`);
+  };
+
+  // Copy current As-Is baseline into active Proposal
+  const handleCopyAsIsToProposal = () => {
+    const cloned = JSON.parse(JSON.stringify(currentNodes));
+    setProposalNodes(cloned);
+    setProposalsCache(prev => ({ ...prev, [activeProposalId]: cloned }));
+    applyLayout('proposal', template, selectedDivision, collapsedNodeIds, cloned);
+    notify('success', `Đã sao chép toàn bộ cơ cấu Hiện Tại sang ${proposalNames[activeProposalId] || `Đề Xuất ${activeProposalId}`}!`);
   };
 
   const handleRefreshFromSheet = async () => {
@@ -208,7 +289,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       const data = await res.json();
       if (data.success && data.hasAsis) {
         const asisNodes: OrgNode[] = data.asis;
-        const proposeNodes: OrgNode[] = data.hasPropose ? data.propose : asisNodes;
+        const proposalsMap: Record<number, OrgNode[]> = data.proposals || {};
 
         const divSet = new Set<string>();
         asisNodes.forEach(n => {
@@ -217,11 +298,31 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
         const sheetDivisions = Array.from(divSet);
 
         setCurrentNodes(asisNodes);
-        setProposalNodes(proposeNodes);
         if (sheetDivisions.length > 0) {
           setDivisions(sheetDivisions);
         }
         setTotalOfficeCount(asisNodes.length);
+
+        setProposalsCache(proposalsMap);
+
+        // Find max unlocked proposal from sheets
+        let maxUnlocked = 1;
+        for (let i = 1; i <= 5; i++) {
+          const p = proposalsMap[i];
+          if (p && p.length > 0) {
+            maxUnlocked = Math.max(maxUnlocked, i);
+          }
+        }
+        setUnlockedProposalCount(maxUnlocked);
+
+        const activeP = proposalsMap[activeProposalId];
+        const prop1 = proposalsMap[1];
+        const currentActiveNodes: OrgNode[] =
+          activeP && activeP.length > 0
+            ? activeP
+            : (prop1 && prop1.length > 0 ? prop1 : asisNodes);
+
+        setProposalNodes(currentActiveNodes);
 
         const targetDiv = sheetDivisions.includes(selectedDivision) ? selectedDivision : sheetDivisions[0] || 'Crocs';
         setSelectedDivision(targetDiv);
@@ -231,10 +332,10 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
           template,
           targetDiv,
           collapsedNodeIds,
-          mode === 'current' ? asisNodes : proposeNodes
+          mode === 'current' ? asisNodes : currentActiveNodes
         );
 
-        notify('success', `Đã đồng bộ ${asisNodes.length} vị trí từ Google Sheet HO (${data.hasPropose ? 'org-asis & org-propose' : 'org-asis'})!`);
+        notify('success', `Đã đồng bộ ${asisNodes.length} vị trí từ Google Sheet HO!`);
       } else {
         notify('info', 'Google Sheet HO chưa có dữ liệu tại sheet org-asis.');
       }
@@ -258,7 +359,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
           const data = await res.json();
           if (isMounted && data.success && data.hasAsis) {
             const asisNodes: OrgNode[] = data.asis;
-            const proposeNodes: OrgNode[] = data.hasPropose ? data.propose : asisNodes;
+            const proposalsMap: Record<number, OrgNode[]> = data.proposals || {};
 
             const divSet = new Set<string>();
             asisNodes.forEach(n => {
@@ -267,11 +368,26 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
             const sheetDivisions = Array.from(divSet);
 
             setCurrentNodes(asisNodes);
-            setProposalNodes(proposeNodes);
             if (sheetDivisions.length > 0) {
               setDivisions(sheetDivisions);
             }
             setTotalOfficeCount(asisNodes.length);
+
+            setProposalsCache(proposalsMap);
+
+            // Determine how many proposals exist on sheets
+            let maxUnlocked = 1;
+            for (let i = 1; i <= 5; i++) {
+              const p = proposalsMap[i];
+              if (p && p.length > 0) {
+                maxUnlocked = Math.max(maxUnlocked, i);
+              }
+            }
+            setUnlockedProposalCount(maxUnlocked);
+
+            const prop1 = proposalsMap[1];
+            const activeNodes: OrgNode[] = prop1 && prop1.length > 0 ? prop1 : asisNodes;
+            setProposalNodes(activeNodes);
 
             const targetDiv = sheetDivisions.includes(selectedDivision) ? selectedDivision : sheetDivisions[0] || 'Crocs';
             setSelectedDivision(targetDiv);
@@ -281,9 +397,9 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
               template,
               targetDiv,
               collapsedNodeIds,
-              mode === 'current' ? asisNodes : proposeNodes
+              mode === 'current' ? asisNodes : activeNodes
             );
-            notify('success', `Đã nạp dữ liệu từ Google Sheet HO (${asisNodes.length} ghế).`);
+            notify('success', `Đã nạp dữ liệu từ Google Sheet HO (${asisNodes.length} ghế, ${maxUnlocked} đề xuất).`);
             return;
           }
         }
@@ -394,32 +510,28 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       const targetDiv = parsed.divisions.includes(selectedDivision) ? selectedDivision : parsed.divisions[0] || 'Crocs';
       setSelectedDivision(targetDiv);
 
-      // 2. Clone to Proposal working copy
-      const clonedProposal: OrgNode[] = JSON.parse(JSON.stringify(parsed.nodes));
-      setProposalNodes(clonedProposal);
-      setProposalVirtualLeaders(parsed.virtualLeaders);
-      setProposalIndirect(parsed.indirectLinks);
-
+      // 2. Reapply layout if currently in 'current' mode
       setUploadProgressText('Đang tính toán sơ đồ tổ chức và hoàn tất cập nhật...');
       await new Promise(resolve => setTimeout(resolve, 40));
 
-      // Reapply layout IMMEDIATELY with the newly parsed nodes to ensure canvas updates synchronously
-      applyLayout(
-        mode,
-        template,
-        targetDiv,
-        collapsedNodeIds,
-        parsed.nodes,
-        parsed.virtualLeaders,
-        parsed.indirectLinks
-      );
+      if (mode === 'current') {
+        applyLayout(
+          'current',
+          template,
+          targetDiv,
+          collapsedNodeIds,
+          parsed.nodes,
+          parsed.virtualLeaders,
+          parsed.indirectLinks
+        );
+      }
 
       // Brief delay to allow canvas render to complete before dismissing the loading indicator
       await new Promise(resolve => setTimeout(resolve, 150));
 
-      // 3. Write back to Google Sheets HO (org-asis & org-propose)
-      setUploadProgressText('Đang ghi dữ liệu vào Google Sheet HO (org-asis & org-propose)...');
-      await syncToGoogleSheets('both', parsed.nodes);
+      // 3. Write back ONLY to Google Sheets HO org-asis (keeps propose intact!)
+      setUploadProgressText('Đang ghi dữ liệu vào Google Sheet HO (org-asis)...');
+      await syncToGoogleSheets('asis', parsed.nodes);
 
       setIsUploading(false);
 
@@ -431,7 +543,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
         divisionsCount: parsed.divisions.length
       });
 
-      notify('success', `Đã cập nhật cơ cấu Hiện tại (Current) từ file Excel ${file.name} và lưu lên Google Sheet HO!`);
+      notify('success', `Đã cập nhật cơ cấu Hiện Tại từ file Excel ${file.name} và lưu lên sheet org-asis! Bản Đề Xuất được giữ nguyên.`);
     } catch (err: any) {
       console.error('File parsing failed:', err);
       setIsUploading(false);
@@ -792,8 +904,8 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
     }
     exportProposalJSON(state, `CBS_Org_Proposal_${template}.cbsorg`);
     notify('success', 'Đã lưu bản nháp (.cbsorg) và đang đồng bộ lên Google Sheet HO...');
-    // Sync to org-propose on Google Sheet HO
-    await syncToGoogleSheets('propose', proposalNodes);
+    // Sync to active proposal sheet on Google Sheet HO
+    await syncToGoogleSheets('propose', proposalNodes, activeProposalId);
   };
 
   const handleLoadDraft = async (file: File) => {
@@ -893,6 +1005,13 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
         isSyncingSheet={isSyncingSheet}
         onSyncGoogleSheet={handleSyncGoogleSheet}
         onRefreshFromSheet={handleRefreshFromSheet}
+        activeProposalId={activeProposalId}
+        unlockedProposalCount={unlockedProposalCount}
+        proposalNames={proposalNames}
+        onSelectProposal={handleSelectProposal}
+        onAddNewProposal={handleAddNewProposal}
+        onOpenRenameDialog={handleOpenRenameDialog}
+        onCopyAsIsToProposal={handleCopyAsIsToProposal}
       />
 
       {/* Main Interactive Canvas Viewport */}
@@ -1265,6 +1384,58 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
               className="text-xs bg-slate-900 hover:bg-slate-800 text-white font-semibold cursor-pointer"
             >
               Thêm Ghi Chú
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Working Proposal Dialog */}
+      <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-red-600" />
+              <span>Đổi Tên Đề Xuất #{activeProposalId}</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Đặt tên mô tả cho phương án đề xuất để dễ phân biệt (lưu trên sheet org-propose{activeProposalId > 1 ? activeProposalId : ''}).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-2 py-2">
+            <Label htmlFor="proposal-rename-input" className="text-xs font-semibold text-slate-700">
+              Tên đề xuất
+            </Label>
+            <Input
+              id="proposal-rename-input"
+              value={renameInput}
+              onChange={e => setRenameInput(e.target.value)}
+              placeholder="ví dụ: Đề Xuất 1: Tối ưu khối Vận Hành"
+              className="text-xs font-semibold"
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSaveProposalName();
+                }
+              }}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsRenameDialogOpen(false)}
+              className="text-xs cursor-pointer"
+            >
+              Hủy
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveProposalName}
+              className="text-xs bg-[#B91C1C] hover:bg-red-800 text-white font-semibold cursor-pointer"
+            >
+              Lưu Tên
             </Button>
           </DialogFooter>
         </DialogContent>

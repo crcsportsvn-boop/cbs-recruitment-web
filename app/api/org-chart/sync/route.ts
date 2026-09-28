@@ -168,9 +168,15 @@ function nodesToRows(nodes: OrgNode[]): any[][] {
   return rows;
 }
 
+function getProposalSheetName(proposalId: number | string = 1): string {
+  const num = Number(proposalId) || 1;
+  if (num <= 1) return "org-propose";
+  return `org-propose${num}`;
+}
+
 /**
  * GET /api/org-chart/sync
- * Reads the latest org-asis and org-propose data from Google Sheet HO
+ * Reads org-asis and all available proposal sheets (org-propose, org-propose2..5) from Google Sheet HO
  */
 export async function GET(req: NextRequest) {
   try {
@@ -184,31 +190,48 @@ export async function GET(req: NextRequest) {
 
     const sheets = google.sheets({ version: "v4", auth });
 
-    // Read both org-asis and org-propose in parallel
-    const [asisRes, proposeRes] = await Promise.allSettled([
-      sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID_HO,
-        range: `'${SHEET_ASIS}'!A:N`
-      }),
-      sheets.spreadsheets.values.get({
-        spreadsheetId: SPREADSHEET_ID_HO,
-        range: `'${SHEET_PROPOSE}'!A:N`
-      })
-    ]);
+    // Read org-asis and all 5 proposal sheets in parallel
+    const sheetRanges = [
+      { key: "asis", range: `'${SHEET_ASIS}'!A:N` },
+      { key: "1", range: `'org-propose'!A:N` },
+      { key: "2", range: `'org-propose2'!A:N` },
+      { key: "3", range: `'org-propose3'!A:N` },
+      { key: "4", range: `'org-propose4'!A:N` },
+      { key: "5", range: `'org-propose5'!A:N` }
+    ];
 
-    const asisRows = asisRes.status === "fulfilled" ? asisRes.value.data.values || [] : [];
-    const proposeRows = proposeRes.status === "fulfilled" ? proposeRes.value.data.values || [] : [];
+    const results = await Promise.allSettled(
+      sheetRanges.map(r =>
+        sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID_HO,
+          range: r.range
+        })
+      )
+    );
 
+    const asisResult = results[0];
+    const asisRows = asisResult && asisResult.status === "fulfilled" ? asisResult.value.data.values || [] : [];
     const asisNodes = parseRowsToNodes(asisRows);
-    const proposeNodes = parseRowsToNodes(proposeRows);
+
+    const proposalsMap: Record<number, OrgNode[]> = {};
+    for (let i = 1; i <= 5; i++) {
+      const res = results[i];
+      const rows = res && res.status === "fulfilled" ? res.value.data.values || [] : [];
+      proposalsMap[i] = parseRowsToNodes(rows);
+    }
+
+    const proposalParam = Number(req.nextUrl.searchParams.get("proposal")) || 1;
+    const activeProposeNodes = proposalsMap[proposalParam] || proposalsMap[1] || [];
 
     return NextResponse.json({
       success: true,
       spreadsheetId: SPREADSHEET_ID_HO,
       asis: asisNodes,
-      propose: proposeNodes,
+      propose: activeProposeNodes,
+      proposals: proposalsMap,
       hasAsis: asisNodes.length > 0,
-      hasPropose: proposeNodes.length > 0
+      hasPropose: activeProposeNodes.length > 0,
+      activeProposalId: proposalParam
     });
   } catch (error: any) {
     console.error("GET /api/org-chart/sync error:", error);
@@ -221,7 +244,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/org-chart/sync
- * Writes data back to org-asis and/or org-propose in Google Sheet HO
+ * Writes data back to org-asis and/or specific org-propose (1..5) in Google Sheet HO
  */
 export async function POST(req: NextRequest) {
   try {
@@ -235,6 +258,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const target: "asis" | "propose" | "both" = body.target || "propose";
+    const proposalId: number = Number(body.proposalId) || 1;
     const nodes: OrgNode[] = body.nodes || [];
 
     if (!Array.isArray(nodes) || nodes.length === 0) {
@@ -247,6 +271,7 @@ export async function POST(req: NextRequest) {
     const sheets = google.sheets({ version: "v4", auth });
     const rows = nodesToRows(nodes);
 
+    const targetProposalSheet = getProposalSheetName(proposalId);
     const updateTasks: Promise<any>[] = [];
 
     if (target === "asis" || target === "both") {
@@ -272,11 +297,11 @@ export async function POST(req: NextRequest) {
         (async () => {
           await sheets.spreadsheets.values.clear({
             spreadsheetId: SPREADSHEET_ID_HO,
-            range: `'${SHEET_PROPOSE}'!A:N`
+            range: `'${targetProposalSheet}'!A:N`
           });
           return sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID_HO,
-            range: `'${SHEET_PROPOSE}'!A1`,
+            range: `'${targetProposalSheet}'!A1`,
             valueInputOption: "USER_ENTERED",
             requestBody: { values: rows }
           });
@@ -286,12 +311,16 @@ export async function POST(req: NextRequest) {
 
     await Promise.all(updateTasks);
 
+    const targetSheetLabel = target === "asis" ? SHEET_ASIS : targetProposalSheet;
+
     return NextResponse.json({
       success: true,
       target,
+      proposalId,
+      sheetName: targetSheetLabel,
       count: nodes.length,
       spreadsheetId: SPREADSHEET_ID_HO,
-      message: `Đã ghi thành công ${nodes.length} ghế vào Google Sheet HO [${target}]`
+      message: `Đã ghi thành công ${nodes.length} ghế vào Google Sheet HO [${targetSheetLabel}]`
     });
   } catch (error: any) {
     console.error("POST /api/org-chart/sync error:", error);
