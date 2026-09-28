@@ -836,7 +836,7 @@ export function buildDynamicN1Layout(
     });
   }
 
-  // 4. Layout VN President (CEO Andrew) at top center at y: 50 (leaving clearance for divider text and handle)
+  // 4. Layout VN President (CEO Andrew) at top center at y: 50 (normal card styling)
   const presX = 920;
   const presY = 50;
   positionedNodes.push({
@@ -845,7 +845,6 @@ export function buildDynamicN1Layout(
     nickname: presNick,
     flags: ['VN_STAR'],
     status: 'active',
-    isSupervisor: true,
     hasChildren: true,
     isCollapsed: false,
     x: presX,
@@ -1001,7 +1000,7 @@ export function buildDynamicN1Layout(
   const crvCols = [crvCol1, crvCol2];
   let currentGroupX = currentSupportX + 35; // 1705
 
-  // Add Virtual Leader for CRV Supporting Functions Heads (elevated to y: 80 above Column 2 of CRV)
+  // Add Virtual Leader for CRV Supporting Functions Heads (centered above the 2-column CRV box)
   const crvSupportHead = virtualLeaders.find(vl => vl.code === 'CRV_SUPPORTING_HEADS') || {
     code: 'CRV_SUPPORTING_HEADS',
     title: 'Supporting Function Heads CRV',
@@ -1011,7 +1010,8 @@ export function buildDynamicN1Layout(
     divisionScope: 'CRV Corporate Functions'
   };
 
-  const crvCol2X = currentGroupX + CARD_W + H_GAP;
+  // Center Head exactly above the 2-column CRV box
+  const crvBoxCenterX = currentGroupX + Math.round((2 * CARD_W + H_GAP - CARD_W) / 2);
   positionedNodes.push({
     id: crvSupportHead.code,
     title: crvSupportHead.title,
@@ -1020,7 +1020,7 @@ export function buildDynamicN1Layout(
     status: 'active',
     isVirtual: true,
     reportsToId: '',
-    x: crvCol2X,
+    x: crvBoxCenterX,
     y: 80,
     width: CARD_W,
     height: CARD_H

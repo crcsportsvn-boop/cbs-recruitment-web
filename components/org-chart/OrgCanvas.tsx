@@ -1,10 +1,10 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { OrgNode, IndirectLink, CustomDivider, CustomNote, DensityMode, HeadcountSummary, ViewTemplate, OrgChartMode, ProposalChange } from '@/types/org-chart';
+import { OrgNode, IndirectLink, CustomDivider, CustomNote, DensityMode, HeadcountSummary, ViewTemplate, OrgChartMode, ProposalChange, N1BoxesConfig, DEFAULT_N1_BOXES_CONFIG } from '@/types/org-chart';
 import { PillarPill, Headcount3YRow } from '@/lib/org-chart/department-blueprints';
 import { OrgNodeCard, AnchorPosition } from './OrgNodeCard';
 import { CustomNoteOverlay } from './CustomNoteOverlay';
 import { SumUpWidget } from './SumUpWidget';
-import { ZoomIn, ZoomOut, Maximize2, Move, Trash2, Edit2, XCircle, RotateCcw } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Move, Trash2, Edit2, XCircle, RotateCcw, Pencil } from 'lucide-react';
 
 interface OrgCanvasProps {
   nodes: OrgNode[];
@@ -43,6 +43,8 @@ interface OrgCanvasProps {
   canvasHeight: number;
   selectedNodeId?: string;
   canvasRef: React.RefObject<HTMLDivElement>;
+  n1BoxesConfig?: N1BoxesConfig;
+  onOpenBoxesConfig?: () => void;
 }
 
 export interface SmartGuideLine {
@@ -93,9 +95,12 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   canvasWidth,
   canvasHeight,
   selectedNodeId,
-  canvasRef
+  canvasRef,
+  n1BoxesConfig,
+  onOpenBoxesConfig
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const activeBoxesConfig = n1BoxesConfig || DEFAULT_N1_BOXES_CONFIG;
   const [zoom, setZoom] = useState<number>(0.9); // Default 90% view as requested
   const [isFitMode, setIsFitMode] = useState<boolean>(false);
 
@@ -551,14 +556,14 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
 
   const coeBox = isN1 && coeNodes.length > 0 ? {
     minX: rawCoeMinX,
-    maxX: rawCoeMinX + commonSupportWidth,
+    maxX: rawCoeMaxX,
     minY: commonBoxMinY,
     maxY: commonBoxMaxY,
   } : null;
 
   const crvBox = isN1 && crvNodes.length > 0 ? {
     minX: rawCrvMinX,
-    maxX: rawCrvMinX + commonSupportWidth,
+    maxX: rawCrvMaxX,
     minY: commonBoxMinY,
     maxY: commonBoxMaxY,
   } : null;
@@ -710,7 +715,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
               {/* 1. Brand Group Box (trừ SSP) - Màu box xanh biển nhạt */}
               {brandBox && (
                 <div
-                  className="absolute rounded-xl transition-all shadow-xs"
+                  className="absolute rounded-xl transition-all shadow-xs group"
                   style={{
                     left: brandBox.minX,
                     top: brandBox.minY,
@@ -722,9 +727,18 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                     borderStyle: 'solid'
                   }}
                 >
+                  {mode === 'proposal' && onOpenBoxesConfig && (
+                    <button
+                      onClick={onOpenBoxesConfig}
+                      className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-70 group-hover:opacity-100"
+                      title="Chỉnh sửa ghi chú ô Brand"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  )}
                   <div className="absolute bottom-3 left-4 right-4 text-center">
                     <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
-                      VN - Heads of Brand directly reporting to TH - Heads of brand
+                      {activeBoxesConfig.brandNote}
                     </span>
                   </div>
                 </div>
@@ -733,7 +747,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
               {/* 2. Supersports (Thảo) Box - Màu box xanh biển nhạt */}
               {sspBox && (
                 <div
-                  className="absolute rounded-xl transition-all shadow-xs"
+                  className="absolute rounded-xl transition-all shadow-xs group"
                   style={{
                     left: sspBox.minX,
                     top: sspBox.minY,
@@ -745,9 +759,18 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                     borderStyle: 'solid'
                   }}
                 >
+                  {mode === 'proposal' && onOpenBoxesConfig && (
+                    <button
+                      onClick={onOpenBoxesConfig}
+                      className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-70 group-hover:opacity-100"
+                      title="Chỉnh sửa ghi chú ô Supersports"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  )}
                   <div className="absolute bottom-3 left-2 right-2 text-center">
                     <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
-                      VN - Heads of Brand directly reporting to VN - CBS President
+                      {activeBoxesConfig.sspNote}
                     </span>
                   </div>
                 </div>
@@ -756,7 +779,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
               {/* 3. COE Supporting Function Box - Không màu */}
               {coeBox && (
                 <div
-                  className="absolute rounded-xl transition-all shadow-xs"
+                  className="absolute rounded-xl transition-all shadow-xs group"
                   style={{
                     left: coeBox.minX,
                     top: coeBox.minY,
@@ -769,11 +792,20 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                   }}
                 >
                   <div className="absolute top-2.5 left-4 text-xs font-bold text-slate-800 underline decoration-slate-400 underline-offset-4 tracking-wide select-none">
-                    COE Supporting Function
+                    {activeBoxesConfig.coeTitle}
                   </div>
+                  {mode === 'proposal' && onOpenBoxesConfig && (
+                    <button
+                      onClick={onOpenBoxesConfig}
+                      className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-70 group-hover:opacity-100"
+                      title="Chỉnh sửa tiêu đề và ghi chú ô COE"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  )}
                   <div className="absolute bottom-3 left-4 right-4 text-center">
                     <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
-                      Supporting Functions serving all VN - Brands transversally
+                      {activeBoxesConfig.coeNote}
                     </span>
                   </div>
                 </div>
@@ -782,7 +814,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
               {/* 4. CRV Supporting Functions Box - Không màu */}
               {crvBox && (
                 <div
-                  className="absolute rounded-xl transition-all shadow-xs"
+                  className="absolute rounded-xl transition-all shadow-xs group"
                   style={{
                     left: crvBox.minX,
                     top: crvBox.minY,
@@ -795,11 +827,20 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                   }}
                 >
                   <div className="absolute top-2.5 left-4 text-xs font-bold text-slate-800 underline decoration-slate-400 underline-offset-4 tracking-wide select-none">
-                    CRV Supporting function
+                    {activeBoxesConfig.crvTitle}
                   </div>
+                  {mode === 'proposal' && onOpenBoxesConfig && (
+                    <button
+                      onClick={onOpenBoxesConfig}
+                      className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-70 group-hover:opacity-100"
+                      title="Chỉnh sửa tiêu đề và ghi chú ô CRV"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  )}
                   <div className="absolute bottom-3 left-4 right-4 text-center">
                     <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
-                      Supporting Functions serving all VN - Brands transversally
+                      {activeBoxesConfig.crvNote}
                     </span>
                   </div>
                 </div>

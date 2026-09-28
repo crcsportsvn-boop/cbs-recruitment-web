@@ -73,6 +73,7 @@ interface ProposalToolbarProps {
   onAddNewProposal?: () => void;
   onOpenRenameDialog?: () => void;
   onCopyAsIsToProposal?: () => void;
+  onOpenBoxesConfig?: () => void;
 }
 
 export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
@@ -112,7 +113,8 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
   onSelectProposal,
   onAddNewProposal,
   onOpenRenameDialog,
-  onCopyAsIsToProposal
+  onCopyAsIsToProposal,
+  onOpenBoxesConfig
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftInputRef = useRef<HTMLInputElement>(null);
@@ -528,6 +530,19 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               <StickyNote className="w-3.5 h-3.5 text-slate-600" />
               <span>Ghi chú</span>
             </Button>
+
+            {template === 'company_n1' && onOpenBoxesConfig && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onOpenBoxesConfig}
+                className="text-xs h-7 gap-1 border-purple-400 text-purple-700 hover:bg-purple-50 font-bold bg-white cursor-pointer shadow-2xs"
+                title="Tùy chỉnh hộp nhóm và văn bản bên trong các ô N-1"
+              >
+                <Settings className="w-3.5 h-3.5 text-purple-600" />
+                <span>Tùy chỉnh Khối Box</span>
+              </Button>
+            )}
 
             {onCopyAsIsToProposal && (
               <>

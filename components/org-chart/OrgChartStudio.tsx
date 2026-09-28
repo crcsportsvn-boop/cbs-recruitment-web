@@ -13,7 +13,9 @@ import {
   OrgProposalState,
   OrgChartMode,
   ProposalChange,
-  ProposalJustificationRow
+  ProposalJustificationRow,
+  N1BoxesConfig,
+  DEFAULT_N1_BOXES_CONFIG
 } from '@/types/org-chart';
 import { AnchorPosition } from './OrgNodeCard';
 import { parseOrgChartWorkbook } from '@/lib/org-chart/excel-parser';
@@ -29,7 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, CheckCircle2, Info, Sparkles, GitCompare, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Info, Sparkles, GitCompare, Loader2, RotateCcw, Settings } from 'lucide-react';
 
 const PROPOSAL_DRAFT_KEY = 'cbs_org_proposal_draft_v1';
 
@@ -129,6 +131,17 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
   // Rename Proposal Dialog State
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState<boolean>(false);
   const [renameInput, setRenameInput] = useState<string>('');
+
+  // N-1 Box Groups & Text Config State
+  const [n1BoxesConfig, setN1BoxesConfig] = useState<N1BoxesConfig>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('cbs_n1_boxes_config') : null;
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return DEFAULT_N1_BOXES_CONFIG;
+  });
+  const [isBoxesConfigDialogOpen, setIsBoxesConfigDialogOpen] = useState<boolean>(false);
+  const [boxesDraftConfig, setBoxesDraftConfig] = useState<N1BoxesConfig>(DEFAULT_N1_BOXES_CONFIG);
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -870,7 +883,8 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
           showSharedSidebar: true,
           zoomLevel: 1,
           activeMode: mode,
-          justificationRows
+          justificationRows,
+          n1BoxesConfig
         };
         localStorage.setItem(PROPOSAL_DRAFT_KEY, JSON.stringify(state));
       } catch (e) {
@@ -878,7 +892,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       }
     }, 1000);
     return () => clearTimeout(timer);
-  }, [proposalNodes, proposalIndirect, dividers, notes, justificationRows, mode, template, selectedDivision, densityMode, showNicknames, showSumUpTable]);
+  }, [proposalNodes, proposalIndirect, dividers, notes, justificationRows, mode, template, selectedDivision, densityMode, showNicknames, showSumUpTable, n1BoxesConfig]);
 
   const handleSaveDraft = async () => {
     const state: OrgProposalState = {
@@ -894,7 +908,8 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       showSharedSidebar: true,
       zoomLevel: 1,
       activeMode: mode,
-      justificationRows
+      justificationRows,
+      n1BoxesConfig
     };
     try {
       localStorage.setItem(PROPOSAL_DRAFT_KEY, JSON.stringify(state));
@@ -921,6 +936,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       setShowSumUpTable(state.showSumUpTable ?? false);
       if (state.justificationRows) setJustificationRows(state.justificationRows);
       if (state.activeMode) setMode(state.activeMode);
+      if (state.n1BoxesConfig) setN1BoxesConfig(state.n1BoxesConfig);
 
       try {
         localStorage.setItem(PROPOSAL_DRAFT_KEY, JSON.stringify(state));
@@ -1011,56 +1027,65 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
         onAddNewProposal={handleAddNewProposal}
         onOpenRenameDialog={handleOpenRenameDialog}
         onCopyAsIsToProposal={handleCopyAsIsToProposal}
+        onOpenBoxesConfig={() => {
+          setBoxesDraftConfig({ ...n1BoxesConfig });
+          setIsBoxesConfigDialogOpen(true);
+        }}
       />
 
       {/* Main Interactive Canvas Viewport */}
       <div className="flex-1 w-full p-2 overflow-hidden flex flex-col">
         <OrgCanvas
-        nodes={nodes}
-        indirectLinks={indirectLinks}
-        dividers={dividers}
-        notes={notes}
-        template={template}
-        selectedDivision={selectedDivision}
-        pillarPills={pillarPills}
-        headcount3Y={headcount3Y}
-        slideTitle={slideTitle}
-        hasCRVShared={hasCRVShared}
-        densityMode={densityMode}
-        showNicknames={showNicknames}
-        showSumUpTable={showSumUpTable}
-        onToggleSumUpTable={() => setShowSumUpTable(prev => !prev)}
-        summary={summary}
-        mode={mode}
-        diffMap={diffMap}
-        connectingSource={connectingSource}
-        onStartConnect={handleStartConnect}
-        onCompleteConnect={handleCompleteConnect}
-        onCancelConnect={handleCancelConnect}
-        onToggleCollapse={handleToggleCollapse}
-        onNodeMove={handleNodeMove}
-        onNodeSelect={node => {
-          if (mode === 'current') return;
-          setSelectedNode(node);
-          setIsEditDialogOpen(true);
-        }}
-        onNodeDelete={handleNodeDelete}
-        onNodeToggleStatus={handleNodeToggleStatus}
-        onNoteMove={handleNoteMove}
-        onNoteChange={handleNoteChange}
-        onNoteDelete={noteId => setNotes(prev => prev.filter(n => n.id !== noteId))}
-        onDividerMove={handleDividerMove}
-        onDividerEdit={divider => {
-          if (mode === 'current') return;
-          setEditingDivider(divider);
-          setIsDividerDialogOpen(true);
-        }}
-        onDividerDelete={divId => setDividers(prev => prev.filter(d => d.id !== divId))}
-        canvasWidth={canvasWidth}
-        canvasHeight={canvasHeight}
-        selectedNodeId={selectedNode?.id}
-        canvasRef={canvasRef}
-      />
+          nodes={nodes}
+          indirectLinks={indirectLinks}
+          dividers={dividers}
+          notes={notes}
+          template={template}
+          selectedDivision={selectedDivision}
+          pillarPills={pillarPills}
+          headcount3Y={headcount3Y}
+          slideTitle={slideTitle}
+          hasCRVShared={hasCRVShared}
+          densityMode={densityMode}
+          showNicknames={showNicknames}
+          showSumUpTable={showSumUpTable}
+          onToggleSumUpTable={() => setShowSumUpTable(prev => !prev)}
+          summary={summary}
+          mode={mode}
+          diffMap={diffMap}
+          connectingSource={connectingSource}
+          onStartConnect={handleStartConnect}
+          onCompleteConnect={handleCompleteConnect}
+          onCancelConnect={handleCancelConnect}
+          onToggleCollapse={handleToggleCollapse}
+          onNodeMove={handleNodeMove}
+          onNodeSelect={node => {
+            if (mode === 'current') return;
+            setSelectedNode(node);
+            setIsEditDialogOpen(true);
+          }}
+          onNodeDelete={handleNodeDelete}
+          onNodeToggleStatus={handleNodeToggleStatus}
+          onNoteMove={handleNodeMove}
+          onNoteChange={handleNoteChange}
+          onNoteDelete={noteId => setNotes(prev => prev.filter(n => n.id !== noteId))}
+          onDividerMove={handleDividerMove}
+          onDividerEdit={divider => {
+            if (mode === 'current') return;
+            setEditingDivider(divider);
+            setIsDividerDialogOpen(true);
+          }}
+          onDividerDelete={divId => setDividers(prev => prev.filter(d => d.id !== divId))}
+          canvasWidth={canvasWidth}
+          canvasHeight={canvasHeight}
+          selectedNodeId={selectedNode?.id}
+          canvasRef={canvasRef}
+          n1BoxesConfig={n1BoxesConfig}
+          onOpenBoxesConfig={() => {
+            setBoxesDraftConfig({ ...n1BoxesConfig });
+            setIsBoxesConfigDialogOpen(true);
+          }}
+        />
       </div>
 
       {/* Excel Uploading / Processing Overlay */}
@@ -1436,6 +1461,145 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
             >
               Lưu Tên
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* N-1 Group Boxes & Text Config Dialog */}
+      <Dialog open={isBoxesConfigDialogOpen} onOpenChange={setIsBoxesConfigDialogOpen}>
+        <DialogContent className="sm:max-w-xl bg-white border border-slate-200 shadow-2xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-purple-700">
+              <Settings className="w-5 h-5" />
+              <DialogTitle className="text-base font-bold">
+                Tùy Chỉnh Khối Box & Văn Bản N-1 (Đề Xuất)
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-500 pt-1">
+              Chỉnh sửa tiêu đề và nội dung ghi chú bên trong từng ô nhóm trên sơ đồ N-1.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4 py-2 max-h-[65vh] overflow-y-auto pr-1">
+            {/* 1. Khối Brand Group */}
+            <div className="p-3 bg-blue-50/60 rounded-lg border border-blue-200 flex flex-col gap-2">
+              <div className="text-xs font-bold text-blue-900">
+                1. Khối Brand (Dyson, Crocs, Hoka, Sports Brands)
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-[11px] font-semibold text-slate-600">Ghi chú ở đáy ô:</Label>
+                <Input
+                  value={boxesDraftConfig.brandNote}
+                  onChange={e => setBoxesDraftConfig(prev => ({ ...prev, brandNote: e.target.value }))}
+                  className="text-xs bg-white"
+                  placeholder="Nhập ghi chú cho khối Brand..."
+                />
+              </div>
+            </div>
+
+            {/* 2. Khối Supersports */}
+            <div className="p-3 bg-blue-50/60 rounded-lg border border-blue-200 flex flex-col gap-2">
+              <div className="text-xs font-bold text-blue-900">
+                2. Khối Supersports (Thảo)
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-[11px] font-semibold text-slate-600">Ghi chú ở đáy ô:</Label>
+                <Input
+                  value={boxesDraftConfig.sspNote}
+                  onChange={e => setBoxesDraftConfig(prev => ({ ...prev, sspNote: e.target.value }))}
+                  className="text-xs bg-white"
+                  placeholder="Nhập ghi chú cho khối Supersports..."
+                />
+              </div>
+            </div>
+
+            {/* 3. Khối COE Supporting Function */}
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex flex-col gap-2.5">
+              <div className="text-xs font-bold text-slate-800">
+                3. Khối COE Supporting Function
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-[11px] font-semibold text-slate-600">Tiêu đề ô:</Label>
+                <Input
+                  value={boxesDraftConfig.coeTitle}
+                  onChange={e => setBoxesDraftConfig(prev => ({ ...prev, coeTitle: e.target.value }))}
+                  className="text-xs bg-white"
+                  placeholder="Tiêu đề COE..."
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-[11px] font-semibold text-slate-600">Ghi chú ở đáy ô:</Label>
+                <Input
+                  value={boxesDraftConfig.coeNote}
+                  onChange={e => setBoxesDraftConfig(prev => ({ ...prev, coeNote: e.target.value }))}
+                  className="text-xs bg-white"
+                  placeholder="Nhập ghi chú cho khối COE..."
+                />
+              </div>
+            </div>
+
+            {/* 4. Khối CRV Supporting Function */}
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex flex-col gap-2.5">
+              <div className="text-xs font-bold text-slate-800">
+                4. Khối CRV Supporting Function
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-[11px] font-semibold text-slate-600">Tiêu đề ô:</Label>
+                <Input
+                  value={boxesDraftConfig.crvTitle}
+                  onChange={e => setBoxesDraftConfig(prev => ({ ...prev, crvTitle: e.target.value }))}
+                  className="text-xs bg-white"
+                  placeholder="Tiêu đề CRV..."
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-[11px] font-semibold text-slate-600">Ghi chú ở đáy ô:</Label>
+                <Input
+                  value={boxesDraftConfig.crvNote}
+                  onChange={e => setBoxesDraftConfig(prev => ({ ...prev, crvNote: e.target.value }))}
+                  className="text-xs bg-white"
+                  placeholder="Nhập ghi chú cho khối CRV..."
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-between gap-2 border-t pt-3 border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setBoxesDraftConfig({ ...DEFAULT_N1_BOXES_CONFIG })}
+              className="text-xs text-slate-600 hover:text-slate-900 border-slate-300 mr-auto cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1" /> Đặt lại mặc định
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsBoxesConfigDialogOpen(false)}
+                className="text-xs cursor-pointer"
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setN1BoxesConfig(boxesDraftConfig);
+                  try {
+                    localStorage.setItem('cbs_n1_boxes_config', JSON.stringify(boxesDraftConfig));
+                  } catch (e) {}
+                  setIsBoxesConfigDialogOpen(false);
+                  setAlertMessage({ type: 'success', text: 'Đã lưu cấu hình khối Box N-1 thành công!' });
+                }}
+                className="text-xs bg-[#B91C1C] hover:bg-red-800 text-white font-bold cursor-pointer"
+              >
+                Lưu Thay Đổi
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

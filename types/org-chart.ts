@@ -100,7 +100,26 @@ export interface OrgProposalState {
   zoomLevel: number;
   activeMode?: OrgChartMode;
   justificationRows?: ProposalJustificationRow[];
+  n1BoxesConfig?: N1BoxesConfig;
 }
+
+export interface N1BoxesConfig {
+  brandNote: string;
+  sspNote: string;
+  coeTitle: string;
+  coeNote: string;
+  crvTitle: string;
+  crvNote: string;
+}
+
+export const DEFAULT_N1_BOXES_CONFIG: N1BoxesConfig = {
+  brandNote: 'VN - Heads of Brand directly reporting to TH - Heads of brand',
+  sspNote: 'VN - Heads of Brand directly reporting to VN - CBS President',
+  coeTitle: 'COE Supporting Function',
+  coeNote: 'Supporting Functions serving all VN - Brands transversally',
+  crvTitle: 'CRV Supporting function',
+  crvNote: 'Supporting Functions serving all VN - Brands transversally'
+};
 
 export type OrgChartMode = 'current' | 'proposal' | 'diff';
 
