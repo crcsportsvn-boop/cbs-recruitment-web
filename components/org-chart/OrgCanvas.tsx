@@ -531,10 +531,8 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   const rawCrvMaxY = crvNodes.length > 0 ? Math.max(...crvNodes.map(n => (n.y || 0) + getNodeH(n))) + 20 : 0;
 
   const commonSupportWidth = Math.max(rawCoeMaxX - rawCoeMinX, rawCrvMaxX - rawCrvMinX, 600);
-  const commonSupportHeight = Math.max(rawCoeMaxY - rawCoeMinY, rawCrvMaxY - rawCrvMinY, 320);
-  const commonSupportMinY = Math.min(rawCoeMinY, rawCrvMinY, 195);
-  const commonBoxMinY = commonSupportMinY;
-  const commonBoxMaxY = commonBoxMinY + commonSupportHeight;
+  const commonBoxMinY = 205;
+  const commonBoxMaxY = 625;
 
   // Cân đối cả 2 box Brand với cả 2 box Supporting Function có chung chiều dài (chiều cao)
   const brandBox = isN1 && n1BrandNodes.length > 0 ? {
@@ -723,7 +721,13 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                     borderWidth: '1.5px',
                     borderStyle: 'solid'
                   }}
-                />
+                >
+                  <div className="absolute bottom-3 left-4 right-4 text-center">
+                    <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
+                      VN - Heads of Brand directly reporting to TH - Heads of brand
+                    </span>
+                  </div>
+                </div>
               )}
 
               {/* 2. Supersports (Thảo) Box - Màu box xanh biển nhạt */}
@@ -740,7 +744,13 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                     borderWidth: '1.5px',
                     borderStyle: 'solid'
                   }}
-                />
+                >
+                  <div className="absolute bottom-3 left-2 right-2 text-center">
+                    <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
+                      VN - Heads of Brand directly reporting to VN - CBS President
+                    </span>
+                  </div>
+                </div>
               )}
 
               {/* 3. COE Supporting Function Box - Không màu */}
@@ -760,6 +770,11 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                 >
                   <div className="absolute top-2.5 left-4 text-xs font-bold text-slate-800 underline decoration-slate-400 underline-offset-4 tracking-wide select-none">
                     COE Supporting Function
+                  </div>
+                  <div className="absolute bottom-3 left-4 right-4 text-center">
+                    <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
+                      Supporting Functions serving all VN - Brands transversally
+                    </span>
                   </div>
                 </div>
               )}
@@ -781,6 +796,11 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                 >
                   <div className="absolute top-2.5 left-4 text-xs font-bold text-slate-800 underline decoration-slate-400 underline-offset-4 tracking-wide select-none">
                     CRV Supporting function
+                  </div>
+                  <div className="absolute bottom-3 left-4 right-4 text-center">
+                    <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
+                      Supporting Functions serving all VN - Brands transversally
+                    </span>
                   </div>
                 </div>
               )}
@@ -1005,10 +1025,10 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
               {(() => {
                 const presCenterX = Math.round((presNode.x || 0) + getNodeW(presNode) / 2);
                 const presBottomY = (presNode.y || 0) + getNodeH(presNode);
-                const presDirectBusY = 150;
+                const presDirectBusY = 175;
 
                 const sspCenterX = sspNode ? Math.round((sspNode.x || 0) + getNodeW(sspNode) / 2) : presCenterX;
-                const sspTopY = sspNode?.y || 220;
+                const sspTopY = sspNode?.y || 240;
                 const coeBoxCenterX = coeBox ? Math.round((coeBox.minX + coeBox.maxX) / 2) : 1370;
 
                 return (
@@ -1024,7 +1044,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                     {/* Direct solid vertical drop from Andrew to Thao Supersports directly below */}
                     {sspNode && (
                       <path
-                        d={`M ${presCenterX} ${presDirectBusY} V ${sspTopY}`}
+                        d={`M ${presCenterX} ${presDirectBusY} H ${sspCenterX} V ${sspTopY}`}
                         fill="none"
                         stroke="#0f172a"
                         strokeWidth="1.5"
@@ -1069,7 +1089,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
               if (!presNode) return null;
 
               const presCenterX = Math.round((presNode.x || 0) + getNodeW(presNode) / 2);
-              const presDirectBusY = 150;
+              const presDirectBusY = 175;
               const coeBoxCenterX = coeBox ? Math.round((coeBox.minX + coeBox.maxX) / 2) : 1370;
               const crvBoxCenterX = crvBox ? Math.round((crvBox.minX + crvBox.maxX) / 2) : 1990;
 
@@ -1108,7 +1128,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                         {n1BrandNodes.map(bn => {
                           const cx = Math.round((bn.x || 0) + getNodeW(bn) / 2);
                           const pinX = cx - 25;
-                          const cardTopY = bn.y || 220;
+                          const cardTopY = bn.y || 240;
                           return (
                             <path
                               key={`brand_pin_down_${bn.id}`}
@@ -1248,22 +1268,22 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                   width: 2,
                   zIndex: 5
                 }}
-                className="bg-slate-900 flex flex-col justify-between"
+                className="bg-slate-300 flex flex-col justify-between"
               >
                 {/* Drag handle */}
                 <div
                   onMouseDown={e => handleDividerMouseDown(e, div)}
-                  className="absolute -top-3.5 -left-3.5 w-7 h-7 bg-white border-2 border-slate-900 rounded-full shadow-md cursor-ew-resize flex items-center justify-center hover:scale-110 transition-transform"
+                  className="absolute -top-3.5 -left-3.5 w-7 h-7 bg-white border-2 border-slate-400 rounded-full shadow-md cursor-ew-resize flex items-center justify-center hover:scale-110 transition-transform"
                   title="Kéo để thay đổi phân vùng"
                 >
-                  <Move className="w-3.5 h-3.5 text-slate-800" />
+                  <Move className="w-3.5 h-3.5 text-slate-500" />
                 </div>
 
                 {/* Left Label */}
                 {div.labelLeft && (
                   <div
                     style={{ position: 'absolute', right: 15, top: 0 }}
-                    className="text-[11px] font-bold text-slate-900 text-right whitespace-nowrap"
+                    className="text-[11px] font-bold text-slate-500 text-right whitespace-nowrap"
                   >
                     {div.labelLeft}
                   </div>
@@ -1273,7 +1293,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                 {div.labelRight && (
                   <div
                     style={{ position: 'absolute', left: 15, top: 0 }}
-                    className="text-[11px] font-bold text-slate-900 text-left whitespace-nowrap"
+                    className="text-[11px] font-bold text-slate-500 text-left whitespace-nowrap"
                   >
                     {div.labelRight}
                   </div>
