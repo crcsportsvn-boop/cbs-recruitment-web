@@ -116,7 +116,7 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftInputRef = useRef<HTMLInputElement>(null);
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -470,31 +470,6 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               <span>Chế độ Xem Hiện Tại</span>
             </span>
-            <Button
-              size="sm"
-              onClick={onCreateProposal}
-              className="text-xs h-6.5 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1 shadow-xs ml-2 cursor-pointer"
-            >
-              <Sparkles className="w-3 h-3" />
-              <span>Tạo Đề Xuất Mới</span>
-            </Button>
-            {onRefreshFromSheet && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={isSyncingSheet}
-                onClick={onRefreshFromSheet}
-                className="text-xs h-6.5 px-2.5 border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold gap-1 cursor-pointer bg-white"
-                title="Tải lại dữ liệu mới nhất từ Google Sheet HO"
-              >
-                {isSyncingSheet ? (
-                  <Loader2 className="w-3 h-3 text-slate-600 animate-spin" />
-                ) : (
-                  <RotateCcw className="w-3 h-3 text-slate-600" />
-                )}
-                <span>Đồng bộ từ Sheet</span>
-              </Button>
-            )}
           </div>
         )}
 

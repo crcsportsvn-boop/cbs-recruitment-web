@@ -701,6 +701,25 @@ export function buildDynamicN1Layout(
     }
   });
 
+  // Sort Brand Heads to align with Regional Leaders:
+  // Col 0: Dyson (under Regional Head of Dyson at x: 40)
+  // Col 1: Crocs (under Regional Head of Footwear at x: 235)
+  // Col 2: Hoka
+  // Col 3: Sports Brands
+  // Col 4: Supersports
+  uniqueBrandHeads.sort((a, b) => {
+    const getBrandOrder = (n: OrgNode) => {
+      const text = `${n.division || ''} ${n.title || ''}`.toLowerCase();
+      if (text.includes('dyson')) return 0;
+      if (text.includes('crocs') || text.includes('footwear')) return 1;
+      if (text.includes('hoka')) return 2;
+      if (text.includes('sports brands') || text.includes('sports')) return 3;
+      if (text.includes('supersports') || text.includes('ssp')) return 4;
+      return 10;
+    };
+    return getBrandOrder(a) - getBrandOrder(b);
+  });
+
   // Find CS Leader (Gianna)
   const csLeader = rawNodes.find(
     n =>
@@ -953,7 +972,7 @@ export function buildDynamicN1Layout(
         y: supportStartY + rIdx * (CARD_H + 20),
         width: CARD_W,
         height: CARD_H,
-        reportsToId: node.id === csLeader?.id ? (coeMkt ? coeMkt.id : presId) : presId,
+        reportsToId: presId,
         hasChildren: false,
         isCollapsed: false
       });
