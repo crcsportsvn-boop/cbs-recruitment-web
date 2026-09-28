@@ -531,8 +531,8 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   const rawCrvMaxY = crvNodes.length > 0 ? Math.max(...crvNodes.map(n => (n.y || 0) + getNodeH(n))) + 20 : 0;
 
   const commonSupportWidth = Math.max(rawCoeMaxX - rawCoeMinX, rawCrvMaxX - rawCrvMinX, 600);
-  const commonBoxMinY = 205;
-  const commonBoxMaxY = 625;
+  const commonBoxMinY = 235;
+  const commonBoxMaxY = 655;
 
   // Cân đối cả 2 box Brand với cả 2 box Supporting Function có chung chiều dài (chiều cao)
   const brandBox = isN1 && n1BrandNodes.length > 0 ? {
@@ -1025,10 +1025,10 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
               {(() => {
                 const presCenterX = Math.round((presNode.x || 0) + getNodeW(presNode) / 2);
                 const presBottomY = (presNode.y || 0) + getNodeH(presNode);
-                const presDirectBusY = 175;
+                const presDirectBusY = 205;
 
                 const sspCenterX = sspNode ? Math.round((sspNode.x || 0) + getNodeW(sspNode) / 2) : presCenterX;
-                const sspTopY = sspNode?.y || 240;
+                const sspTopY = sspNode?.y || 270;
                 const coeBoxCenterX = coeBox ? Math.round((coeBox.minX + coeBox.maxX) / 2) : 1370;
 
                 return (
@@ -1089,7 +1089,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
               if (!presNode) return null;
 
               const presCenterX = Math.round((presNode.x || 0) + getNodeW(presNode) / 2);
-              const presDirectBusY = 175;
+              const presDirectBusY = 205;
               const coeBoxCenterX = coeBox ? Math.round((coeBox.minX + coeBox.maxX) / 2) : 1370;
               const crvBoxCenterX = crvBox ? Math.round((crvBox.minX + crvBox.maxX) / 2) : 1990;
 
@@ -1128,7 +1128,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                         {n1BrandNodes.map(bn => {
                           const cx = Math.round((bn.x || 0) + getNodeW(bn) / 2);
                           const pinX = cx - 25;
-                          const cardTopY = bn.y || 240;
+                          const cardTopY = bn.y || 270;
                           return (
                             <path
                               key={`brand_pin_down_${bn.id}`}

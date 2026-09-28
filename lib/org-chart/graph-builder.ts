@@ -766,8 +766,8 @@ export function buildDynamicN1Layout(
   const dividers: CustomDivider[] = [];
   const notes: CustomNote[] = [];
 
-  // 3. Layout Regional Leaders on the Left at y: 50 (higher than before to clear bus line)
-  // Per requirement: CEO is elevated highest (at y: 15), Regional Leaders are at y: 50.
+  // 3. Layout Regional Leaders on the Left at y: 80 (elevated below CEO to clear divider labels)
+  // Per requirement: CEO is elevated highest (at y: 50), Regional Leaders are at y: 80.
   const regDyson = virtualLeaders.find(vl => vl.code === 'THL_REG_DYSON');
   if (regDyson) {
     positionedNodes.push({
@@ -779,7 +779,7 @@ export function buildDynamicN1Layout(
       isVirtual: true,
       reportsToId: '',
       x: 40,
-      y: 50,
+      y: 80,
       width: CARD_W,
       height: CARD_H
     });
@@ -796,7 +796,7 @@ export function buildDynamicN1Layout(
       isVirtual: true,
       reportsToId: '',
       x: 235,
-      y: 50,
+      y: 80,
       width: CARD_W,
       height: CARD_H
     });
@@ -813,7 +813,7 @@ export function buildDynamicN1Layout(
       isVirtual: true,
       reportsToId: '',
       x: 430,
-      y: 50,
+      y: 80,
       width: CARD_W,
       height: CARD_H
     });
@@ -830,15 +830,15 @@ export function buildDynamicN1Layout(
       isVirtual: true,
       reportsToId: '',
       x: 625,
-      y: 50,
+      y: 80,
       width: CARD_W,
       height: CARD_H
     });
   }
 
-  // 4. Layout VN President (CEO Andrew) at top center at y: 15 (elevated higher than Regional Leaders, shifted toward center)
+  // 4. Layout VN President (CEO Andrew) at top center at y: 50 (leaving clearance for divider text and handle)
   const presX = 920;
-  const presY = 15;
+  const presY = 50;
   positionedNodes.push({
     id: presId,
     title: presTitle,
@@ -854,10 +854,10 @@ export function buildDynamicN1Layout(
     height: CARD_H
   });
 
-  // 5. Layout Direct Reporting Brand Heads under Regional Leaders (at y: 240)
+  // 5. Layout Direct Reporting Brand Heads under Regional Leaders (at y: 270)
   // Per requirement: Brands report directly to their regional leaders (solid vertical lines),
   // and indirectly to Andrew (dashed line). Thao Supersports reports directly to CEO Andrew.
-  const brandStartY = 240;
+  const brandStartY = 270;
 
   const getDirectRegionalReport = (head: OrgNode): string => {
     const text = `${head.division || ''} ${head.title || ''} ${head.nickname || ''}`.toLowerCase();
@@ -955,14 +955,18 @@ export function buildDynamicN1Layout(
   );
   const coeExpansion = rawNodes.find(n => n.title.toLowerCase().includes('store expansion') || n.title.toLowerCase().includes('leasing'));
 
+  // Lưới 3x3x2 theo chiều từ trái qua phải:
+  // Cột 1 (3 vị trí): Marketing, Online, Operations
+  // Cột 2 (3 vị trí): Store Expansion (Leasing tại 1x2), Wholesale, Customer Service
+  // Cột 3 (2 vị trí): Business Development, Project DC
   const coeCols: (OrgNode | undefined)[][] = [
     [coeMkt, coeOnline, coeOps],
-    [coePlanning, coeWholesale, csLeader],
-    [coeBusDev, coeDC, coeExpansion]
+    [coeExpansion, coeWholesale, csLeader],
+    [coeBusDev, coeDC]
   ];
 
   let currentSupportX = dividerX + 35; // 1085
-  const supportStartY = 240;
+  const supportStartY = 270;
 
   coeCols.forEach(col => {
     col.forEach((node, rIdx) => {
@@ -981,23 +985,23 @@ export function buildDynamicN1Layout(
     currentSupportX += CARD_W + H_GAP;
   });
 
-  // Group Support (CRV): Balanced into 3 columns to match COE box width
+  // Group Support (CRV):
+  // Cột 1 (2 vị trí): GM Human Resources, Business Controller
+  // Cột 2 (3 vị trí): IT Head, SCM Head, Legal Head (Legal Head để dưới SCM Head)
   const hrHead = rawNodes.find(n => n.title.toLowerCase().includes('gm human resources') || n.title.toLowerCase().includes('hr head'));
   const busController = rawNodes.find(n => n.title.toLowerCase().includes('business controller'));
 
   const crvCol1: (OrgNode | undefined)[] = [hrHead, busController];
   const crvCol2: OrgNode[] = [
     { id: 'grp_it_head', title: 'IT Head', nickname: 'Luan', dept: 'IT', flags: ['VN'], isVirtual: true, status: 'active' } as OrgNode,
-    { id: 'grp_scm_head', title: 'SCM Head', nickname: 'Oanh', dept: 'SCM', flags: ['VN'], isVirtual: true, status: 'active' } as OrgNode
-  ];
-  const crvCol3: OrgNode[] = [
+    { id: 'grp_scm_head', title: 'SCM Head', nickname: 'Oanh', dept: 'SCM', flags: ['VN'], isVirtual: true, status: 'active' } as OrgNode,
     { id: 'grp_legal_head', title: 'Legal Head', nickname: 'Duong', dept: 'Legal', flags: ['VN'], isVirtual: true, status: 'active' } as OrgNode
   ];
 
-  const crvCols = [crvCol1, crvCol2, crvCol3];
+  const crvCols = [crvCol1, crvCol2];
   let currentGroupX = currentSupportX + 35; // 1705
 
-  // Add Virtual Leader for CRV Supporting Functions Heads (elevated to y: 50 above Column 2 of CRV)
+  // Add Virtual Leader for CRV Supporting Functions Heads (elevated to y: 80 above Column 2 of CRV)
   const crvSupportHead = virtualLeaders.find(vl => vl.code === 'CRV_SUPPORTING_HEADS') || {
     code: 'CRV_SUPPORTING_HEADS',
     title: 'Supporting Function Heads CRV',
@@ -1017,7 +1021,7 @@ export function buildDynamicN1Layout(
     isVirtual: true,
     reportsToId: '',
     x: crvCol2X,
-    y: 50,
+    y: 80,
     width: CARD_W,
     height: CARD_H
   });
@@ -1043,7 +1047,7 @@ export function buildDynamicN1Layout(
   const maxOccupiedX = Math.max(dividerX, currentSupportX, currentGroupX) + 60;
   const minSlideW = 1200;
   const n1CanvasWidth = Math.max(minSlideW, maxOccupiedX);
-  const n1CanvasHeight = 720;
+  const n1CanvasHeight = 760;
 
   return {
     nodes: positionedNodes,
