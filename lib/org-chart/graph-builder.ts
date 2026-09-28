@@ -147,6 +147,45 @@ export function buildDynamicDivisionTree(
     height: number;
   }
 
+  // Helper to estimate how many visual columns a division needs without forced collapsing
+  function estimateDivisionColumns(): number {
+    function getSubtreeCols(node: OrgNode, isR: boolean = false): number {
+      const children = cleanedNodes.filter(c => c.reportsToId === node.id);
+      if (children.length === 0) return 1;
+
+      const branchChildren = children.filter(c => cleanedNodes.some(gc => gc.reportsToId === c.id));
+      const leafChildren = children.filter(c => cleanedNodes.every(gc => gc.reportsToId !== c.id));
+
+      if (!isR && branchChildren.length === 0) {
+        return 1;
+      }
+
+      let branchCols = 0;
+      branchChildren.forEach(bc => {
+        branchCols += getSubtreeCols(bc, false);
+      });
+
+      const leafGroups = new Map<string, OrgNode[]>();
+      leafChildren.forEach(lc => {
+        const sd = (lc.subDept || lc.dept || lc.title || 'Other').trim();
+        if (!leafGroups.has(sd)) leafGroups.set(sd, []);
+        leafGroups.get(sd)!.push(lc);
+      });
+
+      let leafCols = leafGroups.size;
+      return Math.max(1, branchCols + leafCols);
+    }
+
+    let totalCols = 0;
+    roots.forEach(r => {
+      totalCols += getSubtreeCols(r, true);
+    });
+    return totalCols;
+  }
+
+  const totalDivisionCols = estimateDivisionColumns();
+  const shouldPreserveSubDepts = totalDivisionCols <= 8;
+
   const placedNodeMap = new Map<string, OrgNode>();
 
   // Recursively layout a subtree for a given node
@@ -193,6 +232,86 @@ export function buildDynamicDivisionTree(
 
     // Case 1: Pure leaf subordinates under this manager (no sub-branches)
     if (branchChildren.length === 0) {
+      // Group leaf children by subDept
+      const leafGroups = new Map<string, OrgNode[]>();
+      leafChildren.forEach(lc => {
+        const sd = (lc.subDept || lc.dept || lc.title || 'Other').trim();
+        if (!leafGroups.has(sd)) leafGroups.set(sd, []);
+        leafGroups.get(sd)!.push(lc);
+      });
+
+      // If at division root and division has <= 8 columns, present distinct sub-depts as separate columns
+      if (isRoot && shouldPreserveSubDepts && leafGroups.size > 1) {
+        let curX = startX;
+        const groupResults: LayoutSubtreeResult[] = [];
+        const childY = startY + CARD_H + V_GAP;
+
+        const sortedGroups = Array.from(leafGroups.entries()).sort((a, b) => {
+          const maxA = Math.max(...a[1].map(n => getSeniorityScore(n)));
+          const maxB = Math.max(...b[1].map(n => getSeniorityScore(n)));
+          return maxB - maxA;
+        });
+
+        sortedGroups.forEach(([sdName, members]) => {
+          members.sort((a, b) => getSeniorityScore(b) - getSeniorityScore(a));
+          const placedInGroup: OrgNode[] = [];
+          members.forEach((child, idx) => {
+            const childX = curX;
+            const childYPos = childY + idx * (CARD_H + 18);
+            const placedChild: OrgNode = {
+              ...child,
+              x: childX,
+              y: childYPos,
+              width: CARD_W,
+              height: CARD_H,
+              hasChildren: false,
+              isCollapsed: false,
+              collapsedCount: 0
+            };
+            placedNodeMap.set(child.id, placedChild);
+            placedInGroup.push(placedChild);
+          });
+
+          const groupHeight = members.length * (CARD_H + 18) - 18;
+          groupResults.push({
+            placedNodes: placedInGroup,
+            width: CARD_W,
+            height: groupHeight
+          });
+          curX += CARD_W + H_GAP;
+        });
+
+        const totalChildrenWidth = curX - startX - H_GAP;
+        const subtreeWidth = Math.max(CARD_W, totalChildrenWidth);
+        const parentX = startX + Math.max(0, (subtreeWidth - CARD_W) / 2);
+
+        const placedParent: OrgNode = {
+          ...node,
+          x: parentX,
+          y: startY,
+          width: CARD_W,
+          height: CARD_H,
+          hasChildren: true,
+          isCollapsed: false,
+          collapsedCount: totalDescendants
+        };
+        placedNodeMap.set(node.id, placedParent);
+
+        let maxChildHeight = 0;
+        groupResults.forEach(gr => {
+          if (gr.height > maxChildHeight) maxChildHeight = gr.height;
+        });
+
+        const allPlaced = [placedParent];
+        groupResults.forEach(gr => allPlaced.push(...gr.placedNodes));
+
+        return {
+          placedNodes: allPlaced,
+          width: subtreeWidth,
+          height: CARD_H + V_GAP + maxChildHeight
+        };
+      }
+
       // In division view, stack in 1 column (CARD_W) for sub-managers to prevent horizontal sprawl
       // Division root allowed up to 3 columns banner
       const colCount = isRoot ? Math.min(leafChildren.length, 3) : 1;
@@ -243,16 +362,12 @@ export function buildDynamicDivisionTree(
     }
 
     // Case 2: Mixed or multi-branch hierarchy
-    // Strict 6-7 column capping:
-    // - Sub-departments under a department manager pack into at most 2 columns (excess stacked vertically).
-    // - Leaf subordinates under any manager stack strictly in 1 column.
-    // - At division root, small functions (<= 2 members, like KA, VM, Training) bundle into 1 column.
     let curX = startX;
     const childResults: LayoutSubtreeResult[] = [];
     const childY = startY + CARD_H + V_GAP;
 
     const effectiveBranches = [...branchChildren];
-    if (isRoot && effectiveBranches.length > 5 && !isDyson) {
+    if (isRoot && effectiveBranches.length > 5 && !isDyson && !shouldPreserveSubDepts) {
       const largeBranches: OrgNode[] = [];
       const smallBranches: OrgNode[] = [];
       effectiveBranches.forEach(b => {
@@ -294,8 +409,8 @@ export function buildDynamicDivisionTree(
           curX += res.width + H_GAP;
         });
       }
-    } else if (!isRoot && branchChildren.length > 2) {
-      // Non-root department manager (e.g. Ecommerce Manager) with > 2 sub-branches:
+    } else if (!isRoot && branchChildren.length > 2 && !shouldPreserveSubDepts) {
+      // Non-root department manager with > 2 sub-branches in wide view:
       // Pack into 2 columns: Col 1 has first branch, Col 2 has remaining branches stacked vertically
       const res1 = layoutSubtree(branchChildren[0]!, curX, childY, false);
       childResults.push(res1);
@@ -324,33 +439,84 @@ export function buildDynamicDivisionTree(
       });
     }
 
-    // Leaf children under this manager (stack strictly in 1 column)
+    // Leaf children under this manager
     if (leafChildren.length > 0) {
-      const leafGridWidth = CARD_W;
-      const leafGridHeight = leafChildren.length * (CARD_H + 18) - 18;
-      const bundledLeaves: OrgNode[] = [];
-      leafChildren.forEach((child, idx) => {
-        const childX = curX;
-        const childYPos = childY + idx * (CARD_H + 18);
-        const placedChild: OrgNode = {
-          ...child,
-          x: childX,
-          y: childYPos,
-          width: CARD_W,
-          height: CARD_H,
-          hasChildren: false,
-          isCollapsed: false,
-          collapsedCount: 0
-        };
-        placedNodeMap.set(child.id, placedChild);
-        bundledLeaves.push(placedChild);
+      // Group leaf children by subDept
+      const leafGroups = new Map<string, OrgNode[]>();
+      leafChildren.forEach(lc => {
+        const sd = (lc.subDept || lc.dept || lc.title || 'Other').trim();
+        if (!leafGroups.has(sd)) leafGroups.set(sd, []);
+        leafGroups.get(sd)!.push(lc);
       });
-      childResults.push({
-        placedNodes: bundledLeaves,
-        width: leafGridWidth,
-        height: leafGridHeight
-      });
-      curX += leafGridWidth + H_GAP;
+
+      if (shouldPreserveSubDepts || isRoot) {
+        // When total division columns <= 8 (or at division root),
+        // DO NOT merge different sub-departments into 1 column!
+        // Each sub-dept gets its own column, with members of that sub-dept stacked vertically.
+        const sortedGroups = Array.from(leafGroups.entries()).sort((a, b) => {
+          const maxA = Math.max(...a[1].map(n => getSeniorityScore(n)));
+          const maxB = Math.max(...b[1].map(n => getSeniorityScore(n)));
+          return maxB - maxA;
+        });
+
+        sortedGroups.forEach(([subDeptName, groupMembers]) => {
+          groupMembers.sort((a, b) => getSeniorityScore(b) - getSeniorityScore(a));
+          const groupColWidth = CARD_W;
+          const groupHeight = groupMembers.length * (CARD_H + 18) - 18;
+          const placedInGroup: OrgNode[] = [];
+
+          groupMembers.forEach((child, idx) => {
+            const childX = curX;
+            const childYPos = childY + idx * (CARD_H + 18);
+            const placedChild: OrgNode = {
+              ...child,
+              x: childX,
+              y: childYPos,
+              width: CARD_W,
+              height: CARD_H,
+              hasChildren: false,
+              isCollapsed: false,
+              collapsedCount: 0
+            };
+            placedNodeMap.set(child.id, placedChild);
+            placedInGroup.push(placedChild);
+          });
+
+          childResults.push({
+            placedNodes: placedInGroup,
+            width: groupColWidth,
+            height: groupHeight
+          });
+          curX += groupColWidth + H_GAP;
+        });
+      } else {
+        // High-density fallback: bundle all leaf subordinates into 1 column
+        const leafGridWidth = CARD_W;
+        const leafGridHeight = leafChildren.length * (CARD_H + 18) - 18;
+        const bundledLeaves: OrgNode[] = [];
+        leafChildren.forEach((child, idx) => {
+          const childX = curX;
+          const childYPos = childY + idx * (CARD_H + 18);
+          const placedChild: OrgNode = {
+            ...child,
+            x: childX,
+            y: childYPos,
+            width: CARD_W,
+            height: CARD_H,
+            hasChildren: false,
+            isCollapsed: false,
+            collapsedCount: 0
+          };
+          placedNodeMap.set(child.id, placedChild);
+          bundledLeaves.push(placedChild);
+        });
+        childResults.push({
+          placedNodes: bundledLeaves,
+          width: leafGridWidth,
+          height: leafGridHeight
+        });
+        curX += leafGridWidth + H_GAP;
+      }
     }
 
     const totalChildrenWidth = curX - startX - H_GAP;
@@ -869,10 +1035,17 @@ export function buildOrgLayout(
   virtualLeaders: VirtualLeader[],
   customIndirectLinks: IndirectLink[] = [],
   selectedDivision?: string,
-  collapsedNodeIds: Set<string> = new Set()
+  collapsedNodeIds: Set<string> = new Set(),
+  overrideNodes?: OrgNode[],
+  overrideLeaders?: VirtualLeader[],
+  overrideIndirect?: IndirectLink[]
 ): LayoutResult {
+  const activeNodes = overrideNodes || rawNodes;
+  const activeLeaders = overrideLeaders || virtualLeaders;
+  const activeIndirect = overrideIndirect || customIndirectLinks;
+
   if (template === 'company_n1') {
-    return buildDynamicN1Layout(rawNodes, virtualLeaders, customIndirectLinks);
+    return buildDynamicN1Layout(activeNodes, activeLeaders, activeIndirect);
   }
 
   // Division View (dynamically resolves target division)
@@ -882,19 +1055,17 @@ export function buildOrgLayout(
   else if (template === 'brand_hoka') targetDivision = 'HOKA';
   else if (template === 'hr_shared') targetDivision = 'Human Resources';
 
-  const divisionNodes = rawNodes.filter(
+  const divisionNodes = activeNodes.filter(
     n => (n.division || '').trim().toLowerCase() === targetDivision.trim().toLowerCase()
   );
 
-
-
-  const tree = buildDynamicDivisionTree(divisionNodes, targetDivision, rawNodes, collapsedNodeIds);
+  const tree = buildDynamicDivisionTree(divisionNodes, targetDivision, activeNodes, collapsedNodeIds);
 
   const summary = calculateHeadcountSummary(divisionNodes, true, targetDivision);
 
   return {
     nodes: tree.nodes,
-    indirectLinks: customIndirectLinks.filter(l =>
+    indirectLinks: activeIndirect.filter(l =>
       tree.nodes.some(n => n.id === l.fromId) && tree.nodes.some(n => n.id === l.toId)
     ),
     dividers: [],

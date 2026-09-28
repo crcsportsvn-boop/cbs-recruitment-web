@@ -29,7 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, CheckCircle2, Info, Sparkles, GitCompare } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Info, Sparkles, GitCompare, Loader2 } from 'lucide-react';
 
 const PROPOSAL_DRAFT_KEY = 'cbs_org_proposal_draft_v1';
 
@@ -102,7 +102,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
   const [noteInputText, setNoteInputText] = useState<string>('');
   const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
 
-  // Upload Feedback Modal
+  // Upload Feedback Modal & Loading State
   const [uploadSuccessModal, setUploadSuccessModal] = useState<{
     fileName: string;
     officeCount: number;
@@ -110,6 +110,8 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
     linksCount: number;
     divisionsCount: number;
   } | null>(null);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadProgressText, setUploadProgressText] = useState<string>('Đang xử lý...');
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -127,14 +129,27 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
     targetMode: OrgChartMode,
     tpl: ViewTemplate,
     activeDiv?: string,
-    collapsedSet: Set<string> = collapsedNodeIds
+    collapsedSet: Set<string> = collapsedNodeIds,
+    overrideNodes?: OrgNode[],
+    overrideLeaders?: VirtualLeader[],
+    overrideIndirect?: IndirectLink[]
   ) => {
     const isCurrent = targetMode === 'current';
-    const activeNodes = isCurrent ? currentNodes : proposalNodes;
-    const activeLeaders = isCurrent ? currentVirtualLeaders : proposalVirtualLeaders;
-    const activeIndirect = isCurrent ? currentIndirect : proposalIndirect;
+    const activeNodes = overrideNodes ?? (isCurrent ? currentNodes : proposalNodes);
+    const activeLeaders = overrideLeaders ?? (isCurrent ? currentVirtualLeaders : proposalVirtualLeaders);
+    const activeIndirect = overrideIndirect ?? (isCurrent ? currentIndirect : proposalIndirect);
 
-    const layout = buildOrgLayout(tpl, activeNodes, activeLeaders, activeIndirect, activeDiv || selectedDivision, collapsedSet);
+    const layout = buildOrgLayout(
+      tpl,
+      activeNodes,
+      activeLeaders,
+      activeIndirect,
+      activeDiv || selectedDivision,
+      collapsedSet,
+      overrideNodes,
+      overrideLeaders,
+      overrideIndirect
+    );
     setNodes(layout.nodes);
     setIndirectLinks(layout.indirectLinks);
     if (tpl === 'company_n1') {
@@ -221,12 +236,20 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
 
   // Handle Excel File Upload (Updates Current baseline!)
   const handleFileUpload = async (file: File) => {
+    setIsUploading(true);
+    setUploadProgressText(`Đang đọc file ${file.name}...`);
     try {
-      notify('info', `Đang đọc file ${file.name}...`);
+      // Yield to the browser/event loop so React renders the loading indicator immediately
+      await new Promise(resolve => setTimeout(resolve, 80));
+
       const buffer = await file.arrayBuffer();
+
+      setUploadProgressText('Đang phân tích dữ liệu nhân sự và các phòng ban...');
+      await new Promise(resolve => setTimeout(resolve, 40));
+
       const parsed = parseOrgChartWorkbook(buffer);
 
-      // 1. Update Current Baseline
+      // 1. Update Current Baseline states
       setCurrentNodes(parsed.nodes);
       setCurrentVirtualLeaders(parsed.virtualLeaders);
       setCurrentIndirect(parsed.indirectLinks);
@@ -239,13 +262,29 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       setSelectedDivision(targetDiv);
 
       // 2. Clone to Proposal working copy
-      const clonedProposal = JSON.parse(JSON.stringify(parsed.nodes));
+      const clonedProposal: OrgNode[] = JSON.parse(JSON.stringify(parsed.nodes));
       setProposalNodes(clonedProposal);
       setProposalVirtualLeaders(parsed.virtualLeaders);
       setProposalIndirect(parsed.indirectLinks);
 
-      // Reapply layout
-      applyLayout(mode, template, targetDiv, collapsedNodeIds);
+      setUploadProgressText('Đang tính toán sơ đồ tổ chức và hoàn tất cập nhật...');
+      await new Promise(resolve => setTimeout(resolve, 40));
+
+      // Reapply layout IMMEDIATELY with the newly parsed nodes to ensure canvas updates synchronously
+      applyLayout(
+        mode,
+        template,
+        targetDiv,
+        collapsedNodeIds,
+        parsed.nodes,
+        parsed.virtualLeaders,
+        parsed.indirectLinks
+      );
+
+      // Brief delay to allow canvas render to complete before dismissing the loading indicator
+      await new Promise(resolve => setTimeout(resolve, 150));
+
+      setIsUploading(false);
 
       setUploadSuccessModal({
         fileName: file.name,
@@ -258,6 +297,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       notify('success', `Đã cập nhật cơ cấu Hiện tại (Current) từ file Excel ${file.name}!`);
     } catch (err: any) {
       console.error('File parsing failed:', err);
+      setIsUploading(false);
       notify('error', 'Lỗi đọc file Excel. Vui lòng kiểm tra định dạng file .xlsm / .xlsx.');
     }
   };
@@ -710,6 +750,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
         onAddNote={handleAddNote}
         onReset={handleReset}
         totalOfficeRecords={totalOfficeCount}
+        isUploading={isUploading}
       />
 
       {/* Main Interactive Canvas Viewport */}
@@ -761,6 +802,31 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
         canvasRef={canvasRef}
       />
       </div>
+
+      {/* Excel Uploading / Processing Overlay */}
+      {isUploading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs transition-opacity duration-200">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 p-6 max-w-sm w-full mx-4 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-150">
+            <div className="relative mb-4 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center border-2 border-red-100">
+                <Loader2 className="w-7 h-7 text-[#B91C1C] animate-spin" />
+              </div>
+            </div>
+            <h3 className="text-base font-bold text-slate-900 mb-1">
+              Đang Nạp Dữ Liệu Excel
+            </h3>
+            <p className="text-xs text-slate-600 mb-3 min-h-[1.5rem] font-medium">
+              {uploadProgressText}
+            </p>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+              <div className="bg-[#B91C1C] h-full w-2/3 rounded-full animate-pulse" />
+            </div>
+            <span className="text-[11px] text-slate-400 mt-3">
+              Hệ thống đang kiểm tra danh sách ghế và vẽ lại sơ đồ...
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Excel Upload Confirmation Dialog */}
       {uploadSuccessModal && (

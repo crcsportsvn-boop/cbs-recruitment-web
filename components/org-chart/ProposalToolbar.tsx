@@ -28,7 +28,8 @@ import {
   CheckCircle2,
   FileText,
   ChevronUp,
-  Settings
+  Settings,
+  Loader2
 } from 'lucide-react';
 
 interface ProposalToolbarProps {
@@ -58,6 +59,7 @@ interface ProposalToolbarProps {
   onAddNote: () => void;
   onReset: () => void;
   totalOfficeRecords: number;
+  isUploading?: boolean;
 }
 
 export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
@@ -86,7 +88,8 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
   onAddDivider,
   onAddNote,
   onReset,
-  totalOfficeRecords
+  totalOfficeRecords,
+  isUploading = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftInputRef = useRef<HTMLInputElement>(null);
@@ -94,7 +97,9 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      onFileUpload(e.target.files[0]);
+      const file = e.target.files[0];
+      e.target.value = '';
+      onFileUpload(file);
     }
   };
 
@@ -228,12 +233,17 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
           <Button
             size="sm"
             variant="outline"
+            disabled={isUploading}
             onClick={() => fileInputRef.current?.click()}
-            className="text-xs h-8 gap-1.5 text-slate-700 border-slate-300 hover:bg-slate-50 font-semibold shadow-xs"
+            className="text-xs h-8 gap-1.5 text-slate-700 border-slate-300 hover:bg-slate-50 font-semibold shadow-xs disabled:opacity-60 cursor-pointer"
             title="Nạp file Excel thực tế để cập nhật cơ cấu Hiện tại"
           >
-            <UploadCloud className="w-3.5 h-3.5 text-blue-600" />
-            <span>Nạp Excel</span>
+            {isUploading ? (
+              <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />
+            ) : (
+              <UploadCloud className="w-3.5 h-3.5 text-blue-600" />
+            )}
+            <span>{isUploading ? 'Đang nạp...' : 'Nạp Excel'}</span>
           </Button>
 
           {/* EXPORT HUB DROPDOWN */}
