@@ -63,7 +63,7 @@ export const CustomNoteOverlay: React.FC<CustomNoteOverlayProps> = ({
         </div>
       ) : (
         <div onDoubleClick={() => setIsEditing(true)}>
-          <div className="whitespace-pre-line text-xs font-medium leading-relaxed">
+          <div className="whitespace-pre-line text-xs font-medium leading-relaxed italic">
             {note.text}
           </div>
 

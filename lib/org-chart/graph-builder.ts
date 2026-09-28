@@ -766,9 +766,8 @@ export function buildDynamicN1Layout(
   const dividers: CustomDivider[] = [];
   const notes: CustomNote[] = [];
 
-  // 3. Layout Regional Leaders on the Left at y: 40 (x: 40 to 650)
-  // Per requirement: Pavi, Joyce, Alex, Damien are completely removed from N-1.
-  // K Ming, Penny, Joel, Hermann are placed at the top (y: 40).
+  // 3. Layout Regional Leaders on the Left at y: 80 (x: 40 to 650)
+  // Per requirement: CEO is elevated higher (at y: 20), Regional Leaders are at y: 80.
   const regDyson = virtualLeaders.find(vl => vl.code === 'THL_REG_DYSON');
   if (regDyson) {
     positionedNodes.push({
@@ -780,7 +779,7 @@ export function buildDynamicN1Layout(
       isVirtual: true,
       reportsToId: '',
       x: 40,
-      y: 40,
+      y: 80,
       width: CARD_W,
       height: CARD_H
     });
@@ -797,7 +796,7 @@ export function buildDynamicN1Layout(
       isVirtual: true,
       reportsToId: '',
       x: 235,
-      y: 40,
+      y: 80,
       width: CARD_W,
       height: CARD_H
     });
@@ -814,7 +813,7 @@ export function buildDynamicN1Layout(
       isVirtual: true,
       reportsToId: '',
       x: 430,
-      y: 40,
+      y: 80,
       width: CARD_W,
       height: CARD_H
     });
@@ -831,15 +830,15 @@ export function buildDynamicN1Layout(
       isVirtual: true,
       reportsToId: '',
       x: 625,
-      y: 40,
+      y: 80,
       width: CARD_W,
       height: CARD_H
     });
   }
 
-  // 4. Layout VN President (MD) at top right of regional tree (directly above Thao SSP)
+  // 4. Layout VN President (CEO Andrew) at top right of regional tree at y: 20 (higher than Regional Leaders)
   const presX = 845;
-  const presY = 40;
+  const presY = 20;
   positionedNodes.push({
     id: presId,
     title: presTitle,
@@ -855,10 +854,10 @@ export function buildDynamicN1Layout(
     height: CARD_H
   });
 
-  // 5. Layout Direct Reporting Brand Heads under Regional Leaders (Tịnh tiến lên y: 190)
+  // 5. Layout Direct Reporting Brand Heads under Regional Leaders (at y: 220)
   // Per requirement: Brands report directly to their regional leaders (solid vertical lines),
   // and indirectly to Andrew (dashed line). Thao Supersports reports directly to CEO Andrew.
-  const brandStartY = 190;
+  const brandStartY = 220;
 
   const getDirectRegionalReport = (head: OrgNode): string => {
     const text = `${head.division || ''} ${head.title || ''} ${head.nickname || ''}`.toLowerCase();
@@ -909,12 +908,12 @@ export function buildDynamicN1Layout(
       isCollapsed: false
     });
 
-    // Indirect matrix reporting up to BU President Andrew (only for Brand group, not SSP who reports directly)
+    // Indirect matrix reporting from BU President Andrew down to Brand group
     if (!isSSP) {
       indirectLinks.push({
         id: `ind_pres_brand_${head.id}`,
-        fromId: head.id,
-        toId: presId,
+        fromId: presId,
+        toId: head.id,
         label: ''
       });
     }
@@ -963,7 +962,7 @@ export function buildDynamicN1Layout(
   ];
 
   let currentSupportX = dividerX + 35; // 1085
-  const supportStartY = 190;
+  const supportStartY = 220;
 
   coeCols.forEach(col => {
     col.forEach((node, rIdx) => {
@@ -998,7 +997,7 @@ export function buildDynamicN1Layout(
   const crvCols = [crvCol1, crvCol2, crvCol3];
   let currentGroupX = currentSupportX + 35; // 1705
 
-  // Add Virtual Leader for CRV Supporting Functions Heads (sitting at y: 40 above Column 2 of CRV)
+  // Add Virtual Leader for CRV Supporting Functions Heads (sitting at y: 80 above Column 2 of CRV)
   const crvSupportHead = virtualLeaders.find(vl => vl.code === 'CRV_SUPPORTING_HEADS') || {
     code: 'CRV_SUPPORTING_HEADS',
     title: 'Supporting Function Heads CRV',
@@ -1018,7 +1017,7 @@ export function buildDynamicN1Layout(
     isVirtual: true,
     reportsToId: '',
     x: crvCol2X,
-    y: 40,
+    y: 80,
     width: CARD_W,
     height: CARD_H
   });
@@ -1038,6 +1037,33 @@ export function buildDynamicN1Layout(
       });
     });
     currentGroupX += CARD_W + H_GAP;
+  });
+
+  // 7. Add bottom notes under boxes (Per user requirement)
+  // Height of boxes reaches y: 520, notes placed at y: 535
+  const noteBottomY = 535;
+  notes.push({
+    id: 'note_n1_brand_direct',
+    text: 'VN - Heads of Brand directly reporting to TH - Heads of brand',
+    x: 35,
+    y: noteBottomY,
+    color: '#475569'
+  });
+
+  notes.push({
+    id: 'note_n1_ssp_direct',
+    text: 'VN - Heads of Brand directly reporting to VN - CBS President',
+    x: 835,
+    y: noteBottomY,
+    color: '#475569'
+  });
+
+  notes.push({
+    id: 'note_n1_support_transversal',
+    text: 'Supporting Functions serving all VN - Brands transversally',
+    x: 1075,
+    y: noteBottomY,
+    color: '#475569'
   });
 
   // Calculate dynamic canvas dimensions with 4:3 (3x4) aspect ratio
