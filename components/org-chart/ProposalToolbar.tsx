@@ -60,6 +60,9 @@ interface ProposalToolbarProps {
   onReset: () => void;
   totalOfficeRecords: number;
   isUploading?: boolean;
+  isSyncingSheet?: boolean;
+  onSyncGoogleSheet?: () => void;
+  onRefreshFromSheet?: () => void;
 }
 
 export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
@@ -89,7 +92,10 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
   onAddNote,
   onReset,
   totalOfficeRecords,
-  isUploading = false
+  isUploading = false,
+  isSyncingSheet = false,
+  onSyncGoogleSheet,
+  onRefreshFromSheet
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftInputRef = useRef<HTMLInputElement>(null);
@@ -309,13 +315,51 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
 
               <DropdownMenuSeparator />
 
+              <DropdownMenuSeparator />
+
+              <DropdownMenuLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Google Sheets HO
+              </DropdownMenuLabel>
+
+              {onSyncGoogleSheet && (
+                <DropdownMenuItem
+                  onClick={onSyncGoogleSheet}
+                  disabled={isSyncingSheet}
+                  className="text-xs font-semibold text-blue-700 focus:bg-blue-50 cursor-pointer gap-2 py-1.5"
+                >
+                  {isSyncingSheet ? (
+                    <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 text-blue-600" />
+                  )}
+                  <span>Lưu lên Google Sheet (org-propose)</span>
+                </DropdownMenuItem>
+              )}
+
+              {onRefreshFromSheet && (
+                <DropdownMenuItem
+                  onClick={onRefreshFromSheet}
+                  disabled={isSyncingSheet}
+                  className="text-xs text-slate-700 cursor-pointer gap-2 py-1.5"
+                >
+                  {isSyncingSheet ? (
+                    <Loader2 className="w-4 h-4 text-slate-600 animate-spin" />
+                  ) : (
+                    <RotateCcw className="w-4 h-4 text-slate-600" />
+                  )}
+                  <span>Tải lại từ Google Sheet HO</span>
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuSeparator />
+
               <DropdownMenuLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 Lưu Trữ Bản Nháp
               </DropdownMenuLabel>
 
               <DropdownMenuItem onClick={onSaveDraft} className="text-xs cursor-pointer gap-2 py-1.5">
                 <Save className="w-4 h-4 text-slate-600" />
-                <span>Lưu File Bản Nháp</span>
+                <span>Lưu File Bản Nháp (.cbsorg)</span>
               </DropdownMenuItem>
 
               <DropdownMenuItem onClick={() => draftInputRef.current?.click()} className="text-xs cursor-pointer gap-2 py-1.5">
@@ -352,6 +396,23 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               <Sparkles className="w-3 h-3" />
               <span>Tạo Đề Xuất Mới</span>
             </Button>
+            {onRefreshFromSheet && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={isSyncingSheet}
+                onClick={onRefreshFromSheet}
+                className="text-xs h-6.5 px-2.5 border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold gap-1 cursor-pointer bg-white"
+                title="Tải lại dữ liệu mới nhất từ Google Sheet HO"
+              >
+                {isSyncingSheet ? (
+                  <Loader2 className="w-3 h-3 text-slate-600 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-3 h-3 text-slate-600" />
+                )}
+                <span>Đồng bộ từ Sheet</span>
+              </Button>
+            )}
           </div>
         )}
 
@@ -410,6 +471,27 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               <StickyNote className="w-3.5 h-3.5 text-slate-600" />
               <span>Ghi chú</span>
             </Button>
+
+            {onSyncGoogleSheet && (
+              <>
+                <div className="w-[1px] h-4 bg-slate-300 mx-1" />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isSyncingSheet}
+                  onClick={onSyncGoogleSheet}
+                  className="text-xs h-7 gap-1 border-blue-500 text-blue-700 hover:bg-blue-50 font-bold bg-white cursor-pointer shadow-2xs"
+                  title="Ghi bản đề xuất này vào sheet org-propose trên Google Sheet HO"
+                >
+                  {isSyncingSheet ? (
+                    <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />
+                  ) : (
+                    <Save className="w-3.5 h-3.5 text-blue-600" />
+                  )}
+                  <span>{isSyncingSheet ? 'Đang lưu Sheet...' : 'Lưu lên Sheet'}</span>
+                </Button>
+              </>
+            )}
           </div>
         )}
 

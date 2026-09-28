@@ -112,6 +112,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
   } | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadProgressText, setUploadProgressText] = useState<string>('Đang xử lý...');
+  const [isSyncingSheet, setIsSyncingSheet] = useState<boolean>(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -167,33 +168,165 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
     setHasCRVShared(!!layout.hasCRVShared);
   };
 
-  // Initial layout generation and draft restoration on mount
-  useEffect(() => {
+  // Helper to sync nodes back to Google Sheet HO (org-asis, org-propose, or both)
+  const syncToGoogleSheets = async (target: 'asis' | 'propose' | 'both', nodesToSync: OrgNode[]) => {
     try {
-      const saved = typeof window !== 'undefined' ? localStorage.getItem(PROPOSAL_DRAFT_KEY) : null;
-      if (saved) {
-        const draft: OrgProposalState = JSON.parse(saved);
-        if (draft && Array.isArray(draft.nodes) && draft.nodes.length > 0) {
-          setProposalNodes(draft.nodes);
-          if (draft.indirectLinks) setProposalIndirect(draft.indirectLinks);
-          if (draft.dividers) setDividers(draft.dividers);
-          if (draft.notes) setNotes(draft.notes);
-          if (draft.justificationRows) setJustificationRows(draft.justificationRows);
-          if (draft.template) setTemplate(draft.template);
-          if (draft.selectedDivision) setSelectedDivision(draft.selectedDivision);
-          if (draft.densityMode) setDensityMode(draft.densityMode);
-          if (draft.activeMode) setMode(draft.activeMode);
-
-          applyLayout(draft.activeMode || mode, draft.template || template, draft.selectedDivision || selectedDivision, collapsedNodeIds);
-          notify('info', 'Đã khôi phục dữ liệu bản nháp đề xuất đã lưu trước đó.');
-          return;
-        }
+      setIsSyncingSheet(true);
+      const res = await fetch('/api/org-chart/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target, nodes: nodesToSync })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Lỗi khi ghi dữ liệu vào Google Sheets');
       }
-    } catch (e) {
-      console.warn('Could not restore proposal draft from localStorage:', e);
+      const targetName = target === 'both' ? 'org-asis và org-propose' : target === 'asis' ? 'org-asis' : 'org-propose';
+      notify('success', `Đã lưu thành công ${nodesToSync.length} vị trí vào Google Sheet HO [${targetName}]!`);
+      return true;
+    } catch (err: any) {
+      console.error('syncToGoogleSheets error:', err);
+      notify('error', `Lỗi đồng bộ Google Sheets: ${err.message || 'Không thể kết nối'}`);
+      return false;
+    } finally {
+      setIsSyncingSheet(false);
     }
+  };
 
-    applyLayout(mode, template, selectedDivision, collapsedNodeIds);
+  const handleSyncGoogleSheet = () => {
+    syncToGoogleSheets('propose', proposalNodes);
+  };
+
+  const handleRefreshFromSheet = async () => {
+    try {
+      setIsSyncingSheet(true);
+      const res = await fetch('/api/org-chart/sync');
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Lỗi đọc dữ liệu từ Google Sheets');
+      }
+      const data = await res.json();
+      if (data.success && data.hasAsis) {
+        const asisNodes: OrgNode[] = data.asis;
+        const proposeNodes: OrgNode[] = data.hasPropose ? data.propose : asisNodes;
+
+        const divSet = new Set<string>();
+        asisNodes.forEach(n => {
+          if (n.division) divSet.add(n.division);
+        });
+        const sheetDivisions = Array.from(divSet);
+
+        setCurrentNodes(asisNodes);
+        setProposalNodes(proposeNodes);
+        if (sheetDivisions.length > 0) {
+          setDivisions(sheetDivisions);
+        }
+        setTotalOfficeCount(asisNodes.length);
+
+        const targetDiv = sheetDivisions.includes(selectedDivision) ? selectedDivision : sheetDivisions[0] || 'Crocs';
+        setSelectedDivision(targetDiv);
+
+        applyLayout(
+          mode,
+          template,
+          targetDiv,
+          collapsedNodeIds,
+          mode === 'current' ? asisNodes : proposeNodes
+        );
+
+        notify('success', `Đã đồng bộ ${asisNodes.length} vị trí từ Google Sheet HO (${data.hasPropose ? 'org-asis & org-propose' : 'org-asis'})!`);
+      } else {
+        notify('info', 'Google Sheet HO chưa có dữ liệu tại sheet org-asis.');
+      }
+    } catch (err: any) {
+      console.error('Refresh from sheet error:', err);
+      notify('error', `Lỗi đồng bộ từ Google Sheet: ${err.message || 'Không thể kết nối'}`);
+    } finally {
+      setIsSyncingSheet(false);
+    }
+  };
+
+  // Initial layout generation and data restoration on mount (checks Google Sheets HO first, then localStorage)
+  useEffect(() => {
+    let isMounted = true;
+
+    const initData = async () => {
+      // 1. Try reading live data from Google Sheet HO
+      try {
+        const res = await fetch('/api/org-chart/sync');
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.success && data.hasAsis) {
+            const asisNodes: OrgNode[] = data.asis;
+            const proposeNodes: OrgNode[] = data.hasPropose ? data.propose : asisNodes;
+
+            const divSet = new Set<string>();
+            asisNodes.forEach(n => {
+              if (n.division) divSet.add(n.division);
+            });
+            const sheetDivisions = Array.from(divSet);
+
+            setCurrentNodes(asisNodes);
+            setProposalNodes(proposeNodes);
+            if (sheetDivisions.length > 0) {
+              setDivisions(sheetDivisions);
+            }
+            setTotalOfficeCount(asisNodes.length);
+
+            const targetDiv = sheetDivisions.includes(selectedDivision) ? selectedDivision : sheetDivisions[0] || 'Crocs';
+            setSelectedDivision(targetDiv);
+
+            applyLayout(
+              mode,
+              template,
+              targetDiv,
+              collapsedNodeIds,
+              mode === 'current' ? asisNodes : proposeNodes
+            );
+            notify('success', `Đã nạp dữ liệu từ Google Sheet HO (${asisNodes.length} ghế).`);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Could not load initial data from Google Sheet HO:', e);
+      }
+
+      // 2. Fallback to localStorage draft
+      try {
+        const saved = typeof window !== 'undefined' ? localStorage.getItem(PROPOSAL_DRAFT_KEY) : null;
+        if (saved && isMounted) {
+          const draft: OrgProposalState = JSON.parse(saved);
+          if (draft && Array.isArray(draft.nodes) && draft.nodes.length > 0) {
+            setProposalNodes(draft.nodes);
+            if (draft.indirectLinks) setProposalIndirect(draft.indirectLinks);
+            if (draft.dividers) setDividers(draft.dividers);
+            if (draft.notes) setNotes(draft.notes);
+            if (draft.justificationRows) setJustificationRows(draft.justificationRows);
+            if (draft.template) setTemplate(draft.template);
+            if (draft.selectedDivision) setSelectedDivision(draft.selectedDivision);
+            if (draft.densityMode) setDensityMode(draft.densityMode);
+            if (draft.activeMode) setMode(draft.activeMode);
+
+            applyLayout(draft.activeMode || mode, draft.template || template, draft.selectedDivision || selectedDivision, collapsedNodeIds);
+            notify('info', 'Đã khôi phục dữ liệu bản nháp đề xuất đã lưu trước đó.');
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Could not restore proposal draft from localStorage:', e);
+      }
+
+      // 3. Fallback to seed default layout
+      if (isMounted) {
+        applyLayout(mode, template, selectedDivision, collapsedNodeIds);
+      }
+    };
+
+    initData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Listen for Escape key to cancel connecting mode
@@ -284,6 +417,10 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       // Brief delay to allow canvas render to complete before dismissing the loading indicator
       await new Promise(resolve => setTimeout(resolve, 150));
 
+      // 3. Write back to Google Sheets HO (org-asis & org-propose)
+      setUploadProgressText('Đang ghi dữ liệu vào Google Sheet HO (org-asis & org-propose)...');
+      await syncToGoogleSheets('both', parsed.nodes);
+
       setIsUploading(false);
 
       setUploadSuccessModal({
@@ -294,7 +431,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
         divisionsCount: parsed.divisions.length
       });
 
-      notify('success', `Đã cập nhật cơ cấu Hiện tại (Current) từ file Excel ${file.name}!`);
+      notify('success', `Đã cập nhật cơ cấu Hiện tại (Current) từ file Excel ${file.name} và lưu lên Google Sheet HO!`);
     } catch (err: any) {
       console.error('File parsing failed:', err);
       setIsUploading(false);
@@ -632,7 +769,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
     return () => clearTimeout(timer);
   }, [proposalNodes, proposalIndirect, dividers, notes, justificationRows, mode, template, selectedDivision, densityMode, showNicknames, showSumUpTable]);
 
-  const handleSaveDraft = () => {
+  const handleSaveDraft = async () => {
     const state: OrgProposalState = {
       template,
       selectedDivision,
@@ -654,7 +791,9 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       console.warn('LocalStorage save failed', e);
     }
     exportProposalJSON(state, `CBS_Org_Proposal_${template}.cbsorg`);
-    notify('success', 'Đã lưu bản nháp đề xuất vào bộ nhớ trình duyệt và tải file (.cbsorg)!');
+    notify('success', 'Đã lưu bản nháp (.cbsorg) và đang đồng bộ lên Google Sheet HO...');
+    // Sync to org-propose on Google Sheet HO
+    await syncToGoogleSheets('propose', proposalNodes);
   };
 
   const handleLoadDraft = async (file: File) => {
@@ -751,6 +890,9 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
         onReset={handleReset}
         totalOfficeRecords={totalOfficeCount}
         isUploading={isUploading}
+        isSyncingSheet={isSyncingSheet}
+        onSyncGoogleSheet={handleSyncGoogleSheet}
+        onRefreshFromSheet={handleRefreshFromSheet}
       />
 
       {/* Main Interactive Canvas Viewport */}
@@ -860,6 +1002,10 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
               <div className="flex flex-col mt-2">
                 <span className="text-slate-500 font-medium">Phòng ban (Divisions):</span>
                 <span className="text-base font-bold text-emerald-700">{uploadSuccessModal.divisionsCount} Khối</span>
+              </div>
+              <div className="col-span-2 mt-2 bg-emerald-100/70 border border-emerald-300 rounded p-2 text-[11px] text-emerald-800 font-semibold flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Đã ghi ngược vào Google Sheet HO (sheet org-asis & org-propose).</span>
               </div>
             </div>
 
