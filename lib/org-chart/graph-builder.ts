@@ -946,7 +946,17 @@ export function buildDynamicN1Layout(
   // Per user requirement: keep only direct N-1 of CEO (Heads) + CS Leader (Gianna) + Group Support.
   // No other individual employees!
   const coeMkt = rawNodes.find(n => n.title.toLowerCase().includes('senior marketing manager')) || supportHeads.find(n => n.title.toLowerCase().includes('marketing'));
-  const coeOnline = rawNodes.find(n => n.title.toLowerCase().includes('head of online') || n.title.toLowerCase().includes('ecommerce manager'));
+  const coeOnline = rawNodes.find(n =>
+    (n.nickname || '').trim().toLowerCase() === 'emma' ||
+    (n.title.toLowerCase().includes('senior ecommerce manager') && (n.division || '').toLowerCase() === 'online') ||
+    (n.title.toLowerCase().includes('senior ecom manager') && (n.division || '').toLowerCase() === 'online')
+  ) || rawNodes.find(n =>
+    (n.division || '').toLowerCase() === 'online' &&
+    (n.title.toLowerCase().includes('senior ecommerce manager') || n.title.toLowerCase().includes('senior ecom manager'))
+  ) || rawNodes.find(n =>
+    (n.division || '').toLowerCase() === 'online' &&
+    (n.title.toLowerCase().includes('head of online') || n.title.toLowerCase().includes('ecommerce manager'))
+  );
   const coeOps = rawNodes.find(n => n.title.toLowerCase().includes('head of operations'));
   const coePlanning = rawNodes.find(n => n.title.toLowerCase().includes('head of planning'));
   const coeWholesale = rawNodes.find(n => n.title.toLowerCase().includes('wholesale manager'));
