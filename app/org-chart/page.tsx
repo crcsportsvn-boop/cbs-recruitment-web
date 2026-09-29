@@ -99,8 +99,8 @@ export default function OrgChartReviewPage() {
   return (
     <main className="h-screen bg-slate-100 flex flex-col font-sans overflow-hidden">
       {/* Executive Header */}
-      <header className="bg-[#B91C1C] text-white px-6 py-1.5 shadow-xs shrink-0 z-50">
-        <div className="max-w-[1720px] mx-auto flex items-center justify-between">
+      <header className="bg-[#B91C1C] text-white px-4 py-1.5 shadow-xs shrink-0 z-50 w-full">
+        <div className="w-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/" className="bg-white p-1 rounded h-7 flex items-center justify-center hover:opacity-90 transition-opacity">
               <Image
@@ -147,34 +147,34 @@ export default function OrgChartReviewPage() {
 
       {/* Quick Guide Banner for Reviewers */}
       {showQuickGuide && (
-        <div className="bg-white border-b border-slate-200 px-6 py-2.5 transition-all animate-in slide-in-from-top-2 duration-200">
-          <div className="max-w-[1720px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
-            <div className="flex items-start gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+        <div className="bg-white border-b border-slate-200 px-4 py-2.5 transition-all animate-in slide-in-from-top-2 duration-200 w-full">
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 text-xs">
+            <div className="flex items-start gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
               <span className="font-bold text-slate-800 text-sm">1.</span>
               <div>
-                <span className="font-bold text-slate-900 block">Cơ Cấu Hiện Tại (As-Is)</span>
-                <span className="text-slate-600 text-[11px]">
-                  Nạp file <strong>CBS_Org_Chart.xlsm</strong>. Dữ liệu gốc 201 ghế Head Office luôn được bảo toàn tại nút <strong>Hiện Tại</strong>.
+                <span className="font-bold text-slate-900 block">Nạp Dữ Liệu & Xem Cơ Cấu</span>
+                <span className="text-slate-600 text-[11px] leading-relaxed block mt-0.5">
+                  Nạp file Excel định biên nhân sự. Hệ thống tự động phân tích và lưu trữ bản mới nhất. Xem cơ cấu N-1 hoặc lọc theo từng Phòng Ban.
                 </span>
               </div>
             </div>
 
-            <div className="flex items-start gap-2 bg-emerald-50/70 p-2 rounded-lg border border-emerald-200">
-              <span className="font-bold text-emerald-800 text-sm">2.</span>
+            <div className="flex items-start gap-2 bg-amber-50/70 p-2.5 rounded-lg border border-amber-200">
+              <span className="font-bold text-amber-800 text-sm">2.</span>
               <div>
-                <span className="font-bold text-emerald-950 block">Lập Đề Xuất (Proposal)</span>
-                <span className="text-emerald-800 text-[11px]">
-                  Bấm <strong>Tuyển mới (BP)</strong> hoặc <strong>Thay thế</strong> để thêm ghế. Nhấp chuột vào thẻ để đổi chức danh hoặc sếp trực tiếp.
+                <span className="font-bold text-amber-950 block">Tạo Đề Xuất & Đồng Bộ</span>
+                <span className="text-amber-800 text-[11px] leading-relaxed block mt-0.5">
+                  Chọn <strong>Đề Xuất</strong> (tối đa 5 bản thảo, đổi tên tùy ý). Bấm <strong>Đồng bộ từ Hiện Tại</strong> để sao chép nguyên trạng sang bản thảo an toàn.
                 </span>
               </div>
             </div>
 
-            <div className="flex items-start gap-2 bg-blue-50/70 p-2 rounded-lg border border-blue-200">
-              <span className="font-bold text-blue-800 text-sm">3.</span>
+            <div className="flex items-start gap-2 bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-200">
+              <span className="font-bold text-emerald-800 text-sm">3.</span>
               <div>
-                <span className="font-bold text-blue-950 block">Bảng Thuyết Minh Nhu Cầu</span>
-                <span className="text-blue-800 text-[11px]">
-                  Mở <strong>Bảng Thuyết Minh</strong> để nhập lý do tuyển dụng, thời gian dự kiến và ngân sách để đưa vào slide báo cáo.
+                <span className="font-bold text-emerald-950 block">Hiệu Chỉnh Ghế & Báo Cáo</span>
+                <span className="text-emerald-800 text-[11px] leading-relaxed block mt-0.5">
+                  Thêm ghế <strong>Tuyển mới</strong>, <strong>Thay thế</strong> hoặc <strong>Ghế chuẩn</strong>. Bấm nút <strong>(+) trên ghế sếp</strong> để tự điền quản lý trực tiếp. Nối ma trận và highlight màu.
                 </span>
               </div>
             </div>
@@ -182,9 +182,19 @@ export default function OrgChartReviewPage() {
             <div className="flex items-start gap-2 bg-purple-50/70 p-2.5 rounded-lg border border-purple-200">
               <span className="font-bold text-purple-800 text-sm">4.</span>
               <div>
-                <span className="font-bold text-purple-950 block">Xuất File Báo Cáo</span>
-                <span className="text-purple-800 text-[11px]">
-                  Xuất file <strong>Excel (.xlsx)</strong> đầy đủ format chuẩn kèm sheet Diff, hoặc xuất ảnh <strong>PNG 300 DPI / PDF A4 & A3</strong>.
+                <span className="font-bold text-purple-950 block">Khối Box & Phòng Ban Mới</span>
+                <span className="text-purple-800 text-[11px] leading-relaxed block mt-0.5">
+                  Thêm <strong>Box Group</strong> trên N-1 với 5 màu sắc; rê chuột vào ô dùng <strong>nút 3 gạch để di chuyển</strong> và <strong>góc mũi tên để co giãn</strong>. Thêm nhanh Phòng ban mới.
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 bg-blue-50/70 p-2.5 rounded-lg border border-blue-200">
+              <span className="font-bold text-blue-800 text-sm">5.</span>
+              <div>
+                <span className="font-bold text-blue-950 block">So Sánh & Lưu / Xuất File</span>
+                <span className="text-blue-800 text-[11px] leading-relaxed block mt-0.5">
+                  Bật <strong>So Sánh Biến Động</strong> để tự đối chiếu Hiện Tại. Bấm <strong>Lưu Phương Án</strong> lên hệ thống. Xuất <strong>Excel kèm biến động</strong>, <strong>PDF A4/A3</strong> hoặc <strong>PNG</strong>.
                 </span>
               </div>
             </div>

@@ -183,7 +183,7 @@ export async function GET(req: NextRequest) {
     const auth = getGoogleAuth(req);
     if (!auth) {
       return NextResponse.json(
-        { error: "Chưa cấu hình xác thực Google Sheets (cần đăng nhập Google hoặc Service Account)" },
+        { error: "Chưa cấu hình xác thực hệ thống lưu trữ (cần đăng nhập Google hoặc Service Account)" },
         { status: 401 }
       );
     }
@@ -236,7 +236,7 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error("GET /api/org-chart/sync error:", error);
     return NextResponse.json(
-      { error: error.message || "Lỗi đọc dữ liệu từ Google Sheets" },
+      { error: error.message || "Lỗi đọc dữ liệu từ hệ thống" },
       { status: 500 }
     );
   }
@@ -251,7 +251,7 @@ export async function POST(req: NextRequest) {
     const auth = getGoogleAuth(req);
     if (!auth) {
       return NextResponse.json(
-        { error: "Chưa cấu hình xác thực Google Sheets (cần đăng nhập Google hoặc Service Account)" },
+        { error: "Chưa cấu hình xác thực hệ thống lưu trữ (cần đăng nhập Google hoặc Service Account)" },
         { status: 401 }
       );
     }
@@ -320,12 +320,12 @@ export async function POST(req: NextRequest) {
       sheetName: targetSheetLabel,
       count: nodes.length,
       spreadsheetId: SPREADSHEET_ID_HO,
-      message: `Đã ghi thành công ${nodes.length} ghế vào Google Sheet HO [${targetSheetLabel}]`
+      message: `Đã ghi thành công ${nodes.length} ghế lên hệ thống`
     });
   } catch (error: any) {
     console.error("POST /api/org-chart/sync error:", error);
     return NextResponse.json(
-      { error: error.message || "Lỗi ghi dữ liệu vào Google Sheets" },
+      { error: error.message || "Lỗi ghi dữ liệu lên hệ thống" },
       { status: 500 }
     );
   }

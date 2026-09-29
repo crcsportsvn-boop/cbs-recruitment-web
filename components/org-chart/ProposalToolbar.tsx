@@ -427,7 +427,7 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               <DropdownMenuSeparator />
 
               <DropdownMenuLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Google Sheets HO
+                Hệ Thống Dữ Liệu
               </DropdownMenuLabel>
 
               {onSyncGoogleSheet && (
@@ -441,7 +441,7 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
                   ) : (
                     <Save className="w-4 h-4 text-blue-600" />
                   )}
-                  <span>Lưu lên Google Sheet (org-propose{activeProposalId > 1 ? activeProposalId : ''})</span>
+                  <span>Lưu Phương Án Này</span>
                 </DropdownMenuItem>
               )}
 
@@ -456,25 +456,9 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
                   ) : (
                     <RotateCcw className="w-4 h-4 text-slate-600" />
                   )}
-                  <span>Tải lại từ Google Sheet HO</span>
+                  <span>Tải Lại Dữ Liệu Gốc</span>
                 </DropdownMenuItem>
               )}
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Lưu Trữ Bản Nháp
-              </DropdownMenuLabel>
-
-              <DropdownMenuItem onClick={onSaveDraft} className="text-xs cursor-pointer gap-2 py-1.5">
-                <Save className="w-4 h-4 text-slate-600" />
-                <span>Lưu File Bản Nháp (.cbsorg)</span>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem onClick={() => draftInputRef.current?.click()} className="text-xs cursor-pointer gap-2 py-1.5">
-                <FolderOpen className="w-4 h-4 text-slate-600" />
-                <span>Mở File Bản Nháp</span>
-              </DropdownMenuItem>
 
               <DropdownMenuSeparator />
 
@@ -594,14 +578,14 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
                   disabled={isSyncingSheet}
                   onClick={onSyncGoogleSheet}
                   className="text-xs h-7 gap-1 border-blue-500 text-blue-700 hover:bg-blue-50 font-bold bg-white cursor-pointer shadow-2xs"
-                  title={`Ghi bản đề xuất này vào sheet org-propose${activeProposalId > 1 ? activeProposalId : ''} trên Google Sheet HO`}
+                  title="Lưu phương án đề xuất này lên hệ thống"
                 >
                   {isSyncingSheet ? (
                     <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />
                   ) : (
                     <Save className="w-3.5 h-3.5 text-blue-600" />
                   )}
-                  <span>{isSyncingSheet ? 'Đang lưu Sheet...' : 'Lưu lên Sheet'}</span>
+                  <span>{isSyncingSheet ? 'Đang lưu...' : 'Lưu Phương Án'}</span>
                 </Button>
               </>
             )}
@@ -781,21 +765,6 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
                   </div>
                 </DropdownMenuItem>
 
-                <DropdownMenuSeparator />
-
-                <DropdownMenuLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Lưu Trữ Bản Nháp
-                </DropdownMenuLabel>
-
-                <DropdownMenuItem onClick={onSaveDraft} className="text-xs cursor-pointer gap-2 py-1.5">
-                  <Save className="w-4 h-4 text-slate-600" />
-                  <span>Lưu File Bản Nháp</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem onClick={() => draftInputRef.current?.click()} className="text-xs cursor-pointer gap-2 py-1.5">
-                  <FolderOpen className="w-4 h-4 text-blue-600" />
-                  <span>Nạp File Bản Nháp (.cbsorg)</span>
-                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

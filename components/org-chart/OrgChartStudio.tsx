@@ -236,14 +236,13 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Lỗi khi ghi dữ liệu vào Google Sheets');
+        throw new Error(data.error || 'Lỗi khi ghi dữ liệu lên hệ thống');
       }
-      const sheetLabel = target === 'asis' ? 'org-asis' : `org-propose${propId > 1 ? propId : ''}`;
-      notify('success', `Đã lưu thành công ${nodesToSync.length} vị trí vào Google Sheet HO [${sheetLabel}]!`);
+      notify('success', `Đã lưu thành công ${nodesToSync.length} vị trí lên hệ thống!`);
       return true;
     } catch (err: any) {
       console.error('syncToGoogleSheets error:', err);
-      notify('error', `Lỗi đồng bộ Google Sheets: ${err.message || 'Không thể kết nối'}`);
+      notify('error', `Lỗi lưu dữ liệu: ${err.message || 'Không thể kết nối'}`);
       return false;
     } finally {
       setIsSyncingSheet(false);
@@ -272,7 +271,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
     setMode('proposal');
 
     applyLayout('proposal', template, selectedDivision, collapsedNodeIds, targetNodes);
-    notify('info', `Đang làm việc trên ${proposalNames[targetId] || `Đề Xuất ${targetId}`} (Sheet org-propose${targetId > 1 ? targetId : ''})`);
+    notify('info', `Đang làm việc trên ${proposalNames[targetId] || `Đề Xuất ${targetId}`}`);
   };
 
   // Add next proposal (up to 5)
@@ -284,7 +283,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
     const nextId = unlockedProposalCount + 1;
     setUnlockedProposalCount(nextId);
     handleSelectProposal(nextId);
-    notify('success', `Đã mở ${proposalNames[nextId] || `Đề Xuất ${nextId}`} (Sheet org-propose${nextId}).`);
+    notify('success', `Đã mở ${proposalNames[nextId] || `Đề Xuất ${nextId}`}.`);
   };
 
   // Open rename dialog for currently active proposal
@@ -321,7 +320,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       const res = await fetch('/api/org-chart/sync');
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Lỗi đọc dữ liệu từ Google Sheets');
+        throw new Error(data.error || 'Lỗi đọc dữ liệu từ hệ thống');
       }
       const data = await res.json();
       if (data.success && data.hasAsis) {
@@ -372,13 +371,13 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
           mode === 'current' ? asisNodes : currentActiveNodes
         );
 
-        notify('success', `Đã đồng bộ ${asisNodes.length} vị trí từ Google Sheet HO!`);
+        notify('success', `Đã đồng bộ ${asisNodes.length} vị trí từ hệ thống!`);
       } else {
-        notify('info', 'Google Sheet HO chưa có dữ liệu tại sheet org-asis.');
+        notify('info', 'Hệ thống chưa có dữ liệu lưu trữ.');
       }
     } catch (err: any) {
       console.error('Refresh from sheet error:', err);
-      notify('error', `Lỗi đồng bộ từ Google Sheet: ${err.message || 'Không thể kết nối'}`);
+      notify('error', `Lỗi đồng bộ dữ liệu: ${err.message || 'Không thể kết nối'}`);
     } finally {
       setIsSyncingSheet(false);
     }
@@ -436,7 +435,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
               collapsedNodeIds,
               mode === 'current' ? asisNodes : activeNodes
             );
-            notify('success', `Đã nạp dữ liệu từ Google Sheet HO (${asisNodes.length} ghế, ${maxUnlocked} đề xuất).`);
+            notify('success', `Đã nạp dữ liệu từ hệ thống (${asisNodes.length} ghế, ${maxUnlocked} đề xuất).`);
             return;
           }
         }
@@ -566,7 +565,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       await new Promise(resolve => setTimeout(resolve, 150));
 
       // 3. Write back ONLY to Google Sheets HO org-asis (keeps propose intact!)
-      setUploadProgressText('Đang ghi dữ liệu vào Google Sheet HO (org-asis)...');
+      setUploadProgressText('Đang lưu trữ dữ liệu vào hệ thống...');
       await syncToGoogleSheets('asis', parsed.nodes);
 
       setIsUploading(false);
@@ -1224,9 +1223,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
     } catch (e) {
       console.warn('LocalStorage save failed', e);
     }
-    exportProposalJSON(state, `CBS_Org_Proposal_${template}.cbsorg`);
-    notify('success', 'Đã lưu bản nháp (.cbsorg) và đang đồng bộ lên Google Sheet HO...');
-    // Sync to active proposal sheet on Google Sheet HO
+    notify('success', 'Đã lưu phương án lên hệ thống thành công!');
     await syncToGoogleSheets('propose', proposalNodes, activeProposalId);
   };
 
@@ -1455,7 +1452,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
               </div>
               <div className="col-span-2 mt-2 bg-emerald-100/70 border border-emerald-300 rounded p-2 text-[11px] text-emerald-800 font-semibold flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Đã ghi ngược vào Google Sheet HO (sheet org-asis & org-propose).</span>
+                <span>Đã tự động lưu trữ dữ liệu vào hệ thống an toàn.</span>
               </div>
             </div>
 

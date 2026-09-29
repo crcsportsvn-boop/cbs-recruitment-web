@@ -111,8 +111,8 @@ Hệ thống chấp nhận tệp Excel chứa dữ liệu định biên nhân s�
 - **Cơ chế tự động lưu (Persistence)**:
   - Dữ liệu vừa nạp lập tức trở thành bản ghi gốc mới nhất.
   - Người dùng tắt trình duyệt hoặc mở lại ở phiên làm việc sau sẽ tự động nhìn thấy dữ liệu mới này mà không cần nạp lại file.
-- **Khôi phục từ Google Sheets**:
-  - Khi cần tải lại dữ liệu mới nhất từ nguồn công ty, người dùng vào menu **Xuất Dữ Liệu** > chọn **Tải lại từ Google Sheet HO**.
+- **Khôi phục từ hệ thống dữ liệu gốc**:
+  - Khi cần tải lại dữ liệu mới nhất từ nguồn công ty, người dùng vào menu **Xuất Dữ Liệu** > chọn **Tải Lại Dữ Liệu Gốc**.
 
 ---
 
@@ -123,7 +123,7 @@ Hệ thống chấp nhận tệp Excel chứa dữ liệu định biên nhân s�
   2. **Thêm phương án mới**: Nhấn **+ Thêm Đề Xuất mới** (tối đa 5 phương án).
   3. **Đổi tên kịch bản**: Nhấn nút **Đổi tên đề xuất đang chọn** để đặt tên gợi nhớ theo chiến lược (ví dụ: *Phương Án Tối Ưu Q4*, *Mở Rộng Nhãn Hàng Hoka*).
   4. **Đồng bộ từ Hiện Tại**: Trên thanh công cụ phụ, nhấn nút **Đồng bộ từ Hiện Tại** để sao chép nguyên trạng cây sơ đồ gốc sang bản đề xuất đang chọn; giúp người dùng có ngay điểm bắt đầu hoàn chỉnh để chỉnh sửa.
-  5. **Lưu trữ đám mây Google Sheets**: Nhấn nút **Lưu lên Google Sheet (org-propose)** để ghi phương án lên Google Sheets dùng chung phục vụ lưu trữ vĩnh viễn và chia sẻ nội bộ.
+  5. **Lưu trữ phương án lên hệ thống**: Nhấn nút **Lưu Phương Án** trên thanh công cụ hoặc chọn **Lưu Phương Án Này** trong menu Xuất Dữ Liệu để ghi nhận và đồng bộ phương án lên hệ thống phục vụ lưu trữ vĩnh viễn và chia sẻ nội bộ.
 
 ---
 
@@ -203,9 +203,7 @@ Hệ thống chấp nhận tệp Excel chứa dữ liệu định biên nhân s�
      - Định dạng trang ngang A4 tiêu chuẩn, tự động căn chỉnh tỷ lệ lề trang, tối ưu cho việc in ấn hồ sơ trình ký ban tổng giám đốc.
   4. **Xuất File PDF A3 Khổ Rộng**:
      - Tối ưu đặc biệt cho sơ đồ N-1 toàn công ty hoặc các phòng ban đông nhân sự, đảm bảo kích thước chữ rõ nét, không bị co nhỏ khi in ấn khổ lớn.
-  5. **Lưu và Nạp Bản Nháp Định Dạng CBS (`.cbsorg`)**:
-     - Tải về tệp bản nháp độc lập trên máy tính cá nhân để gửi qua email cho đồng nghiệp mở ra tiếp tục hiệu chỉnh trên hệ thống.
-  6. **Trình Chiếu Slide Tương Tác**:
+  5. **Trình Chiếu Slide Tương Tác**:
      - Hệ thống tích hợp sẵn bài trình chiếu Slide tương tác trực quan tại cổng `http://localhost:5173/s/cbs-orgchart-intro` phục vụ đào tạo nội bộ và giới thiệu tính năng tới người dùng mới.
 
 ---
@@ -245,7 +243,7 @@ Hệ thống chấp nhận tệp Excel chứa dữ liệu định biên nhân s�
 | Hiện Tượng Sự Cố | Nguyên Nhân Khả Dĩ | Biện Pháp Xử Lý Khắc Phục |
 | :--- | :--- | :--- |
 | **Nạp file Excel báo lỗi hoặc không lên cây sơ đồ** | Cột `Position ID` hoặc `Reports To ID` bị trống, hoặc có vòng lặp báo cáo (A báo cáo B, B báo cáo A). | Kiểm tra file Excel: đảm bảo ghế cao nhất (CEO) có `Reports To ID` để trống và không có vòng lặp định danh. |
-| **Mất dữ liệu đề xuất sau khi xóa lịch sử duyệt web** | Trình duyệt đã dọn sạch bộ nhớ cache và `localStorage`. | 1. Tải lại dữ liệu Hiện tại bằng cách nạp lại tệp Excel hoặc bấm "Tải lại từ Google Sheet HO".<br>2. Nếu đã lưu đề xuất lên Google Sheets, chỉ cần chuyển đến đề xuất đó để nạp lại. |
+| **Mất dữ liệu đề xuất sau khi xóa lịch sử duyệt web** | Trình duyệt đã dọn sạch bộ nhớ cache và `localStorage`. | 1. Tải lại dữ liệu Hiện tại bằng cách nạp lại tệp Excel hoặc bấm "Tải Lại Dữ Liệu Gốc".<br>2. Nếu đã bấm "Lưu Phương Án" trước đó, chỉ cần chọn lại phương án đề xuất đó trên thanh công cụ để khôi phục. |
 | **Khối Box bị lệch vị trí sau khi thay đổi độ phân giải màn hình** | Vị trí tọa độ X, Y được lưu cố định theo điểm kéo thả trước đó. | Rê chuột vào khối box > nhấn giữ nút 3 gạch ở góc trên để kéo thả khối về đúng vị trí cân đối mới. |
 | **Đường nối đứt nét bị trùng lặp hoặc đè lên ghế** | Hai vị trí được đặt quá sát nhau trên cùng trục dọc. | Dùng chuột kéo nhẹ một trong hai ghế sang trái hoặc phải khoảng 20-30px để đường nối tự động bẻ góc đẹp mắt. |
 | **Nội dung ghi chú dưới đáy khối Box bị tràn viền** | Nội dung văn bản quá dài so với chiều rộng hiện tại của khối. | Rê chuột vào góc dưới bên phải khối box > kéo mũi tên ra ngoài để mở rộng chiều rộng của khối; chữ sẽ tự động xuống dòng đều đặn. |
@@ -258,6 +256,6 @@ Hệ thống chấp nhận tệp Excel chứa dữ liệu định biên nhân s�
    - Kho mã nguồn GitHub: `https://github.com/crcsportsvn-boop/cbs-recruitment-web.git`
    - Nhánh vận hành chính thức: `main` (mỗi lượt push commit lên `main` sẽ tự động kích hoạt tiến trình xây dựng và phát hành phiên bản mới trên Vercel).
 2. **Quy Trình Sao Lưu Dữ Liệu Định Kỳ**:
-   - Khuyến nghị bộ phận HR sau mỗi kỳ duyệt sơ đồ định biên quý nên thực hiện thao tác **Xuất File Excel Đề Xuất** và **Lưu lên Google Sheet HO** để lưu trữ phiên bản snapshot phục vụ kiểm toán nhân sự.
-3. **Đầu Mối Hỗ Trợ Kỹ Thuật**:
+   - Khuyến nghị bộ phận HR sau mỗi kỳ duyệt sơ đồ định biên quý nên thực hiện thao tác **Xuất File Excel Đề Xuất** và bấm **Lưu Phương Án** để lưu trữ phiên bản snapshot phục vụ kiểm toán nhân sự.
+3. **Đầu Mối Hỗ TrỢ Kỹ Thuật**:
    - Khi có nhu cầu tùy biến thêm cấu trúc phòng ban chuyên sâu hoặc nâng cấp tính năng mới, liên hệ đội ngũ kỹ sư hệ thống thông qua hệ thống quản lý công việc của doanh nghiệp.
