@@ -417,7 +417,7 @@ export function buildDynamicDivisionTree(
 
       let leafCols = 0;
       leafGroups.forEach(members => {
-        if (members.length >= 6) leafCols += 3;
+        if (!isDyson && members.length >= 6) leafCols += 3;
         else leafCols += 1;
       });
       return Math.max(1, branchCols + leafCols);
@@ -507,6 +507,33 @@ export function buildDynamicDivisionTree(
           placedNodes: placedInGroup,
           width: CARD_W,
           height: CARD_H
+        };
+      }
+
+      // For Dyson: retain the original single-column stack layout without 3-column branching
+      if (isDyson) {
+        members.forEach((child, idx) => {
+          const childX = baseX;
+          const childYPos = baseY + idx * (CARD_H + 18);
+          const placedChild: OrgNode = {
+            ...child,
+            x: childX,
+            y: childYPos,
+            width: CARD_W,
+            height: CARD_H,
+            hasChildren: false,
+            isCollapsed: false,
+            collapsedCount: 0
+          };
+          placedNodeMap.set(child.id, placedChild);
+          placedInGroup.push(placedChild);
+        });
+
+        const groupHeight = members.length * (CARD_H + 18) - 18;
+        return {
+          placedNodes: placedInGroup,
+          width: CARD_W,
+          height: groupHeight
         };
       }
 
@@ -663,7 +690,7 @@ export function buildDynamicDivisionTree(
 
       // In division view, stack in 1 column (CARD_W) for sub-managers to prevent horizontal sprawl
       // Division root allowed up to 3 columns banner
-      const colCount = isRoot ? Math.min(leafChildren.length, 3) : (leafChildren.length >= 6 ? 3 : 1);
+      const colCount = isRoot ? Math.min(leafChildren.length, 3) : (!isDyson && leafChildren.length >= 6 ? 3 : 1);
       const rowCount = Math.ceil(leafChildren.length / colCount);
       const gridWidth = colCount * CARD_W + (colCount - 1) * H_GAP;
       const totalWidth = Math.max(CARD_W, gridWidth);
