@@ -138,7 +138,8 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
     }
   };
 
-  const isDivisionView = template !== 'company_n1';
+  const isDivisionView = template !== 'company_n1' && template !== 'division_summary';
+  const isSummaryView = template === 'division_summary';
 
   return (
     <div className="w-full shrink-0 z-30 select-none flex flex-col">
@@ -273,7 +274,7 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
           </div>
         </div>
 
-        {/* Center: Scope Selector (N-1 vs Division) */}
+        {/* Center: Scope Selector (N-1 vs Division vs Summary) */}
         <div className="flex items-center gap-2">
           <div className="flex items-center bg-slate-100 p-1 rounded-lg text-xs">
             <button
@@ -288,7 +289,7 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
             </button>
             <button
               onClick={() => {
-                if (template === 'company_n1') {
+                if (template === 'company_n1' || template === 'division_summary') {
                   onTemplateChange('custom_division');
                 }
               }}
@@ -299,6 +300,16 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               }`}
             >
               Phòng Ban
+            </button>
+            <button
+              onClick={() => onTemplateChange('division_summary')}
+              className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
+                isSummaryView
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Tổng Hợp
             </button>
           </div>
 
@@ -648,7 +659,7 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               <ChevronDown className="w-3 h-3" />
             </button>
 
-            {/* Scope Switcher: Cơ cấu N-1 | Phòng ban */}
+            {/* Scope Switcher: Cơ cấu N-1 | Phòng ban | Tổng hợp */}
             <div className="flex items-center bg-slate-100 p-0.5 rounded text-xs h-6">
               <button
                 onClick={() => onTemplateChange('company_n1')}
@@ -662,7 +673,7 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               </button>
               <button
                 onClick={() => {
-                  if (template === 'company_n1') {
+                  if (template === 'company_n1' || template === 'division_summary') {
                     onTemplateChange('custom_division');
                   }
                 }}
@@ -673,6 +684,16 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
                 }`}
               >
                 Phòng Ban
+              </button>
+              <button
+                onClick={() => onTemplateChange('division_summary')}
+                className={`px-2 py-0.5 rounded font-bold transition-all cursor-pointer leading-none text-xs ${
+                  isSummaryView
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Tổng Hợp
               </button>
             </div>
 

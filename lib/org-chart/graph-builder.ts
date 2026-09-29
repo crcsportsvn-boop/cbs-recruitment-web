@@ -1491,6 +1491,18 @@ export function buildOrgLayout(
     return buildDynamicN1Layout(activeNodes, activeLeaders, activeIndirect);
   }
 
+  if (template === 'division_summary') {
+    return {
+      nodes: [],
+      indirectLinks: [],
+      dividers: [],
+      notes: [],
+      canvasWidth: 1200,
+      canvasHeight: 800,
+      summary: calculateHeadcountSummary(activeNodes, false)
+    };
+  }
+
   // Division View (dynamically resolves target division)
   let targetDivision = selectedDivision || 'Crocs';
   if (template === 'brand_footwear') targetDivision = 'Crocs';

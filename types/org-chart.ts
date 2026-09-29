@@ -11,7 +11,8 @@ export type ViewTemplate =
   | 'brand_hoka'      // Hoka
   | 'hr_shared'       // HR - CRV Shared Service
   | 'custom_division' // Any other division selected dynamically
-  | 'custom_canvas';  // Blank canvas for custom proposal
+  | 'custom_canvas'   // Blank canvas for custom proposal
+  | 'division_summary'; // Division Headcount & Variance Summary Table
 
 export interface OrgNode {
   id: string;                    // Position ID or Virtual ID

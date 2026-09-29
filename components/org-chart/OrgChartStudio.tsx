@@ -26,6 +26,7 @@ import { DEFAULT_VIRTUAL_LEADERS, DEFAULT_INDIRECT_LINKS } from '@/lib/org-chart
 import { DEFAULT_OFFICE_NODES, DEFAULT_OFFICE_DIVISIONS } from '@/lib/org-chart/default-office-data';
 import { ProposalToolbar } from './ProposalToolbar';
 import { OrgCanvas } from './OrgCanvas';
+import { DivisionSummaryTable } from './DivisionSummaryTable';
 import { PillarPill, Headcount3YRow } from '@/lib/org-chart/department-blueprints';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -1338,58 +1339,67 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
 
       {/* Main Interactive Canvas Viewport */}
       <div className="flex-1 w-full p-2 overflow-hidden flex flex-col">
-        <OrgCanvas
-          nodes={nodes}
-          indirectLinks={indirectLinks}
-          dividers={dividers}
-          notes={notes}
-          template={template}
-          selectedDivision={selectedDivision}
-          pillarPills={pillarPills}
-          headcount3Y={headcount3Y}
-          slideTitle={slideTitle}
-          hasCRVShared={hasCRVShared}
-          densityMode={densityMode}
-          showNicknames={showNicknames}
-          showSumUpTable={showSumUpTable}
-          onToggleSumUpTable={() => setShowSumUpTable(prev => !prev)}
-          summary={summary}
-          mode={mode}
-          diffMap={diffMap}
-          connectingSource={connectingSource}
-          onStartConnect={handleStartConnect}
-          onCompleteConnect={handleCompleteConnect}
-          onCancelConnect={handleCancelConnect}
-          onToggleCollapse={handleToggleCollapse}
-          onNodeMove={handleNodeMove}
-          onNodeSelect={node => {
-            if (mode === 'current') return;
-            setSelectedNode(node);
-            setIsEditDialogOpen(true);
-          }}
-          onNodeDelete={handleNodeDelete}
-          onNodeToggleStatus={handleNodeToggleStatus}
-          onNoteMove={handleNodeMove}
-          onNoteChange={handleNoteChange}
-          onNoteDelete={noteId => setNotes(prev => prev.filter(n => n.id !== noteId))}
-          onDividerMove={handleDividerMove}
-          onDividerEdit={divider => {
-            if (mode === 'current') return;
-            setEditingDivider(divider);
-            setIsDividerDialogOpen(true);
-          }}
-          onDividerDelete={divId => setDividers(prev => prev.filter(d => d.id !== divId))}
-          canvasWidth={canvasWidth}
-          canvasHeight={canvasHeight}
-          selectedNodeId={selectedNode?.id}
-          canvasRef={canvasRef}
-          n1BoxesConfig={n1BoxesConfig}
-          onOpenBoxConfig={handleOpenBoxConfig}
-          onBoxResize={handleBoxResize}
-          onBoxMove={handleBoxMove}
-          onDeleteBox={handleDeleteBox}
-          onNodeAddChild={handleNodeAddChild}
-        />
+        {template === 'division_summary' ? (
+          <DivisionSummaryTable
+            mode={mode}
+            currentNodes={currentNodes}
+            proposalNodes={proposalNodes}
+            activeProposalName={proposalNames[activeProposalId] || `Đề Xuất ${activeProposalId}`}
+          />
+        ) : (
+          <OrgCanvas
+            nodes={nodes}
+            indirectLinks={indirectLinks}
+            dividers={dividers}
+            notes={notes}
+            template={template}
+            selectedDivision={selectedDivision}
+            pillarPills={pillarPills}
+            headcount3Y={headcount3Y}
+            slideTitle={slideTitle}
+            hasCRVShared={hasCRVShared}
+            densityMode={densityMode}
+            showNicknames={showNicknames}
+            showSumUpTable={showSumUpTable}
+            onToggleSumUpTable={() => setShowSumUpTable(prev => !prev)}
+            summary={summary}
+            mode={mode}
+            diffMap={diffMap}
+            connectingSource={connectingSource}
+            onStartConnect={handleStartConnect}
+            onCompleteConnect={handleCompleteConnect}
+            onCancelConnect={handleCancelConnect}
+            onToggleCollapse={handleToggleCollapse}
+            onNodeMove={handleNodeMove}
+            onNodeSelect={node => {
+              if (mode === 'current') return;
+              setSelectedNode(node);
+              setIsEditDialogOpen(true);
+            }}
+            onNodeDelete={handleNodeDelete}
+            onNodeToggleStatus={handleNodeToggleStatus}
+            onNoteMove={handleNodeMove}
+            onNoteChange={handleNoteChange}
+            onNoteDelete={noteId => setNotes(prev => prev.filter(n => n.id !== noteId))}
+            onDividerMove={handleDividerMove}
+            onDividerEdit={divider => {
+              if (mode === 'current') return;
+              setEditingDivider(divider);
+              setIsDividerDialogOpen(true);
+            }}
+            onDividerDelete={divId => setDividers(prev => prev.filter(d => d.id !== divId))}
+            canvasWidth={canvasWidth}
+            canvasHeight={canvasHeight}
+            selectedNodeId={selectedNode?.id}
+            canvasRef={canvasRef}
+            n1BoxesConfig={n1BoxesConfig}
+            onOpenBoxConfig={handleOpenBoxConfig}
+            onBoxResize={handleBoxResize}
+            onBoxMove={handleBoxMove}
+            onDeleteBox={handleDeleteBox}
+            onNodeAddChild={handleNodeAddChild}
+          />
+        )}
       </div>
 
       {/* Excel Uploading / Processing Overlay */}
