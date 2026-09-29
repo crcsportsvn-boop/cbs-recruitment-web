@@ -74,6 +74,7 @@ interface ProposalToolbarProps {
   onOpenRenameDialog?: () => void;
   onCopyAsIsToProposal?: () => void;
   onOpenBoxesConfig?: () => void;
+  onOpenAddDivision?: () => void;
 }
 
 export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
@@ -114,7 +115,8 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
   onAddNewProposal,
   onOpenRenameDialog,
   onCopyAsIsToProposal,
-  onOpenBoxesConfig
+  onOpenBoxesConfig,
+  onOpenAddDivision
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftInputRef = useRef<HTMLInputElement>(null);
@@ -301,10 +303,16 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
           {/* Division Selector if Division mode */}
           {isDivisionView && (
             <div className="flex items-center gap-1.5">
-              <Filter className="w-3.5 h-3.5 text-red-600" />
+              <Filter className="w-3.5 h-3.5 text-red-600 shrink-0" />
               <select
                 value={selectedDivision || 'Crocs'}
-                onChange={(e) => onDivisionChange(e.target.value)}
+                onChange={(e) => {
+                  if (e.target.value === '__NEW_DIVISION__') {
+                    onOpenAddDivision?.();
+                  } else {
+                    onDivisionChange(e.target.value);
+                  }
+                }}
                 className="border border-slate-300 rounded-md text-xs py-1 px-2.5 bg-white text-slate-900 font-bold focus:ring-1 focus:ring-red-500 shadow-xs min-w-[200px]"
               >
                 {divisions.map((d) => (
@@ -312,7 +320,22 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
                     {d}
                   </option>
                 ))}
+                {mode === 'proposal' && onOpenAddDivision && (
+                  <option value="__NEW_DIVISION__" className="text-emerald-700 font-bold bg-emerald-50">
+                    + Thêm Division mới...
+                  </option>
+                )}
               </select>
+              {mode === 'proposal' && onOpenAddDivision && (
+                <button
+                  type="button"
+                  onClick={onOpenAddDivision}
+                  className="flex items-center justify-center h-7 w-7 rounded-md border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors shadow-xs cursor-pointer shrink-0"
+                  title="Thêm Division mới (dạng đề xuất)"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           )}
         </div>

@@ -42,7 +42,7 @@ export function calculateHeadcountSummary(
   let replacement = 0;
 
   for (const node of nodes) {
-    if (node.isVirtual || node.isSupervisor) continue;
+    if (node.isVirtual || node.isSupervisor || node.isHidden) continue;
 
     if (isDivisionView && targetDivision && node.division) {
       if (node.division.trim().toLowerCase() !== targetDivision.trim().toLowerCase()) {
@@ -85,11 +85,12 @@ export function calculateHeadcountSummary(
  * - Includes external supervisor at the top if the division reports to an outside leader (President/Regional).
  */
 export function buildDynamicDivisionTree(
-  divisionNodes: OrgNode[],
+  rawDivisionNodes: OrgNode[],
   divisionName: string,
   rawNodes: OrgNode[],
   collapsedNodeIds: Set<string> = new Set()
 ): { nodes: OrgNode[]; canvasWidth: number; canvasHeight: number } {
+  const divisionNodes = rawDivisionNodes.filter(n => !n.isHidden);
   const count = divisionNodes.length;
   const isDyson = divisionName.trim().toLowerCase().includes('dyson');
   const isSmall = count <= 5;
@@ -646,8 +647,9 @@ export function buildDynamicN1Layout(
   const H_GAP = 18;
   const V_GAP = 28;
 
+  const activeRawNodes = rawNodes.filter(n => !n.isHidden);
   const rawMap = new Map<string, OrgNode>();
-  rawNodes.forEach(n => rawMap.set(n.id, n));
+  activeRawNodes.forEach(n => rawMap.set(n.id, n));
 
   // 1. Locate President / MD Node
   let presNode = rawNodes.find(
@@ -919,6 +921,40 @@ export function buildDynamicN1Layout(
     }
   });
 
+  // Place Matin Kim directly under Crocs column (x: 235, y: 366), reporting to Head of Crocs (Penny)
+  const crocsHeadNode = positionedNodes.find(n => (n.x === (brandXMap.crocs ?? 235)) && n.y === brandStartY);
+  const rawMatinKim = rawNodes.find(n =>
+    (n.division || '').toLowerCase().includes('matin kim') &&
+    (n.title.toLowerCase().includes('brand manager') || (n.nickname || '').toLowerCase() === 'vincent')
+  );
+  const matinKimNode: OrgNode = rawMatinKim ? {
+    ...rawMatinKim,
+    title: rawMatinKim.title.toLowerCase().includes('brand manager') ? rawMatinKim.title : 'Brand Manager',
+    nickname: rawMatinKim.nickname || 'Vincent',
+    division: 'Matin Kim',
+    dept: 'Matin Kim',
+    flags: rawMatinKim.flags && rawMatinKim.flags.length > 0 ? rawMatinKim.flags : ['VN']
+  } : {
+    id: 'SHO-FSH-189-160-010-1',
+    title: 'Brand Manager',
+    nickname: 'Vincent',
+    division: 'Matin Kim',
+    dept: 'Matin Kim',
+    flags: ['VN'],
+    status: 'active'
+  } as OrgNode;
+
+  positionedNodes.push({
+    ...matinKimNode,
+    x: brandXMap.crocs ?? 235,
+    y: brandStartY + CARD_H + 20, // 366
+    width: CARD_W,
+    height: CARD_H,
+    reportsToId: crocsHeadNode ? crocsHeadNode.id : (matinKimNode.reportsToId || 'SHO-CRO-015-014-049-1'),
+    hasChildren: false,
+    isCollapsed: false
+  });
+
   // Vertical Divider separating Brand Organization and Supporting Functions
   const dividerX = 1050;
   dividers.push({
@@ -944,7 +980,29 @@ export function buildDynamicN1Layout(
     (n.title.toLowerCase().includes('head of online') || n.title.toLowerCase().includes('ecommerce manager'))
   );
   const coeOps = rawNodes.find(n => n.title.toLowerCase().includes('head of operations'));
-  const coePlanning = rawNodes.find(n => n.title.toLowerCase().includes('head of planning'));
+  const rawPlanning = rawNodes.find(n =>
+    n.title.toLowerCase().includes('senior planning manager') ||
+    n.title.toLowerCase().includes('head of planning') ||
+    (n.division?.toLowerCase() === 'planning' && n.title.toLowerCase().includes('manager')) ||
+    (n.nickname || '').toLowerCase() === 'may'
+  );
+  const coePlanning: OrgNode = rawPlanning ? {
+    ...rawPlanning,
+    title: 'Senior Planning Manager',
+    nickname: rawPlanning.nickname || 'May',
+    dept: 'Planning',
+    flags: rawPlanning.flags && rawPlanning.flags.length > 0 ? rawPlanning.flags : ['VN'],
+    status: rawPlanning.status || 'active'
+  } : {
+    id: 'SHO-PLA-159-159-088-1',
+    title: 'Senior Planning Manager',
+    nickname: 'May',
+    division: 'Planning',
+    dept: 'Planning',
+    flags: ['VN'],
+    status: 'active'
+  } as OrgNode;
+
   const coeWholesale = rawNodes.find(n => n.title.toLowerCase().includes('wholesale manager'));
   const coeBusDev = rawNodes.find(n => n.title.toLowerCase().includes('business development manager'));
   const coeDC = rawNodes.find(n =>
@@ -955,14 +1013,14 @@ export function buildDynamicN1Layout(
   );
   const coeExpansion = rawNodes.find(n => n.title.toLowerCase().includes('store expansion') || n.title.toLowerCase().includes('leasing'));
 
-  // Lưới 3x3x2 theo chiều từ trái qua phải:
+  // Lưới 3x3 theo chiều từ trái qua phải:
   // Cột 1 (3 vị trí): Marketing, Online, Operations
   // Cột 2 (3 vị trí): Store Expansion (Leasing tại 1x2), Wholesale, Customer Service
-  // Cột 3 (2 vị trí): Business Development, Project DC
+  // Cột 3 (3 vị trí): Senior Planning Manager, Business Development, Project DC
   const coeCols: (OrgNode | undefined)[][] = [
     [coeMkt, coeOnline, coeOps],
     [coeExpansion, coeWholesale, csLeader],
-    [coeBusDev, coeDC]
+    [coePlanning, coeBusDev, coeDC]
   ];
 
   let currentSupportX = dividerX + 35; // 1085

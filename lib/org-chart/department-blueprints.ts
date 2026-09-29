@@ -502,9 +502,30 @@ export const DEPARTMENT_BLUEPRINTS: Record<string, DepartmentBlueprint> = {
   },
 
   // 9. BRAND - FASHION (Matin Kim - Page 5)
+  matin_kim: {
+    key: 'matin_kim',
+    divisionNames: ['matin kim', 'fashion - matin kim', 'fashion'],
+    slideTitle: 'MATIN KIM',
+    headcount3Y: [
+      { year: 'HC', b2026: 0, e2026: 5, y2027: 6, y2028: 6, y2029: 6, detail: 'MK (+5): 01 BM, 01 Buyer, 01 MKT, 01 VM, 01 Ecom Lead' }
+    ],
+    leaders: [
+      { id: 'mk_head', title: 'Brand Manager', nickname: 'Vincent', flags: ['VN_STAR'], x: 450, y: 195, width: 185, height: 76, status: 'active', customLabel: 'Matin Kim' }
+    ],
+    pillarPills: [
+      { id: 'pill_matin_kim', label: 'Matin Kim', x: 450, y: 260, width: 130 }
+    ],
+    cards: [
+      { id: 'mk_buyer', title: 'Buyer', nickname: 'Linh', x: 260, y: 345, width: 105, reportsToId: 'mk_head' },
+      { id: 'mk_vm_exe', title: 'VM Exe.', nickname: 'Phúc', x: 385, y: 345, width: 105, reportsToId: 'mk_head' },
+      { id: 'mk_mkt_exe', title: 'MKT Exe.', nickname: 'Vacant', x: 510, y: 345, width: 105, status: 'vacant', reportsToId: 'mk_head' },
+      { id: 'mk_ecom', title: 'Ecom. Leader', nickname: 'Vacant', x: 635, y: 345, width: 105, status: 'vacant', reportsToId: 'mk_head' }
+    ],
+    indirectLinks: []
+  },
   fashion: {
     key: 'fashion',
-    divisionNames: ['fashion - matin kim', 'fashion', 'matin kim'],
+    divisionNames: ['fashion - matin kim', 'fashion'],
     slideTitle: 'BRAND – FASHION',
     headcount3Y: [
       { year: 'HC', b2026: 0, e2026: 5, y2027: 6, y2028: 6, y2029: 6, detail: 'MK (+5): 01 BM, 01 Buyer, 01 MKT, 01 VM, 01 Ecom Lead; 01 Head of Fashion' }

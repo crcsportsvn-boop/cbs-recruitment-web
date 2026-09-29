@@ -1,6 +1,6 @@
 import React from 'react';
 import { OrgNode, DensityMode } from '@/types/org-chart';
-import { Sparkles, Edit2, Trash2, Link2, Pencil, ChevronDown, ChevronUp, Users } from 'lucide-react';
+import { Sparkles, Edit2, Trash2, Link2, Pencil, ChevronDown, ChevronUp, Users, Plus } from 'lucide-react';
 import { FlagBadgeGroup } from './CountryFlagSVG';
 
 export type AnchorPosition = 'top' | 'bottom' | 'left' | 'right';
@@ -24,6 +24,7 @@ interface OrgNodeCardProps {
   onDelete?: (nodeId: string) => void;
   onToggleStatus?: (node: OrgNode) => void;
   onAnchorClick?: (node: OrgNode, anchor: AnchorPosition) => void;
+  onAddChild?: (node: OrgNode) => void;
   isDragging?: boolean;
 }
 
@@ -46,6 +47,7 @@ export const OrgNodeCard: React.FC<OrgNodeCardProps> = ({
   onDelete,
   onToggleStatus,
   onAnchorClick,
+  onAddChild,
   isDragging
 }) => {
   // Determine if flags should be displayed on this node
@@ -320,6 +322,18 @@ export const OrgNodeCard: React.FC<OrgNodeCardProps> = ({
             className="p-1 text-slate-500 hover:text-blue-600 rounded-full hover:bg-slate-100 cursor-pointer"
           >
             <Edit2 className="w-3 h-3" />
+          </button>
+        )}
+        {onAddChild && (
+          <button
+            title="Thêm ghế cấp dưới trực tiếp"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddChild(node);
+            }}
+            className="p-1 text-slate-500 hover:text-red-600 rounded-full hover:bg-slate-100 cursor-pointer"
+          >
+            <Plus className="w-3 h-3 text-red-600" />
           </button>
         )}
         {onDelete && (

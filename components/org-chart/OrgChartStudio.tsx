@@ -31,7 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, CheckCircle2, Info, Sparkles, GitCompare, Loader2, RotateCcw, Settings } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Info, Sparkles, GitCompare, Loader2, RotateCcw, Settings, Plus, Pencil } from 'lucide-react';
 
 const PROPOSAL_DRAFT_KEY = 'cbs_org_proposal_draft_v1';
 
@@ -142,6 +142,23 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
   });
   const [isBoxesConfigDialogOpen, setIsBoxesConfigDialogOpen] = useState<boolean>(false);
   const [boxesDraftConfig, setBoxesDraftConfig] = useState<N1BoxesConfig>(DEFAULT_N1_BOXES_CONFIG);
+
+  // Single Box Config Dialog State (per-box editing: brand | ssp | coe | crv)
+  const [isSingleBoxDialogOpen, setIsSingleBoxDialogOpen] = useState<boolean>(false);
+  const [editingBoxKey, setEditingBoxKey] = useState<'brand' | 'ssp' | 'coe' | 'crv' | null>(null);
+  const [singleBoxDraft, setSingleBoxDraft] = useState<{
+    title: string;
+    note: string;
+    width: number;
+    height: number;
+  }>({ title: '', note: '', width: 0, height: 0 });
+
+  // New Proposal Division Dialog State
+  const [isAddDivisionDialogOpen, setIsAddDivisionDialogOpen] = useState<boolean>(false);
+  const [newDivisionName, setNewDivisionName] = useState<string>('');
+  const [newDivisionHeadTitle, setNewDivisionHeadTitle] = useState<string>('Brand Manager');
+  const [newDivisionHeadNickname, setNewDivisionHeadNickname] = useState<string>('');
+  const [newDivisionReportsToId, setNewDivisionReportsToId] = useState<string>('');
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -777,6 +794,175 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
     notify('success', `Đã thêm vị trí đề xuất [${newNode.title}]!`);
   };
 
+  // Add direct child position under specific parent node
+  const handleNodeAddChild = (parentNode: OrgNode) => {
+    if (mode === 'current') {
+      setMode('proposal');
+    }
+    const id = `proposal_pos_${Date.now()}`;
+    const newNode: OrgNode = {
+      id,
+      title: 'Vị Trí Mới',
+      nickname: 'Nhân Sự Mới',
+      division: parentNode.division || selectedDivision || 'Crocs',
+      dept: parentNode.dept || parentNode.division || 'Phòng Ban',
+      reportsToId: parentNode.id,
+      reportsToTitle: parentNode.title,
+      flags: ['VN'],
+      status: 'new_hire',
+      customLabel: 'New Hire BP'
+    };
+
+    const updated = [...proposalNodes, newNode];
+    setProposalNodes(updated);
+    applyLayout('proposal', template, selectedDivision, collapsedNodeIds, updated);
+
+    setSelectedNode(newNode);
+    setIsEditDialogOpen(true);
+    notify('success', `Đã thêm ghế mới dưới quyền quản lý trực tiếp của [${parentNode.title}]!`);
+  };
+
+  // Open Single N-1 Box Group Config
+  const handleOpenBoxConfig = (boxKey: 'brand' | 'ssp' | 'coe' | 'crv') => {
+    setEditingBoxKey(boxKey);
+    let title = '';
+    let note = '';
+    let width = 0;
+    let height = 0;
+
+    if (boxKey === 'brand') {
+      title = 'Khối Thương Hiệu (Brand Organization)';
+      note = n1BoxesConfig.brandNote || '';
+      width = n1BoxesConfig.brandWidth || 740;
+      height = n1BoxesConfig.brandHeight || 380;
+    } else if (boxKey === 'ssp') {
+      title = 'Khối Supersports (SSP)';
+      note = n1BoxesConfig.sspNote || '';
+      width = n1BoxesConfig.sspWidth || 200;
+      height = n1BoxesConfig.sspHeight || 380;
+    } else if (boxKey === 'coe') {
+      title = n1BoxesConfig.coeTitle || 'COE & FUNCTIONAL TEAMS (CBS)';
+      note = n1BoxesConfig.coeNote || '';
+      width = n1BoxesConfig.coeWidth || 610;
+      height = n1BoxesConfig.coeHeight || 380;
+    } else if (boxKey === 'crv') {
+      title = n1BoxesConfig.crvTitle || 'CRV SUPPORTING FUNCTIONS';
+      note = n1BoxesConfig.crvNote || '';
+      width = n1BoxesConfig.crvWidth || 430;
+      height = n1BoxesConfig.crvHeight || 380;
+    }
+
+    setSingleBoxDraft({ title, note, width, height });
+    setIsSingleBoxDialogOpen(true);
+  };
+
+  // Save Single N-1 Box Group Config
+  const handleSaveSingleBox = () => {
+    if (!editingBoxKey) return;
+    setN1BoxesConfig(prev => {
+      const next = { ...prev };
+      if (editingBoxKey === 'brand') {
+        next.brandNote = singleBoxDraft.note;
+        next.brandWidth = singleBoxDraft.width;
+        next.brandHeight = singleBoxDraft.height;
+      } else if (editingBoxKey === 'ssp') {
+        next.sspNote = singleBoxDraft.note;
+        next.sspWidth = singleBoxDraft.width;
+        next.sspHeight = singleBoxDraft.height;
+      } else if (editingBoxKey === 'coe') {
+        next.coeTitle = singleBoxDraft.title;
+        next.coeNote = singleBoxDraft.note;
+        next.coeWidth = singleBoxDraft.width;
+        next.coeHeight = singleBoxDraft.height;
+      } else if (editingBoxKey === 'crv') {
+        next.crvTitle = singleBoxDraft.title;
+        next.crvNote = singleBoxDraft.note;
+        next.crvWidth = singleBoxDraft.width;
+        next.crvHeight = singleBoxDraft.height;
+      }
+      try {
+        localStorage.setItem('cbs_n1_boxes_config', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+    setIsSingleBoxDialogOpen(false);
+    notify('success', 'Đã lưu cấu hình ô nhóm thành công!');
+  };
+
+  // Handle Box Drag Resize
+  const handleBoxResize = (boxKey: 'brand' | 'ssp' | 'coe' | 'crv', width: number, height: number) => {
+    setN1BoxesConfig(prev => {
+      const next = { ...prev };
+      if (boxKey === 'brand') {
+        next.brandWidth = width;
+        next.brandHeight = height;
+      } else if (boxKey === 'ssp') {
+        next.sspWidth = width;
+        next.sspHeight = height;
+      } else if (boxKey === 'coe') {
+        next.coeWidth = width;
+        next.coeHeight = height;
+      } else if (boxKey === 'crv') {
+        next.crvWidth = width;
+        next.crvHeight = height;
+      }
+      try {
+        localStorage.setItem('cbs_n1_boxes_config', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
+
+  // Open Add Division Dialog
+  const handleOpenAddDivision = () => {
+    setNewDivisionName('');
+    setNewDivisionHeadTitle('Brand Manager');
+    setNewDivisionHeadNickname('');
+    const defaultReports = proposalNodes.find(n => n.title.toLowerCase().includes('ceo') || n.title.toLowerCase().includes('president'));
+    setNewDivisionReportsToId(defaultReports ? defaultReports.id : '');
+    setIsAddDivisionDialogOpen(true);
+  };
+
+  // Create New Proposal Division
+  const handleCreateNewDivision = () => {
+    const trimmedName = newDivisionName.trim();
+    if (!trimmedName) {
+      notify('error', 'Vui lòng nhập tên Division mới!');
+      return;
+    }
+
+    if (mode === 'current') {
+      setMode('proposal');
+    }
+
+    if (!divisions.includes(trimmedName)) {
+      setDivisions(prev => [...prev, trimmedName]);
+    }
+
+    const headId = `pos_head_${Date.now()}`;
+    const parent = proposalNodes.find(n => n.id === newDivisionReportsToId);
+    const newHeadNode: OrgNode = {
+      id: headId,
+      title: newDivisionHeadTitle.trim() || `Brand Manager ${trimmedName}`,
+      nickname: newDivisionHeadNickname.trim() || undefined,
+      division: trimmedName,
+      dept: trimmedName,
+      reportsToId: newDivisionReportsToId || undefined,
+      reportsToTitle: parent ? parent.title : undefined,
+      flags: ['VN'],
+      status: 'new_hire',
+      customLabel: 'New Division Head'
+    };
+
+    const updated = [...proposalNodes, newHeadNode];
+    setProposalNodes(updated);
+    setSelectedDivision(trimmedName);
+    setTemplate('custom_division');
+    applyLayout('proposal', 'custom_division', trimmedName, collapsedNodeIds, updated);
+    setIsAddDivisionDialogOpen(false);
+    notify('success', `Đã tạo Division đề xuất mới [${trimmedName}]! Bạn có thể thêm các ghế cấp dưới.`);
+  };
+
   // Add Custom Divider
   const handleAddDivider = () => {
     const newDivider: CustomDivider = {
@@ -1031,6 +1217,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
           setBoxesDraftConfig({ ...n1BoxesConfig });
           setIsBoxesConfigDialogOpen(true);
         }}
+        onOpenAddDivision={handleOpenAddDivision}
       />
 
       {/* Main Interactive Canvas Viewport */}
@@ -1085,6 +1272,9 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
             setBoxesDraftConfig({ ...n1BoxesConfig });
             setIsBoxesConfigDialogOpen(true);
           }}
+          onOpenBoxConfig={handleOpenBoxConfig}
+          onBoxResize={handleBoxResize}
+          onNodeAddChild={handleNodeAddChild}
         />
       </div>
 
@@ -1277,7 +1467,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
               </div>
             </div>
 
-            <DialogFooter className="flex justify-between sm:justify-between">
+            <DialogFooter className="flex justify-between sm:justify-between items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -1289,22 +1479,42 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
               >
                 Gỡ Vị Trí
               </Button>
-              <Button
-                size="sm"
-                className="text-xs bg-[#B91C1C] hover:bg-red-800 text-white font-semibold shadow-xs cursor-pointer"
-                onClick={() => {
-                  const updated = proposalNodes.map(n => (n.id === selectedNode.id ? selectedNode : n));
-                  if (!updated.some(n => n.id === selectedNode.id)) {
-                    updated.push(selectedNode);
-                  }
-                  setProposalNodes(updated);
-                  applyLayout(mode, template, selectedDivision, collapsedNodeIds);
-                  setIsEditDialogOpen(false);
-                  notify('success', `Đã lưu cập nhật cho ghế [${selectedNode.title}]`);
-                }}
-              >
-                Lưu Thay Đổi
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs text-emerald-700 border-emerald-300 hover:bg-emerald-50 cursor-pointer flex items-center gap-1 font-semibold"
+                  onClick={() => {
+                    const updated = proposalNodes.map(n => (n.id === selectedNode.id ? selectedNode : n));
+                    if (!updated.some(n => n.id === selectedNode.id)) {
+                      updated.push(selectedNode);
+                    }
+                    setProposalNodes(updated);
+                    handleNodeAddChild(selectedNode);
+                  }}
+                  title="Thêm một vị trí mới báo cáo trực tiếp cho ghế này"
+                >
+                  <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Thêm Ghế Cấp Dưới</span>
+                </Button>
+                <Button
+                  size="sm"
+                  className="text-xs bg-[#B91C1C] hover:bg-red-800 text-white font-semibold shadow-xs cursor-pointer"
+                  onClick={() => {
+                    const updated = proposalNodes.map(n => (n.id === selectedNode.id ? selectedNode : n));
+                    if (!updated.some(n => n.id === selectedNode.id)) {
+                      updated.push(selectedNode);
+                    }
+                    setProposalNodes(updated);
+                    applyLayout(mode, template, selectedDivision, collapsedNodeIds);
+                    setIsEditDialogOpen(false);
+                    notify('success', `Đã lưu cập nhật cho ghế [${selectedNode.title}]`);
+                  }}
+                >
+                  Lưu Thay Đổi
+                </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1600,6 +1810,184 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
                 Lưu Thay Đổi
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Single Box Group Edit Dialog (Individual Box Customization) */}
+      <Dialog open={isSingleBoxDialogOpen} onOpenChange={setIsSingleBoxDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-white border border-slate-200 shadow-2xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-purple-700">
+              <Settings className="w-5 h-5" />
+              <DialogTitle className="text-base font-bold">
+                {editingBoxKey === 'brand' && 'Chỉnh Sửa Khối Thương Hiệu (Brand)'}
+                {editingBoxKey === 'ssp' && 'Chỉnh Sửa Khối Supersports (SSP)'}
+                {editingBoxKey === 'coe' && 'Chỉnh Sửa Khối COE Supporting Function'}
+                {editingBoxKey === 'crv' && 'Chỉnh Sửa Khối CRV Supporting Function'}
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-500 pt-1">
+              Chỉnh sửa thông tin và kích thước cho riêng ô khối này trên sơ đồ N-1.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3 py-2 text-xs">
+            {(editingBoxKey === 'coe' || editingBoxKey === 'crv') && (
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs font-semibold text-slate-700">Tiêu đề ô nhóm:</Label>
+                <Input
+                  value={singleBoxDraft.title}
+                  onChange={e => setSingleBoxDraft(prev => ({ ...prev, title: e.target.value }))}
+                  className="text-xs bg-white h-8 font-semibold"
+                  placeholder="Tiêu đề khối..."
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-semibold text-slate-700">Nội dung ghi chú dưới đáy ô:</Label>
+              <Input
+                value={singleBoxDraft.note}
+                onChange={e => setSingleBoxDraft(prev => ({ ...prev, note: e.target.value }))}
+                className="text-xs bg-white h-8"
+                placeholder="Nhập ghi chú cho ô này..."
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+              <div className="flex flex-col gap-1">
+                <Label className="text-[11px] font-semibold text-slate-600">Chiều rộng (px):</Label>
+                <Input
+                  type="number"
+                  value={singleBoxDraft.width || ''}
+                  onChange={e => setSingleBoxDraft(prev => ({ ...prev, width: Number(e.target.value) || 0 }))}
+                  className="text-xs bg-white h-8"
+                  placeholder="Chiều rộng"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-[11px] font-semibold text-slate-600">Chiều cao (px):</Label>
+                <Input
+                  type="number"
+                  value={singleBoxDraft.height || ''}
+                  onChange={e => setSingleBoxDraft(prev => ({ ...prev, height: Number(e.target.value) || 0 }))}
+                  className="text-xs bg-white h-8"
+                  placeholder="Chiều cao"
+                />
+              </div>
+              <span className="col-span-2 text-[10.5px] text-slate-500 italic mt-0.5">
+                Mẹo: Bạn cũng có thể rê chuột vào góc ô trên sơ đồ rồi kéo biểu tượng 3 gạch để đổi kích thước trực quan.
+              </span>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-between gap-2 border-t pt-3 border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSingleBoxDialogOpen(false)}
+              className="text-xs cursor-pointer"
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSaveSingleBox}
+              className="text-xs bg-[#B91C1C] hover:bg-red-800 text-white font-bold cursor-pointer"
+            >
+              Lưu Thay Đổi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Proposal Division Dialog */}
+      <Dialog open={isAddDivisionDialogOpen} onOpenChange={setIsAddDivisionDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-white border border-slate-200 shadow-2xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-emerald-700">
+              <Plus className="w-5 h-5" />
+              <DialogTitle className="text-base font-bold">
+                Tạo Division Đề Xuất Mới (Proposal)
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-500 pt-1">
+              Thêm một phòng ban hoặc nhãn hàng mới vào kế hoạch tổ chức đề xuất.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3 py-2 text-xs">
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-semibold text-slate-700">Tên Division / Nhãn hàng mới:</Label>
+              <Input
+                value={newDivisionName}
+                onChange={e => setNewDivisionName(e.target.value)}
+                className="text-xs bg-white h-8 font-semibold"
+                placeholder="ví dụ: Matin Kim, MLB, On Running, ..."
+                autoFocus
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-semibold text-slate-700">Chức danh vị trí đứng đầu (Head / Brand Manager):</Label>
+              <Input
+                value={newDivisionHeadTitle}
+                onChange={e => setNewDivisionHeadTitle(e.target.value)}
+                className="text-xs bg-white h-8"
+                placeholder="ví dụ: Brand Manager, Head of Division"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-semibold text-slate-700">Tên nhân sự / Nickname (tùy chọn):</Label>
+              <Input
+                value={newDivisionHeadNickname}
+                onChange={e => setNewDivisionHeadNickname(e.target.value)}
+                className="text-xs bg-white h-8"
+                placeholder="ví dụ: Vincent, Linh, ..."
+              />
+            </div>
+
+            <div className="flex flex-col gap-1 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+              <Label className="text-xs font-semibold text-slate-700">Báo cáo trực tiếp cho:</Label>
+              <select
+                value={newDivisionReportsToId}
+                onChange={e => setNewDivisionReportsToId(e.target.value)}
+                className="w-full border border-slate-300 rounded-md text-xs py-1.5 px-2 bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+              >
+                <option value="">(Không có / Vị trí độc lập)</option>
+                {proposalNodes
+                  .filter(n => n.title.toLowerCase().includes('ceo') || n.title.toLowerCase().includes('head') || n.title.toLowerCase().includes('president') || n.title.toLowerCase().includes('vp') || n.title.toLowerCase().includes('gm'))
+                  .map(n => (
+                    <option key={n.id} value={n.id}>
+                      {n.title} {n.nickname ? `(${n.nickname})` : ''} - {n.division || 'HO'}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-end gap-2 border-t pt-3 border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAddDivisionDialogOpen(false)}
+              className="text-xs cursor-pointer"
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleCreateNewDivision}
+              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer"
+            >
+              Tạo Division Mới
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

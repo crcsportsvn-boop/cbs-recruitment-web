@@ -39,6 +39,7 @@ export interface OrgNode {
   isCollapsed?: boolean;         // Subtree is currently collapsed
   collapsedCount?: number;       // Total hidden descendant seats
   isSupervisor?: boolean;        // true if external supervisor node shown for context
+  isHidden?: boolean;            // Hidden when seat is optimized/closed
 }
 
 export interface IndirectLink {
@@ -110,6 +111,14 @@ export interface N1BoxesConfig {
   coeNote: string;
   crvTitle: string;
   crvNote: string;
+  brandWidth?: number;
+  brandHeight?: number;
+  sspWidth?: number;
+  sspHeight?: number;
+  coeWidth?: number;
+  coeHeight?: number;
+  crvWidth?: number;
+  crvHeight?: number;
 }
 
 export const DEFAULT_N1_BOXES_CONFIG: N1BoxesConfig = {

@@ -45,6 +45,9 @@ interface OrgCanvasProps {
   canvasRef: React.RefObject<HTMLDivElement>;
   n1BoxesConfig?: N1BoxesConfig;
   onOpenBoxesConfig?: () => void;
+  onOpenBoxConfig?: (boxKey: 'brand' | 'ssp' | 'coe' | 'crv') => void;
+  onBoxResize?: (boxKey: 'brand' | 'ssp' | 'coe' | 'crv', width: number, height: number) => void;
+  onNodeAddChild?: (node: OrgNode) => void;
 }
 
 export interface SmartGuideLine {
@@ -97,7 +100,10 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   selectedNodeId,
   canvasRef,
   n1BoxesConfig,
-  onOpenBoxesConfig
+  onOpenBoxesConfig,
+  onOpenBoxConfig,
+  onBoxResize,
+  onNodeAddChild
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeBoxesConfig = n1BoxesConfig || DEFAULT_N1_BOXES_CONFIG;
@@ -132,12 +138,20 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null);
   const [draggingDividerId, setDraggingDividerId] = useState<string | null>(null);
+  const [resizingBoxKey, setResizingBoxKey] = useState<'brand' | 'ssp' | 'coe' | 'crv' | null>(null);
 
   const dragStartPos = useRef<{ x: number; y: number; originX: number; originY: number }>({
     x: 0,
     y: 0,
     originX: 0,
     originY: 0
+  });
+
+  const boxResizeStart = useRef<{ clientX: number; clientY: number; startW: number; startH: number }>({
+    clientX: 0,
+    clientY: 0,
+    startW: 0,
+    startH: 0
   });
 
   // Track subtree positions for hierarchical drag
@@ -265,6 +279,24 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
     };
   };
 
+  // Handle Box Resize Drag
+  const handleBoxResizeMouseDown = (
+    e: React.MouseEvent,
+    boxKey: 'brand' | 'ssp' | 'coe' | 'crv',
+    currentW: number,
+    currentH: number
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setResizingBoxKey(boxKey);
+    boxResizeStart.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      startW: currentW,
+      startH: currentH
+    };
+  };
+
   const handleMouseMove = (e: React.MouseEvent) => {
     // Panning mode (Space+Drag)
     if (isPanning && panStartRef.current) {
@@ -274,6 +306,16 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
         x: panStartRef.current.offsetX + dx,
         y: panStartRef.current.offsetY + dy
       });
+      return;
+    }
+
+    // Box Resizing mode
+    if (resizingBoxKey && onBoxResize) {
+      const dx = (e.clientX - boxResizeStart.current.clientX) / zoom;
+      const dy = (e.clientY - boxResizeStart.current.clientY) / zoom;
+      const newW = Math.max(120, Math.round((boxResizeStart.current.startW + dx) / 10) * 10);
+      const newH = Math.max(80, Math.round((boxResizeStart.current.startH + dy) / 10) * 10);
+      onBoxResize(resizingBoxKey, newW, newH);
       return;
     }
 
@@ -423,6 +465,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
     setDraggingNodeId(null);
     setDraggingNoteId(null);
     setDraggingDividerId(null);
+    setResizingBoxKey(null);
     dragSubtreeRef.current = null;
     setIsPanning(false);
     panStartRef.current = null;
@@ -567,6 +610,18 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
     minY: commonBoxMinY,
     maxY: commonBoxMaxY,
   } : null;
+
+  const brandWidth = activeBoxesConfig.brandWidth ?? (brandBox ? brandBox.maxX - brandBox.minX : 0);
+  const brandHeight = activeBoxesConfig.brandHeight ?? (brandBox ? brandBox.maxY - brandBox.minY : 0);
+
+  const sspWidth = activeBoxesConfig.sspWidth ?? (sspBox ? sspBox.maxX - sspBox.minX : 0);
+  const sspHeight = activeBoxesConfig.sspHeight ?? (sspBox ? sspBox.maxY - sspBox.minY : 0);
+
+  const coeWidth = activeBoxesConfig.coeWidth ?? (coeBox ? coeBox.maxX - coeBox.minX : 0);
+  const coeHeight = activeBoxesConfig.coeHeight ?? (coeBox ? coeBox.maxY - coeBox.minY : 0);
+
+  const crvWidth = activeBoxesConfig.crvWidth ?? (crvBox ? crvBox.maxX - crvBox.minX : 0);
+  const crvHeight = activeBoxesConfig.crvHeight ?? (crvBox ? crvBox.maxY - crvBox.minY : 0);
 
   return (
     <div
@@ -719,19 +774,19 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                   style={{
                     left: brandBox.minX,
                     top: brandBox.minY,
-                    width: brandBox.maxX - brandBox.minX,
-                    height: brandBox.maxY - brandBox.minY,
+                    width: brandWidth,
+                    height: brandHeight,
                     backgroundColor: '#eff6ff',
                     borderColor: '#93c5fd',
                     borderWidth: '1.5px',
                     borderStyle: 'solid'
                   }}
                 >
-                  {mode === 'proposal' && onOpenBoxesConfig && (
+                  {mode === 'proposal' && (onOpenBoxConfig || onOpenBoxesConfig) && (
                     <button
-                      onClick={onOpenBoxesConfig}
+                      onClick={() => onOpenBoxConfig ? onOpenBoxConfig('brand') : onOpenBoxesConfig?.()}
                       className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-70 group-hover:opacity-100"
-                      title="Chỉnh sửa ghi chú ô Brand"
+                      title="Chỉnh sửa ô Brand"
                     >
                       <Pencil className="w-3 h-3" />
                     </button>
@@ -741,6 +796,19 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                       {activeBoxesConfig.brandNote}
                     </span>
                   </div>
+                  {mode === 'proposal' && onBoxResize && (
+                    <div
+                      onMouseDown={(e) => handleBoxResizeMouseDown(e, 'brand', brandWidth, brandHeight)}
+                      className="pointer-events-auto absolute bottom-1 right-1 p-1 cursor-se-resize opacity-40 hover:opacity-100 group-hover:opacity-80 transition-all text-slate-400 hover:text-purple-700"
+                      title="Kéo góc để chỉnh kích thước ô Brand"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" className="fill-none">
+                        <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="10" y1="5" x2="5" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="10" y1="8" x2="8" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -751,19 +819,19 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                   style={{
                     left: sspBox.minX,
                     top: sspBox.minY,
-                    width: sspBox.maxX - sspBox.minX,
-                    height: sspBox.maxY - sspBox.minY,
+                    width: sspWidth,
+                    height: sspHeight,
                     backgroundColor: '#eff6ff',
                     borderColor: '#93c5fd',
                     borderWidth: '1.5px',
                     borderStyle: 'solid'
                   }}
                 >
-                  {mode === 'proposal' && onOpenBoxesConfig && (
+                  {mode === 'proposal' && (onOpenBoxConfig || onOpenBoxesConfig) && (
                     <button
-                      onClick={onOpenBoxesConfig}
+                      onClick={() => onOpenBoxConfig ? onOpenBoxConfig('ssp') : onOpenBoxesConfig?.()}
                       className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-70 group-hover:opacity-100"
-                      title="Chỉnh sửa ghi chú ô Supersports"
+                      title="Chỉnh sửa ô Supersports"
                     >
                       <Pencil className="w-3 h-3" />
                     </button>
@@ -773,6 +841,19 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                       {activeBoxesConfig.sspNote}
                     </span>
                   </div>
+                  {mode === 'proposal' && onBoxResize && (
+                    <div
+                      onMouseDown={(e) => handleBoxResizeMouseDown(e, 'ssp', sspWidth, sspHeight)}
+                      className="pointer-events-auto absolute bottom-1 right-1 p-1 cursor-se-resize opacity-40 hover:opacity-100 group-hover:opacity-80 transition-all text-slate-400 hover:text-purple-700"
+                      title="Kéo góc để chỉnh kích thước ô Supersports"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" className="fill-none">
+                        <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="10" y1="5" x2="5" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="10" y1="8" x2="8" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -783,8 +864,8 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                   style={{
                     left: coeBox.minX,
                     top: coeBox.minY,
-                    width: coeBox.maxX - coeBox.minX,
-                    height: coeBox.maxY - coeBox.minY,
+                    width: coeWidth,
+                    height: coeHeight,
                     backgroundColor: 'rgba(255, 255, 255, 0.75)',
                     borderColor: '#94a3b8',
                     borderWidth: '1.5px',
@@ -794,9 +875,9 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                   <div className="absolute top-2.5 left-4 text-xs font-bold text-slate-800 underline decoration-slate-400 underline-offset-4 tracking-wide select-none">
                     {activeBoxesConfig.coeTitle}
                   </div>
-                  {mode === 'proposal' && onOpenBoxesConfig && (
+                  {mode === 'proposal' && (onOpenBoxConfig || onOpenBoxesConfig) && (
                     <button
-                      onClick={onOpenBoxesConfig}
+                      onClick={() => onOpenBoxConfig ? onOpenBoxConfig('coe') : onOpenBoxesConfig?.()}
                       className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-70 group-hover:opacity-100"
                       title="Chỉnh sửa tiêu đề và ghi chú ô COE"
                     >
@@ -808,6 +889,19 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                       {activeBoxesConfig.coeNote}
                     </span>
                   </div>
+                  {mode === 'proposal' && onBoxResize && (
+                    <div
+                      onMouseDown={(e) => handleBoxResizeMouseDown(e, 'coe', coeWidth, coeHeight)}
+                      className="pointer-events-auto absolute bottom-1 right-1 p-1 cursor-se-resize opacity-40 hover:opacity-100 group-hover:opacity-80 transition-all text-slate-400 hover:text-purple-700"
+                      title="Kéo góc để chỉnh kích thước ô COE"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" className="fill-none">
+                        <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="10" y1="5" x2="5" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="10" y1="8" x2="8" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -818,8 +912,8 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                   style={{
                     left: crvBox.minX,
                     top: crvBox.minY,
-                    width: crvBox.maxX - crvBox.minX,
-                    height: crvBox.maxY - crvBox.minY,
+                    width: crvWidth,
+                    height: crvHeight,
                     backgroundColor: 'rgba(255, 255, 255, 0.75)',
                     borderColor: '#94a3b8',
                     borderWidth: '1.5px',
@@ -829,9 +923,9 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                   <div className="absolute top-2.5 left-4 text-xs font-bold text-slate-800 underline decoration-slate-400 underline-offset-4 tracking-wide select-none">
                     {activeBoxesConfig.crvTitle}
                   </div>
-                  {mode === 'proposal' && onOpenBoxesConfig && (
+                  {mode === 'proposal' && (onOpenBoxConfig || onOpenBoxesConfig) && (
                     <button
-                      onClick={onOpenBoxesConfig}
+                      onClick={() => onOpenBoxConfig ? onOpenBoxConfig('crv') : onOpenBoxesConfig?.()}
                       className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-70 group-hover:opacity-100"
                       title="Chỉnh sửa tiêu đề và ghi chú ô CRV"
                     >
@@ -843,6 +937,19 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
                       {activeBoxesConfig.crvNote}
                     </span>
                   </div>
+                  {mode === 'proposal' && onBoxResize && (
+                    <div
+                      onMouseDown={(e) => handleBoxResizeMouseDown(e, 'crv', crvWidth, crvHeight)}
+                      className="pointer-events-auto absolute bottom-1 right-1 p-1 cursor-se-resize opacity-40 hover:opacity-100 group-hover:opacity-80 transition-all text-slate-400 hover:text-purple-700"
+                      title="Kéo góc để chỉnh kích thước ô CRV"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 12 12" className="fill-none">
+                        <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="10" y1="5" x2="5" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        <line x1="10" y1="8" x2="8" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1378,6 +1485,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
               onAnchorClick={mode === 'current' ? undefined : onStartConnect}
               onDelete={mode === 'current' ? undefined : onNodeDelete}
               onToggleStatus={mode === 'current' ? undefined : onNodeToggleStatus}
+              onAddChild={mode === 'current' ? undefined : onNodeAddChild}
               isDragging={draggingNodeId === node.id}
             />
           </div>

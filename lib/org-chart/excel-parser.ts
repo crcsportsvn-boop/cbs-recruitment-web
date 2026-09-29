@@ -132,7 +132,13 @@ export function parseOrgChartWorkbook(buffer: ArrayBuffer): ParsedOrgData {
   const rawJson: any[] = rawSheet ? XLSX.utils.sheet_to_json(rawSheet, { defval: '', raw: false }) : [];
 
   // 2. Process Raw Data -> Filter 'Office' only
-  const nodes: OrgNode[] = [];
+  interface ParsedItem {
+    node: OrgNode;
+    effectiveEndDate: string;
+    notePositionId: string;
+  }
+
+  const rawItems: ParsedItem[] = [];
   const divisionSet = new Set<string>();
   let officeCount = 0;
 
@@ -155,6 +161,9 @@ export function parseOrgChartWorkbook(buffer: ArrayBuffer): ParsedOrgData {
       const fullName = getRowValue(row, 'master_data.fullname', 'fullname', 'full name');
       const nickNameCol = getRowValue(row, 'master_data.nickname', 'nickname', 'nick name');
 
+      const effectiveEndDate = getRowValue(row, 'effectiveenddate', 'effective end date', 'enddate', 'end date', 'effective date');
+      const notePositionId = getRowValue(row, 'notepositionid', 'note position id', 'noteposid', 'note position', 'note pos id');
+
       const nickname = deriveNickname(fullName, nickNameCol);
       const isVacant = !fullName || fullName.toLowerCase().includes('vacant');
 
@@ -172,22 +181,57 @@ export function parseOrgChartWorkbook(buffer: ArrayBuffer): ParsedOrgData {
         flags = ['VN_STAR'];
       }
 
-      nodes.push({
-        id: posId,
-        title: title,
-        division: division,
-        dept: dept || division,
-        subDept: subDept,
-        jobGrade: jobGrade,
-        reportsToId: reportsToId,
-        reportsToTitle: reportsToTitle,
-        holderName: fullName,
-        nickname: nickname,
-        flags: flags,
-        status: status
+      rawItems.push({
+        node: {
+          id: posId,
+          title: title,
+          division: division,
+          dept: dept || division,
+          subDept: subDept,
+          jobGrade: jobGrade,
+          reportsToId: reportsToId,
+          reportsToTitle: reportsToTitle,
+          holderName: fullName,
+          nickname: nickname,
+          flags: flags,
+          status: status
+        },
+        effectiveEndDate,
+        notePositionId
       });
     }
   }
+
+  // Optimize seats based on Effective End Date & Note Position ID:
+  // If an old seat has both fields and matches a target seat (Note Position ID),
+  // transfer holderName + nickname to the new seat, hide the old seat, and re-link its direct reports.
+  const nodeMap = new Map<string, OrgNode>();
+  rawItems.forEach(item => nodeMap.set(item.node.id.toLowerCase().trim(), item.node));
+
+  rawItems.forEach(item => {
+    if (item.effectiveEndDate && item.notePositionId) {
+      const targetId = item.notePositionId.toLowerCase().trim();
+      const targetNode = nodeMap.get(targetId);
+      if (targetNode) {
+        if (item.node.holderName && !item.node.holderName.toLowerCase().includes('vacant')) {
+          targetNode.holderName = item.node.holderName;
+          targetNode.nickname = item.node.nickname || targetNode.nickname;
+          targetNode.status = 'active';
+        }
+        item.node.isHidden = true;
+
+        // Reassign subordinate seats to the new seat
+        rawItems.forEach(other => {
+          if (other.node.reportsToId && other.node.reportsToId.toLowerCase().trim() === item.node.id.toLowerCase().trim()) {
+            other.node.reportsToId = targetNode.id;
+            other.node.reportsToTitle = targetNode.title;
+          }
+        });
+      }
+    }
+  });
+
+  const nodes: OrgNode[] = rawItems.filter(item => !item.node.isHidden).map(item => item.node);
 
   let virtualLeaders: VirtualLeader[] = [...DEFAULT_VIRTUAL_LEADERS];
   let indirectLinks: IndirectLink[] = [...DEFAULT_INDIRECT_LINKS];
@@ -261,6 +305,6 @@ export function parseOrgChartWorkbook(buffer: ArrayBuffer): ParsedOrgData {
     indirectLinks,
     divisions: divisionsList,
     totalRawRows: rawJson.length,
-    officeRows: officeCount
+    officeRows: nodes.length
   };
 }
