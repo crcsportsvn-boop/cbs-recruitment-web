@@ -75,6 +75,7 @@ interface ProposalToolbarProps {
   onCopyAsIsToProposal?: () => void;
   onOpenBoxesConfig?: () => void;
   onOpenAddDivision?: () => void;
+  onAddBoxGroup?: () => void;
 }
 
 export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
@@ -116,7 +117,8 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
   onOpenRenameDialog,
   onCopyAsIsToProposal,
   onOpenBoxesConfig,
-  onOpenAddDivision
+  onOpenAddDivision,
+  onAddBoxGroup
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftInputRef = useRef<HTMLInputElement>(null);
@@ -554,16 +556,16 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               <span>Ghi chú</span>
             </Button>
 
-            {template === 'company_n1' && onOpenBoxesConfig && (
+            {template === 'company_n1' && onAddBoxGroup && (
               <Button
                 size="sm"
                 variant="outline"
-                onClick={onOpenBoxesConfig}
+                onClick={onAddBoxGroup}
                 className="text-xs h-7 gap-1 border-purple-400 text-purple-700 hover:bg-purple-50 font-bold bg-white cursor-pointer shadow-2xs"
-                title="Tùy chỉnh hộp nhóm và văn bản bên trong các ô N-1"
+                title="Thêm một khối hộp nhóm (Box Group) mới lên sơ đồ N-1"
               >
-                <Settings className="w-3.5 h-3.5 text-purple-600" />
-                <span>Tùy chỉnh Khối Box</span>
+                <Plus className="w-3.5 h-3.5 text-purple-600" />
+                <span>Thêm Box Group</span>
               </Button>
             )}
 

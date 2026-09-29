@@ -15,7 +15,8 @@ import {
   ProposalChange,
   ProposalJustificationRow,
   N1BoxesConfig,
-  DEFAULT_N1_BOXES_CONFIG
+  DEFAULT_N1_BOXES_CONFIG,
+  CustomBoxGroup
 } from '@/types/org-chart';
 import { AnchorPosition } from './OrgNodeCard';
 import { parseOrgChartWorkbook } from '@/lib/org-chart/excel-parser';
@@ -140,18 +141,24 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
     } catch (e) {}
     return DEFAULT_N1_BOXES_CONFIG;
   });
-  const [isBoxesConfigDialogOpen, setIsBoxesConfigDialogOpen] = useState<boolean>(false);
-  const [boxesDraftConfig, setBoxesDraftConfig] = useState<N1BoxesConfig>(DEFAULT_N1_BOXES_CONFIG);
+  // Add Box Group Dialog State (N-1)
+  const [isAddBoxGroupDialogOpen, setIsAddBoxGroupDialogOpen] = useState<boolean>(false);
+  const [newBoxTitle, setNewBoxTitle] = useState<string>('');
+  const [newBoxNote, setNewBoxNote] = useState<string>('');
+  const [newBoxColor, setNewBoxColor] = useState<'blue' | 'slate' | 'emerald' | 'amber' | 'purple'>('slate');
+  const [newBoxWidth, setNewBoxWidth] = useState<number>(380);
+  const [newBoxHeight, setNewBoxHeight] = useState<number>(280);
 
-  // Single Box Config Dialog State (per-box editing: brand | ssp | coe | crv)
+  // Single Box Config Dialog State (per-box editing: brand | ssp | coe | crv | custom box)
   const [isSingleBoxDialogOpen, setIsSingleBoxDialogOpen] = useState<boolean>(false);
-  const [editingBoxKey, setEditingBoxKey] = useState<'brand' | 'ssp' | 'coe' | 'crv' | null>(null);
+  const [editingBoxKey, setEditingBoxKey] = useState<string | null>(null);
   const [singleBoxDraft, setSingleBoxDraft] = useState<{
     title: string;
     note: string;
     width: number;
     height: number;
-  }>({ title: '', note: '', width: 0, height: 0 });
+    color?: 'blue' | 'slate' | 'emerald' | 'amber' | 'purple';
+  }>({ title: '', note: '', width: 0, height: 0, color: 'slate' });
 
   // New Proposal Division Dialog State
   const [isAddDivisionDialogOpen, setIsAddDivisionDialogOpen] = useState<boolean>(false);
@@ -823,36 +830,51 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
   };
 
   // Open Single N-1 Box Group Config
-  const handleOpenBoxConfig = (boxKey: 'brand' | 'ssp' | 'coe' | 'crv') => {
+  const handleOpenBoxConfig = (boxKey: string) => {
     setEditingBoxKey(boxKey);
     let title = '';
     let note = '';
     let width = 0;
     let height = 0;
+    let color: 'blue' | 'slate' | 'emerald' | 'amber' | 'purple' = 'slate';
 
     if (boxKey === 'brand') {
       title = 'Khối Thương Hiệu (Brand Organization)';
       note = n1BoxesConfig.brandNote || '';
       width = n1BoxesConfig.brandWidth || 740;
       height = n1BoxesConfig.brandHeight || 380;
+      color = 'blue';
     } else if (boxKey === 'ssp') {
       title = 'Khối Supersports (SSP)';
       note = n1BoxesConfig.sspNote || '';
       width = n1BoxesConfig.sspWidth || 200;
       height = n1BoxesConfig.sspHeight || 380;
+      color = 'blue';
     } else if (boxKey === 'coe') {
       title = n1BoxesConfig.coeTitle || 'COE & FUNCTIONAL TEAMS (CBS)';
       note = n1BoxesConfig.coeNote || '';
       width = n1BoxesConfig.coeWidth || 610;
       height = n1BoxesConfig.coeHeight || 380;
+      color = 'slate';
     } else if (boxKey === 'crv') {
       title = n1BoxesConfig.crvTitle || 'CRV SUPPORTING FUNCTIONS';
       note = n1BoxesConfig.crvNote || '';
       width = n1BoxesConfig.crvWidth || 430;
       height = n1BoxesConfig.crvHeight || 380;
+      color = 'slate';
+    } else {
+      // Custom box group
+      const custom = (n1BoxesConfig.customBoxes || []).find(b => b.id === boxKey);
+      if (custom) {
+        title = custom.title || '';
+        note = custom.note || '';
+        width = custom.width || 380;
+        height = custom.height || 280;
+        color = custom.color || 'slate';
+      }
     }
 
-    setSingleBoxDraft({ title, note, width, height });
+    setSingleBoxDraft({ title, note, width, height, color });
     setIsSingleBoxDialogOpen(true);
   };
 
@@ -879,6 +901,21 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
         next.crvNote = singleBoxDraft.note;
         next.crvWidth = singleBoxDraft.width;
         next.crvHeight = singleBoxDraft.height;
+      } else {
+        // Custom box group
+        next.customBoxes = (next.customBoxes || []).map(b => {
+          if (b.id === editingBoxKey) {
+            return {
+              ...b,
+              title: singleBoxDraft.title,
+              note: singleBoxDraft.note,
+              width: singleBoxDraft.width,
+              height: singleBoxDraft.height,
+              color: singleBoxDraft.color,
+            };
+          }
+          return b;
+        });
       }
       try {
         localStorage.setItem('cbs_n1_boxes_config', JSON.stringify(next));
@@ -890,7 +927,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
   };
 
   // Handle Box Drag Resize
-  const handleBoxResize = (boxKey: 'brand' | 'ssp' | 'coe' | 'crv', width: number, height: number) => {
+  const handleBoxResize = (boxKey: string, width: number, height: number) => {
     setN1BoxesConfig(prev => {
       const next = { ...prev };
       if (boxKey === 'brand') {
@@ -905,12 +942,97 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
       } else if (boxKey === 'crv') {
         next.crvWidth = width;
         next.crvHeight = height;
+      } else {
+        next.customBoxes = (next.customBoxes || []).map(b =>
+          b.id === boxKey ? { ...b, width, height } : b
+        );
       }
       try {
         localStorage.setItem('cbs_n1_boxes_config', JSON.stringify(next));
       } catch (e) {}
       return next;
     });
+  };
+
+  // Handle Box Drag Move
+  const handleBoxMove = (boxKey: string, x: number, y: number) => {
+    setN1BoxesConfig(prev => {
+      const next = { ...prev };
+      if (boxKey === 'brand') {
+        next.brandX = x;
+        next.brandY = y;
+      } else if (boxKey === 'ssp') {
+        next.sspX = x;
+        next.sspY = y;
+      } else if (boxKey === 'coe') {
+        next.coeX = x;
+        next.coeY = y;
+      } else if (boxKey === 'crv') {
+        next.crvX = x;
+        next.crvY = y;
+      } else {
+        next.customBoxes = (next.customBoxes || []).map(b =>
+          b.id === boxKey ? { ...b, x, y } : b
+        );
+      }
+      try {
+        localStorage.setItem('cbs_n1_boxes_config', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
+
+  // Handle Delete Custom Box Group
+  const handleDeleteBox = (boxId: string) => {
+    setN1BoxesConfig(prev => {
+      const next = {
+        ...prev,
+        customBoxes: (prev.customBoxes || []).filter(b => b.id !== boxId),
+      };
+      try {
+        localStorage.setItem('cbs_n1_boxes_config', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+    notify('success', 'Đã xóa khối ô nhóm thành công!');
+  };
+
+  // Open Add Box Group Dialog
+  const handleOpenAddBoxGroup = () => {
+    setNewBoxTitle('');
+    setNewBoxNote('');
+    setNewBoxColor('slate');
+    setNewBoxWidth(380);
+    setNewBoxHeight(280);
+    setIsAddBoxGroupDialogOpen(true);
+  };
+
+  // Create New Box Group
+  const handleCreateBoxGroup = () => {
+    const newBox: CustomBoxGroup = {
+      id: `box-${Date.now()}`,
+      title: newBoxTitle.trim() || 'Khối Nhóm Mới',
+      note: newBoxNote.trim() || undefined,
+      x: 350,
+      y: 350,
+      width: Number(newBoxWidth) || 380,
+      height: Number(newBoxHeight) || 280,
+      color: newBoxColor,
+    };
+
+    setN1BoxesConfig(prev => {
+      const next = {
+        ...prev,
+        customBoxes: [...(prev.customBoxes || []), newBox],
+      };
+      try {
+        localStorage.setItem('cbs_n1_boxes_config', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+
+    setIsAddBoxGroupDialogOpen(false);
+    notify('success', `Đã thêm khối nhóm [${newBox.title}] lên sơ đồ N-1!`);
   };
 
   // Open Add Division Dialog
@@ -1213,10 +1335,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
         onAddNewProposal={handleAddNewProposal}
         onOpenRenameDialog={handleOpenRenameDialog}
         onCopyAsIsToProposal={handleCopyAsIsToProposal}
-        onOpenBoxesConfig={() => {
-          setBoxesDraftConfig({ ...n1BoxesConfig });
-          setIsBoxesConfigDialogOpen(true);
-        }}
+        onAddBoxGroup={handleOpenAddBoxGroup}
         onOpenAddDivision={handleOpenAddDivision}
       />
 
@@ -1268,12 +1387,10 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
           selectedNodeId={selectedNode?.id}
           canvasRef={canvasRef}
           n1BoxesConfig={n1BoxesConfig}
-          onOpenBoxesConfig={() => {
-            setBoxesDraftConfig({ ...n1BoxesConfig });
-            setIsBoxesConfigDialogOpen(true);
-          }}
           onOpenBoxConfig={handleOpenBoxConfig}
           onBoxResize={handleBoxResize}
+          onBoxMove={handleBoxMove}
+          onDeleteBox={handleDeleteBox}
           onNodeAddChild={handleNodeAddChild}
         />
       </div>
@@ -1675,141 +1792,112 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
         </DialogContent>
       </Dialog>
 
-      {/* N-1 Group Boxes & Text Config Dialog */}
-      <Dialog open={isBoxesConfigDialogOpen} onOpenChange={setIsBoxesConfigDialogOpen}>
-        <DialogContent className="sm:max-w-xl bg-white border border-slate-200 shadow-2xl">
+      {/* Add New Box Group Dialog (N-1) */}
+      <Dialog open={isAddBoxGroupDialogOpen} onOpenChange={setIsAddBoxGroupDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-white border border-slate-200 shadow-2xl">
           <DialogHeader>
             <div className="flex items-center gap-2 text-purple-700">
-              <Settings className="w-5 h-5" />
+              <Plus className="w-5 h-5" />
               <DialogTitle className="text-base font-bold">
-                Tùy Chỉnh Khối Box & Văn Bản N-1 (Đề Xuất)
+                Thêm Khối Box Group Mới (N-1)
               </DialogTitle>
             </div>
             <DialogDescription className="text-xs text-slate-500 pt-1">
-              Chỉnh sửa tiêu đề và nội dung ghi chú bên trong từng ô nhóm trên sơ đồ N-1.
+              Tạo thêm một khối hộp trực quan trên sơ đồ N-1 để phân nhóm các vị trí.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4 py-2 max-h-[65vh] overflow-y-auto pr-1">
-            {/* 1. Khối Brand Group */}
-            <div className="p-3 bg-blue-50/60 rounded-lg border border-blue-200 flex flex-col gap-2">
-              <div className="text-xs font-bold text-blue-900">
-                1. Khối Brand (Dyson, Crocs, Hoka, Sports Brands)
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label className="text-[11px] font-semibold text-slate-600">Ghi chú ở đáy ô:</Label>
-                <Input
-                  value={boxesDraftConfig.brandNote}
-                  onChange={e => setBoxesDraftConfig(prev => ({ ...prev, brandNote: e.target.value }))}
-                  className="text-xs bg-white"
-                  placeholder="Nhập ghi chú cho khối Brand..."
-                />
+          <div className="flex flex-col gap-3 py-2 text-xs">
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-semibold text-slate-700">Tiêu đề khối nhóm:</Label>
+              <Input
+                value={newBoxTitle}
+                onChange={e => setNewBoxTitle(e.target.value)}
+                className="text-xs bg-white h-8 font-semibold"
+                placeholder="ví dụ: REGIONAL RETAIL OPERATIONS, ..."
+                autoFocus
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-semibold text-slate-700">Ghi chú ở đáy khối (tùy chọn):</Label>
+              <Input
+                value={newBoxNote}
+                onChange={e => setNewBoxNote(e.target.value)}
+                className="text-xs bg-white h-8 italic"
+                placeholder="ví dụ: Reporting to Regional Operations Director..."
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-semibold text-slate-700">Màu sắc viền và nền khối:</Label>
+              <div className="grid grid-cols-5 gap-1.5">
+                {[
+                  { id: 'slate', name: 'Xám', bg: 'bg-slate-100 border-slate-300 text-slate-700' },
+                  { id: 'blue', name: 'Xanh biển', bg: 'bg-blue-50 border-blue-300 text-blue-700' },
+                  { id: 'emerald', name: 'Xanh lá', bg: 'bg-emerald-50 border-emerald-300 text-emerald-700' },
+                  { id: 'amber', name: 'Vàng cam', bg: 'bg-amber-50 border-amber-300 text-amber-700' },
+                  { id: 'purple', name: 'Tím', bg: 'bg-purple-50 border-purple-300 text-purple-700' },
+                ].map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setNewBoxColor(c.id as any)}
+                    className={`py-1 px-1.5 text-center text-[11px] font-semibold rounded-md border transition-all cursor-pointer ${c.bg} ${
+                      newBoxColor === c.id ? 'ring-2 ring-purple-600 ring-offset-1 font-bold' : 'opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* 2. Khối Supersports */}
-            <div className="p-3 bg-blue-50/60 rounded-lg border border-blue-200 flex flex-col gap-2">
-              <div className="text-xs font-bold text-blue-900">
-                2. Khối Supersports (Thảo)
-              </div>
+            <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
               <div className="flex flex-col gap-1">
-                <Label className="text-[11px] font-semibold text-slate-600">Ghi chú ở đáy ô:</Label>
+                <Label className="text-[11px] font-semibold text-slate-600">Chiều rộng (px):</Label>
                 <Input
-                  value={boxesDraftConfig.sspNote}
-                  onChange={e => setBoxesDraftConfig(prev => ({ ...prev, sspNote: e.target.value }))}
-                  className="text-xs bg-white"
-                  placeholder="Nhập ghi chú cho khối Supersports..."
-                />
-              </div>
-            </div>
-
-            {/* 3. Khối COE Supporting Function */}
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex flex-col gap-2.5">
-              <div className="text-xs font-bold text-slate-800">
-                3. Khối COE Supporting Function
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label className="text-[11px] font-semibold text-slate-600">Tiêu đề ô:</Label>
-                <Input
-                  value={boxesDraftConfig.coeTitle}
-                  onChange={e => setBoxesDraftConfig(prev => ({ ...prev, coeTitle: e.target.value }))}
-                  className="text-xs bg-white"
-                  placeholder="Tiêu đề COE..."
+                  type="number"
+                  value={newBoxWidth}
+                  onChange={e => setNewBoxWidth(Number(e.target.value) || 0)}
+                  className="text-xs bg-white h-8"
+                  placeholder="380"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <Label className="text-[11px] font-semibold text-slate-600">Ghi chú ở đáy ô:</Label>
+                <Label className="text-[11px] font-semibold text-slate-600">Chiều cao (px):</Label>
                 <Input
-                  value={boxesDraftConfig.coeNote}
-                  onChange={e => setBoxesDraftConfig(prev => ({ ...prev, coeNote: e.target.value }))}
-                  className="text-xs bg-white"
-                  placeholder="Nhập ghi chú cho khối COE..."
+                  type="number"
+                  value={newBoxHeight}
+                  onChange={e => setNewBoxHeight(Number(e.target.value) || 0)}
+                  className="text-xs bg-white h-8"
+                  placeholder="280"
                 />
               </div>
-            </div>
-
-            {/* 4. Khối CRV Supporting Function */}
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex flex-col gap-2.5">
-              <div className="text-xs font-bold text-slate-800">
-                4. Khối CRV Supporting Function
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label className="text-[11px] font-semibold text-slate-600">Tiêu đề ô:</Label>
-                <Input
-                  value={boxesDraftConfig.crvTitle}
-                  onChange={e => setBoxesDraftConfig(prev => ({ ...prev, crvTitle: e.target.value }))}
-                  className="text-xs bg-white"
-                  placeholder="Tiêu đề CRV..."
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Label className="text-[11px] font-semibold text-slate-600">Ghi chú ở đáy ô:</Label>
-                <Input
-                  value={boxesDraftConfig.crvNote}
-                  onChange={e => setBoxesDraftConfig(prev => ({ ...prev, crvNote: e.target.value }))}
-                  className="text-xs bg-white"
-                  placeholder="Nhập ghi chú cho khối CRV..."
-                />
-              </div>
+              <span className="col-span-2 text-[10.5px] text-slate-500 italic mt-0.5">
+                Sau khi tạo, rê chuột vào khối để xuất hiện nút 3 gạch ở góc trên để di chuyển, và biểu tượng mũi tên ở góc dưới để co giãn kích thước.
+              </span>
             </div>
           </div>
 
-          <DialogFooter className="flex items-center justify-between gap-2 border-t pt-3 border-slate-100">
+          <DialogFooter className="flex items-center justify-end gap-2 border-t pt-3 border-slate-100">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setBoxesDraftConfig({ ...DEFAULT_N1_BOXES_CONFIG })}
-              className="text-xs text-slate-600 hover:text-slate-900 border-slate-300 mr-auto cursor-pointer"
+              onClick={() => setIsAddBoxGroupDialogOpen(false)}
+              className="text-xs cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5 mr-1" /> Đặt lại mặc định
+              Hủy
             </Button>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsBoxesConfigDialogOpen(false)}
-                className="text-xs cursor-pointer"
-              >
-                Hủy
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  setN1BoxesConfig(boxesDraftConfig);
-                  try {
-                    localStorage.setItem('cbs_n1_boxes_config', JSON.stringify(boxesDraftConfig));
-                  } catch (e) {}
-                  setIsBoxesConfigDialogOpen(false);
-                  setAlertMessage({ type: 'success', text: 'Đã lưu cấu hình khối Box N-1 thành công!' });
-                }}
-                className="text-xs bg-[#B91C1C] hover:bg-red-800 text-white font-bold cursor-pointer"
-              >
-                Lưu Thay Đổi
-              </Button>
-            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleCreateBoxGroup}
+              className="text-xs bg-purple-700 hover:bg-purple-800 text-white font-bold cursor-pointer"
+            >
+              Tạo Khối Box
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1825,6 +1913,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
                 {editingBoxKey === 'ssp' && 'Chỉnh Sửa Khối Supersports (SSP)'}
                 {editingBoxKey === 'coe' && 'Chỉnh Sửa Khối COE Supporting Function'}
                 {editingBoxKey === 'crv' && 'Chỉnh Sửa Khối CRV Supporting Function'}
+                {editingBoxKey && !['brand', 'ssp', 'coe', 'crv'].includes(editingBoxKey) && 'Chỉnh Sửa Khối Box Group'}
               </DialogTitle>
             </div>
             <DialogDescription className="text-xs text-slate-500 pt-1">
@@ -1833,7 +1922,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
           </DialogHeader>
 
           <div className="flex flex-col gap-3 py-2 text-xs">
-            {(editingBoxKey === 'coe' || editingBoxKey === 'crv') && (
+            {editingBoxKey && (editingBoxKey === 'coe' || editingBoxKey === 'crv' || !['brand', 'ssp'].includes(editingBoxKey)) && (
               <div className="flex flex-col gap-1">
                 <Label className="text-xs font-semibold text-slate-700">Tiêu đề ô nhóm:</Label>
                 <Input
@@ -1854,6 +1943,33 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
                 placeholder="Nhập ghi chú cho ô này..."
               />
             </div>
+
+            {/* Color picker for custom boxes */}
+            {editingBoxKey && !['brand', 'ssp', 'coe', 'crv'].includes(editingBoxKey) && (
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs font-semibold text-slate-700">Màu sắc khối:</Label>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {[
+                    { id: 'slate', name: 'Xám', bg: 'bg-slate-100 border-slate-300 text-slate-700' },
+                    { id: 'blue', name: 'Xanh biển', bg: 'bg-blue-50 border-blue-300 text-blue-700' },
+                    { id: 'emerald', name: 'Xanh lá', bg: 'bg-emerald-50 border-emerald-300 text-emerald-700' },
+                    { id: 'amber', name: 'Vàng cam', bg: 'bg-amber-50 border-amber-300 text-amber-700' },
+                    { id: 'purple', name: 'Tím', bg: 'bg-purple-50 border-purple-300 text-purple-700' },
+                  ].map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSingleBoxDraft(prev => ({ ...prev, color: c.id as any }))}
+                      className={`py-1 px-1.5 text-center text-[11px] font-semibold rounded-md border transition-all cursor-pointer ${c.bg} ${
+                        singleBoxDraft.color === c.id ? 'ring-2 ring-purple-600 ring-offset-1 font-bold' : 'opacity-70 hover:opacity-100'
+                      }`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
               <div className="flex flex-col gap-1">
@@ -1877,7 +1993,7 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
                 />
               </div>
               <span className="col-span-2 text-[10.5px] text-slate-500 italic mt-0.5">
-                Mẹo: Bạn cũng có thể rê chuột vào góc ô trên sơ đồ rồi kéo biểu tượng 3 gạch để đổi kích thước trực quan.
+                Mẹo: Bạn có thể rê chuột vào khối trên sơ đồ để dùng biểu tượng 3 gạch di chuyển hoặc kéo góc mũi tên để đổi kích thước trực quan.
               </span>
             </div>
           </div>

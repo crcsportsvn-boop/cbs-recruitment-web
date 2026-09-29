@@ -104,6 +104,17 @@ export interface OrgProposalState {
   n1BoxesConfig?: N1BoxesConfig;
 }
 
+export interface CustomBoxGroup {
+  id: string;
+  title?: string;
+  note?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color?: 'blue' | 'slate' | 'emerald' | 'amber' | 'purple';
+}
+
 export interface N1BoxesConfig {
   brandNote: string;
   sspNote: string;
@@ -113,12 +124,21 @@ export interface N1BoxesConfig {
   crvNote: string;
   brandWidth?: number;
   brandHeight?: number;
+  brandX?: number;
+  brandY?: number;
   sspWidth?: number;
   sspHeight?: number;
+  sspX?: number;
+  sspY?: number;
   coeWidth?: number;
   coeHeight?: number;
+  coeX?: number;
+  coeY?: number;
   crvWidth?: number;
   crvHeight?: number;
+  crvX?: number;
+  crvY?: number;
+  customBoxes?: CustomBoxGroup[];
 }
 
 export const DEFAULT_N1_BOXES_CONFIG: N1BoxesConfig = {
@@ -127,7 +147,8 @@ export const DEFAULT_N1_BOXES_CONFIG: N1BoxesConfig = {
   coeTitle: 'COE Supporting Function',
   coeNote: 'Supporting Functions serving all VN - Brands transversally',
   crvTitle: 'CRV Supporting function',
-  crvNote: 'Supporting Functions serving all VN - Brands transversally'
+  crvNote: 'Supporting Functions serving all VN - Brands transversally',
+  customBoxes: []
 };
 
 export type OrgChartMode = 'current' | 'proposal' | 'diff';

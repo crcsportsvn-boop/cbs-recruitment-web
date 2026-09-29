@@ -45,8 +45,10 @@ interface OrgCanvasProps {
   canvasRef: React.RefObject<HTMLDivElement>;
   n1BoxesConfig?: N1BoxesConfig;
   onOpenBoxesConfig?: () => void;
-  onOpenBoxConfig?: (boxKey: 'brand' | 'ssp' | 'coe' | 'crv') => void;
-  onBoxResize?: (boxKey: 'brand' | 'ssp' | 'coe' | 'crv', width: number, height: number) => void;
+  onOpenBoxConfig?: (boxKey: string) => void;
+  onBoxResize?: (boxKey: string, width: number, height: number) => void;
+  onBoxMove?: (boxKey: string, x: number, y: number) => void;
+  onDeleteBox?: (boxKey: string) => void;
   onNodeAddChild?: (node: OrgNode) => void;
 }
 
@@ -103,6 +105,8 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   onOpenBoxesConfig,
   onOpenBoxConfig,
   onBoxResize,
+  onBoxMove,
+  onDeleteBox,
   onNodeAddChild
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -138,7 +142,8 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [draggingNoteId, setDraggingNoteId] = useState<string | null>(null);
   const [draggingDividerId, setDraggingDividerId] = useState<string | null>(null);
-  const [resizingBoxKey, setResizingBoxKey] = useState<'brand' | 'ssp' | 'coe' | 'crv' | null>(null);
+  const [resizingBoxKey, setResizingBoxKey] = useState<string | null>(null);
+  const [movingBoxKey, setMovingBoxKey] = useState<string | null>(null);
 
   const dragStartPos = useRef<{ x: number; y: number; originX: number; originY: number }>({
     x: 0,
@@ -152,6 +157,13 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
     clientY: 0,
     startW: 0,
     startH: 0
+  });
+
+  const boxMoveStart = useRef<{ clientX: number; clientY: number; startX: number; startY: number }>({
+    clientX: 0,
+    clientY: 0,
+    startX: 0,
+    startY: 0
   });
 
   // Track subtree positions for hierarchical drag
@@ -282,7 +294,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
   // Handle Box Resize Drag
   const handleBoxResizeMouseDown = (
     e: React.MouseEvent,
-    boxKey: 'brand' | 'ssp' | 'coe' | 'crv',
+    boxKey: string,
     currentW: number,
     currentH: number
   ) => {
@@ -297,6 +309,24 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
     };
   };
 
+  // Handle Box Move Drag
+  const handleBoxMoveMouseDown = (
+    e: React.MouseEvent,
+    boxKey: string,
+    currentX: number,
+    currentY: number
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setMovingBoxKey(boxKey);
+    boxMoveStart.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      startX: currentX,
+      startY: currentY
+    };
+  };
+
   const handleMouseMove = (e: React.MouseEvent) => {
     // Panning mode (Space+Drag)
     if (isPanning && panStartRef.current) {
@@ -306,6 +336,16 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
         x: panStartRef.current.offsetX + dx,
         y: panStartRef.current.offsetY + dy
       });
+      return;
+    }
+
+    // Box Moving mode
+    if (movingBoxKey && onBoxMove) {
+      const dx = (e.clientX - boxMoveStart.current.clientX) / zoom;
+      const dy = (e.clientY - boxMoveStart.current.clientY) / zoom;
+      const newX = Math.round((boxMoveStart.current.startX + dx) / 5) * 5;
+      const newY = Math.round((boxMoveStart.current.startY + dy) / 5) * 5;
+      onBoxMove(movingBoxKey, newX, newY);
       return;
     }
 
@@ -466,6 +506,7 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
     setDraggingNoteId(null);
     setDraggingDividerId(null);
     setResizingBoxKey(null);
+    setMovingBoxKey(null);
     dragSubtreeRef.current = null;
     setIsPanning(false);
     panStartRef.current = null;
@@ -768,190 +809,392 @@ export const OrgCanvas: React.FC<OrgCanvasProps> = ({
           {isN1 && (
             <div className="absolute inset-0 pointer-events-none z-0">
               {/* 1. Brand Group Box (trừ SSP) - Màu box xanh biển nhạt */}
-              {brandBox && (
-                <div
-                  className="absolute rounded-xl transition-all shadow-xs group"
-                  style={{
-                    left: brandBox.minX,
-                    top: brandBox.minY,
-                    width: brandWidth,
-                    height: brandHeight,
-                    backgroundColor: '#eff6ff',
-                    borderColor: '#93c5fd',
-                    borderWidth: '1.5px',
-                    borderStyle: 'solid'
-                  }}
-                >
-                  {mode === 'proposal' && (onOpenBoxConfig || onOpenBoxesConfig) && (
-                    <button
-                      onClick={() => onOpenBoxConfig ? onOpenBoxConfig('brand') : onOpenBoxesConfig?.()}
-                      className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-70 group-hover:opacity-100"
-                      title="Chỉnh sửa ô Brand"
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </button>
-                  )}
-                  <div className="absolute bottom-3 left-4 right-4 text-center">
-                    <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
-                      {activeBoxesConfig.brandNote}
-                    </span>
-                  </div>
-                  {mode === 'proposal' && onBoxResize && (
-                    <div
-                      onMouseDown={(e) => handleBoxResizeMouseDown(e, 'brand', brandWidth, brandHeight)}
-                      className="pointer-events-auto absolute bottom-1 right-1 p-1 cursor-se-resize opacity-40 hover:opacity-100 group-hover:opacity-80 transition-all text-slate-400 hover:text-purple-700"
-                      title="Kéo góc để chỉnh kích thước ô Brand"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 12 12" className="fill-none">
-                        <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        <line x1="10" y1="5" x2="5" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        <line x1="10" y1="8" x2="8" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
+              {brandBox && (() => {
+                const brandLeft = activeBoxesConfig.brandX ?? brandBox.minX;
+                const brandTop = activeBoxesConfig.brandY ?? brandBox.minY;
+                return (
+                  <div
+                    className="absolute rounded-xl transition-all shadow-xs group"
+                    style={{
+                      left: brandLeft,
+                      top: brandTop,
+                      width: brandWidth,
+                      height: brandHeight,
+                      backgroundColor: '#eff6ff',
+                      borderColor: '#93c5fd',
+                      borderWidth: '1.5px',
+                      borderStyle: 'solid'
+                    }}
+                  >
+                    {/* Top 3-line move handle */}
+                    {mode === 'proposal' && onBoxMove && (
+                      <div
+                        onMouseDown={(e) => handleBoxMoveMouseDown(e, 'brand', brandLeft, brandTop)}
+                        className="pointer-events-auto absolute top-2 left-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-move opacity-0 group-hover:opacity-100 flex items-center justify-center z-10"
+                        title="Giữ và kéo để di chuyển khối ô Brand"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                          <rect x="2" y="3" width="12" height="2" rx="1" />
+                          <rect x="2" y="7" width="12" height="2" rx="1" />
+                          <rect x="2" y="11" width="12" height="2" rx="1" />
+                        </svg>
+                      </div>
+                    )}
+
+                    {/* Edit button */}
+                    {mode === 'proposal' && onOpenBoxConfig && (
+                      <button
+                        onClick={() => onOpenBoxConfig('brand')}
+                        className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-10"
+                        title="Chỉnh sửa ô Brand"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
+
+                    <div className="absolute bottom-3 left-4 right-4 text-center">
+                      <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
+                        {activeBoxesConfig.brandNote}
+                      </span>
                     </div>
-                  )}
-                </div>
-              )}
+
+                    {/* Resize handle with arrows */}
+                    {mode === 'proposal' && onBoxResize && (
+                      <div
+                        onMouseDown={(e) => handleBoxResizeMouseDown(e, 'brand', brandWidth, brandHeight)}
+                        className="pointer-events-auto absolute bottom-1.5 right-1.5 p-1 bg-white/80 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-200 shadow-2xs cursor-se-resize opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center z-10"
+                        title="Kéo góc mũi tên để đổi kích thước ô Brand"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M15 9v6h-6" />
+                          <path d="M15 15L9 9" />
+                          <path d="M7 15H1" strokeWidth="1.5" />
+                          <path d="M1 15V9" strokeWidth="1.5" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* 2. Supersports (Thảo) Box - Màu box xanh biển nhạt */}
-              {sspBox && (
-                <div
-                  className="absolute rounded-xl transition-all shadow-xs group"
-                  style={{
-                    left: sspBox.minX,
-                    top: sspBox.minY,
-                    width: sspWidth,
-                    height: sspHeight,
-                    backgroundColor: '#eff6ff',
-                    borderColor: '#93c5fd',
-                    borderWidth: '1.5px',
-                    borderStyle: 'solid'
-                  }}
-                >
-                  {mode === 'proposal' && (onOpenBoxConfig || onOpenBoxesConfig) && (
-                    <button
-                      onClick={() => onOpenBoxConfig ? onOpenBoxConfig('ssp') : onOpenBoxesConfig?.()}
-                      className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-70 group-hover:opacity-100"
-                      title="Chỉnh sửa ô Supersports"
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </button>
-                  )}
-                  <div className="absolute bottom-3 left-2 right-2 text-center">
-                    <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
-                      {activeBoxesConfig.sspNote}
-                    </span>
-                  </div>
-                  {mode === 'proposal' && onBoxResize && (
-                    <div
-                      onMouseDown={(e) => handleBoxResizeMouseDown(e, 'ssp', sspWidth, sspHeight)}
-                      className="pointer-events-auto absolute bottom-1 right-1 p-1 cursor-se-resize opacity-40 hover:opacity-100 group-hover:opacity-80 transition-all text-slate-400 hover:text-purple-700"
-                      title="Kéo góc để chỉnh kích thước ô Supersports"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 12 12" className="fill-none">
-                        <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        <line x1="10" y1="5" x2="5" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        <line x1="10" y1="8" x2="8" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
+              {sspBox && (() => {
+                const sspLeft = activeBoxesConfig.sspX ?? sspBox.minX;
+                const sspTop = activeBoxesConfig.sspY ?? sspBox.minY;
+                return (
+                  <div
+                    className="absolute rounded-xl transition-all shadow-xs group"
+                    style={{
+                      left: sspLeft,
+                      top: sspTop,
+                      width: sspWidth,
+                      height: sspHeight,
+                      backgroundColor: '#eff6ff',
+                      borderColor: '#93c5fd',
+                      borderWidth: '1.5px',
+                      borderStyle: 'solid'
+                    }}
+                  >
+                    {/* Top 3-line move handle */}
+                    {mode === 'proposal' && onBoxMove && (
+                      <div
+                        onMouseDown={(e) => handleBoxMoveMouseDown(e, 'ssp', sspLeft, sspTop)}
+                        className="pointer-events-auto absolute top-2 left-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-move opacity-0 group-hover:opacity-100 flex items-center justify-center z-10"
+                        title="Giữ và kéo để di chuyển khối ô Supersports"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                          <rect x="2" y="3" width="12" height="2" rx="1" />
+                          <rect x="2" y="7" width="12" height="2" rx="1" />
+                          <rect x="2" y="11" width="12" height="2" rx="1" />
+                        </svg>
+                      </div>
+                    )}
+
+                    {/* Edit button */}
+                    {mode === 'proposal' && onOpenBoxConfig && (
+                      <button
+                        onClick={() => onOpenBoxConfig('ssp')}
+                        className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-10"
+                        title="Chỉnh sửa ô Supersports"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
+
+                    <div className="absolute bottom-3 left-2 right-2 text-center">
+                      <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
+                        {activeBoxesConfig.sspNote}
+                      </span>
                     </div>
-                  )}
-                </div>
-              )}
+
+                    {/* Resize handle with arrows */}
+                    {mode === 'proposal' && onBoxResize && (
+                      <div
+                        onMouseDown={(e) => handleBoxResizeMouseDown(e, 'ssp', sspWidth, sspHeight)}
+                        className="pointer-events-auto absolute bottom-1.5 right-1.5 p-1 bg-white/80 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-200 shadow-2xs cursor-se-resize opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center z-10"
+                        title="Kéo góc mũi tên để đổi kích thước ô Supersports"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M15 9v6h-6" />
+                          <path d="M15 15L9 9" />
+                          <path d="M7 15H1" strokeWidth="1.5" />
+                          <path d="M1 15V9" strokeWidth="1.5" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* 3. COE Supporting Function Box - Không màu */}
-              {coeBox && (
-                <div
-                  className="absolute rounded-xl transition-all shadow-xs group"
-                  style={{
-                    left: coeBox.minX,
-                    top: coeBox.minY,
-                    width: coeWidth,
-                    height: coeHeight,
-                    backgroundColor: 'rgba(255, 255, 255, 0.75)',
-                    borderColor: '#94a3b8',
-                    borderWidth: '1.5px',
-                    borderStyle: 'solid'
-                  }}
-                >
-                  <div className="absolute top-2.5 left-4 text-xs font-bold text-slate-800 underline decoration-slate-400 underline-offset-4 tracking-wide select-none">
-                    {activeBoxesConfig.coeTitle}
-                  </div>
-                  {mode === 'proposal' && (onOpenBoxConfig || onOpenBoxesConfig) && (
-                    <button
-                      onClick={() => onOpenBoxConfig ? onOpenBoxConfig('coe') : onOpenBoxesConfig?.()}
-                      className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-70 group-hover:opacity-100"
-                      title="Chỉnh sửa tiêu đề và ghi chú ô COE"
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </button>
-                  )}
-                  <div className="absolute bottom-3 left-4 right-4 text-center">
-                    <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
-                      {activeBoxesConfig.coeNote}
-                    </span>
-                  </div>
-                  {mode === 'proposal' && onBoxResize && (
-                    <div
-                      onMouseDown={(e) => handleBoxResizeMouseDown(e, 'coe', coeWidth, coeHeight)}
-                      className="pointer-events-auto absolute bottom-1 right-1 p-1 cursor-se-resize opacity-40 hover:opacity-100 group-hover:opacity-80 transition-all text-slate-400 hover:text-purple-700"
-                      title="Kéo góc để chỉnh kích thước ô COE"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 12 12" className="fill-none">
-                        <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        <line x1="10" y1="5" x2="5" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        <line x1="10" y1="8" x2="8" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
+              {coeBox && (() => {
+                const coeLeft = activeBoxesConfig.coeX ?? coeBox.minX;
+                const coeTop = activeBoxesConfig.coeY ?? coeBox.minY;
+                return (
+                  <div
+                    className="absolute rounded-xl transition-all shadow-xs group"
+                    style={{
+                      left: coeLeft,
+                      top: coeTop,
+                      width: coeWidth,
+                      height: coeHeight,
+                      backgroundColor: 'rgba(255, 255, 255, 0.75)',
+                      borderColor: '#94a3b8',
+                      borderWidth: '1.5px',
+                      borderStyle: 'solid'
+                    }}
+                  >
+                    {/* Top 3-line move handle */}
+                    {mode === 'proposal' && onBoxMove && (
+                      <div
+                        onMouseDown={(e) => handleBoxMoveMouseDown(e, 'coe', coeLeft, coeTop)}
+                        className="pointer-events-auto absolute top-2 left-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-move opacity-0 group-hover:opacity-100 flex items-center justify-center z-10"
+                        title="Giữ và kéo để di chuyển khối ô COE"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                          <rect x="2" y="3" width="12" height="2" rx="1" />
+                          <rect x="2" y="7" width="12" height="2" rx="1" />
+                          <rect x="2" y="11" width="12" height="2" rx="1" />
+                        </svg>
+                      </div>
+                    )}
+
+                    <div className="absolute top-2.5 left-10 text-xs font-bold text-slate-800 underline decoration-slate-400 underline-offset-4 tracking-wide select-none">
+                      {activeBoxesConfig.coeTitle}
                     </div>
-                  )}
-                </div>
-              )}
+
+                    {/* Edit button */}
+                    {mode === 'proposal' && onOpenBoxConfig && (
+                      <button
+                        onClick={() => onOpenBoxConfig('coe')}
+                        className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-10"
+                        title="Chỉnh sửa tiêu đề và ghi chú ô COE"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
+
+                    <div className="absolute bottom-3 left-4 right-4 text-center">
+                      <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
+                        {activeBoxesConfig.coeNote}
+                      </span>
+                    </div>
+
+                    {/* Resize handle with arrows */}
+                    {mode === 'proposal' && onBoxResize && (
+                      <div
+                        onMouseDown={(e) => handleBoxResizeMouseDown(e, 'coe', coeWidth, coeHeight)}
+                        className="pointer-events-auto absolute bottom-1.5 right-1.5 p-1 bg-white/80 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-200 shadow-2xs cursor-se-resize opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center z-10"
+                        title="Kéo góc mũi tên để đổi kích thước ô COE"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M15 9v6h-6" />
+                          <path d="M15 15L9 9" />
+                          <path d="M7 15H1" strokeWidth="1.5" />
+                          <path d="M1 15V9" strokeWidth="1.5" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* 4. CRV Supporting Functions Box - Không màu */}
-              {crvBox && (
-                <div
-                  className="absolute rounded-xl transition-all shadow-xs group"
-                  style={{
-                    left: crvBox.minX,
-                    top: crvBox.minY,
-                    width: crvWidth,
-                    height: crvHeight,
-                    backgroundColor: 'rgba(255, 255, 255, 0.75)',
-                    borderColor: '#94a3b8',
-                    borderWidth: '1.5px',
-                    borderStyle: 'solid'
-                  }}
-                >
-                  <div className="absolute top-2.5 left-4 text-xs font-bold text-slate-800 underline decoration-slate-400 underline-offset-4 tracking-wide select-none">
-                    {activeBoxesConfig.crvTitle}
-                  </div>
-                  {mode === 'proposal' && (onOpenBoxConfig || onOpenBoxesConfig) && (
-                    <button
-                      onClick={() => onOpenBoxConfig ? onOpenBoxConfig('crv') : onOpenBoxesConfig?.()}
-                      className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-70 group-hover:opacity-100"
-                      title="Chỉnh sửa tiêu đề và ghi chú ô CRV"
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </button>
-                  )}
-                  <div className="absolute bottom-3 left-4 right-4 text-center">
-                    <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
-                      {activeBoxesConfig.crvNote}
-                    </span>
-                  </div>
-                  {mode === 'proposal' && onBoxResize && (
-                    <div
-                      onMouseDown={(e) => handleBoxResizeMouseDown(e, 'crv', crvWidth, crvHeight)}
-                      className="pointer-events-auto absolute bottom-1 right-1 p-1 cursor-se-resize opacity-40 hover:opacity-100 group-hover:opacity-80 transition-all text-slate-400 hover:text-purple-700"
-                      title="Kéo góc để chỉnh kích thước ô CRV"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 12 12" className="fill-none">
-                        <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        <line x1="10" y1="5" x2="5" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        <line x1="10" y1="8" x2="8" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
+              {crvBox && (() => {
+                const crvLeft = activeBoxesConfig.crvX ?? crvBox.minX;
+                const crvTop = activeBoxesConfig.crvY ?? crvBox.minY;
+                return (
+                  <div
+                    className="absolute rounded-xl transition-all shadow-xs group"
+                    style={{
+                      left: crvLeft,
+                      top: crvTop,
+                      width: crvWidth,
+                      height: crvHeight,
+                      backgroundColor: 'rgba(255, 255, 255, 0.75)',
+                      borderColor: '#94a3b8',
+                      borderWidth: '1.5px',
+                      borderStyle: 'solid'
+                    }}
+                  >
+                    {/* Top 3-line move handle */}
+                    {mode === 'proposal' && onBoxMove && (
+                      <div
+                        onMouseDown={(e) => handleBoxMoveMouseDown(e, 'crv', crvLeft, crvTop)}
+                        className="pointer-events-auto absolute top-2 left-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-move opacity-0 group-hover:opacity-100 flex items-center justify-center z-10"
+                        title="Giữ và kéo để di chuyển khối ô CRV"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                          <rect x="2" y="3" width="12" height="2" rx="1" />
+                          <rect x="2" y="7" width="12" height="2" rx="1" />
+                          <rect x="2" y="11" width="12" height="2" rx="1" />
+                        </svg>
+                      </div>
+                    )}
+
+                    <div className="absolute top-2.5 left-10 text-xs font-bold text-slate-800 underline decoration-slate-400 underline-offset-4 tracking-wide select-none">
+                      {activeBoxesConfig.crvTitle}
                     </div>
-                  )}
-                </div>
-              )}
+
+                    {/* Edit button */}
+                    {mode === 'proposal' && onOpenBoxConfig && (
+                      <button
+                        onClick={() => onOpenBoxConfig('crv')}
+                        className="pointer-events-auto absolute top-2 right-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-10"
+                        title="Chỉnh sửa tiêu đề và ghi chú ô CRV"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    )}
+
+                    <div className="absolute bottom-3 left-4 right-4 text-center">
+                      <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
+                        {activeBoxesConfig.crvNote}
+                      </span>
+                    </div>
+
+                    {/* Resize handle with arrows */}
+                    {mode === 'proposal' && onBoxResize && (
+                      <div
+                        onMouseDown={(e) => handleBoxResizeMouseDown(e, 'crv', crvWidth, crvHeight)}
+                        className="pointer-events-auto absolute bottom-1.5 right-1.5 p-1 bg-white/80 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-200 shadow-2xs cursor-se-resize opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center z-10"
+                        title="Kéo góc mũi tên để đổi kích thước ô CRV"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M15 9v6h-6" />
+                          <path d="M15 15L9 9" />
+                          <path d="M7 15H1" strokeWidth="1.5" />
+                          <path d="M1 15V9" strokeWidth="1.5" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* 5. Custom Box Groups */}
+              {(activeBoxesConfig.customBoxes || []).map((box) => {
+                const bX = box.x;
+                const bY = box.y;
+                const bW = box.width || 350;
+                const bH = box.height || 260;
+
+                const defaultColorStyle = { bg: 'rgba(255, 255, 255, 0.75)', border: '#94a3b8', text: '#334155' };
+                const colorStyles: Record<string, { bg: string; border: string; text: string }> = {
+                  blue: { bg: '#eff6ff', border: '#93c5fd', text: '#1e40af' },
+                  slate: defaultColorStyle,
+                  emerald: { bg: '#ecfdf5', border: '#6ee7b7', text: '#065f46' },
+                  amber: { bg: '#fffbeb', border: '#fcd34d', text: '#92400e' },
+                  purple: { bg: '#faf5ff', border: '#d8b4fe', text: '#6b21a8' },
+                };
+                const cStyle = (box.color && colorStyles[box.color]) ? colorStyles[box.color]! : defaultColorStyle;
+
+                return (
+                  <div
+                    key={box.id}
+                    className="absolute rounded-xl transition-all shadow-xs group"
+                    style={{
+                      left: bX,
+                      top: bY,
+                      width: bW,
+                      height: bH,
+                      backgroundColor: cStyle.bg,
+                      borderColor: cStyle.border,
+                      borderWidth: '1.5px',
+                      borderStyle: 'solid'
+                    }}
+                  >
+                    {/* Top 3-line move handle */}
+                    {mode === 'proposal' && onBoxMove && (
+                      <div
+                        onMouseDown={(e) => handleBoxMoveMouseDown(e, box.id, bX, bY)}
+                        className="pointer-events-auto absolute top-2 left-2 p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-move opacity-0 group-hover:opacity-100 flex items-center justify-center z-10"
+                        title="Giữ và kéo để di chuyển khối này"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                          <rect x="2" y="3" width="12" height="2" rx="1" />
+                          <rect x="2" y="7" width="12" height="2" rx="1" />
+                          <rect x="2" y="11" width="12" height="2" rx="1" />
+                        </svg>
+                      </div>
+                    )}
+
+                    {box.title && (
+                      <div className="absolute top-2.5 left-10 text-xs font-bold underline decoration-slate-400 underline-offset-4 tracking-wide select-none" style={{ color: cStyle.text }}>
+                        {box.title}
+                      </div>
+                    )}
+
+                    {/* Edit and Delete Buttons */}
+                    {mode === 'proposal' && (
+                      <div className="pointer-events-auto absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
+                        {onOpenBoxConfig && (
+                          <button
+                            onClick={() => onOpenBoxConfig(box.id)}
+                            className="p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer"
+                            title="Chỉnh sửa khối ô"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        )}
+                        {onDeleteBox && (
+                          <button
+                            onClick={() => onDeleteBox(box.id)}
+                            className="p-1 bg-white/90 hover:bg-white text-slate-500 hover:text-red-700 rounded border border-slate-300 shadow-2xs transition-all cursor-pointer"
+                            title="Xóa khối ô này"
+                          >
+                            <Trash2 className="w-3 h-3 text-red-500" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {box.note && (
+                      <div className="absolute bottom-3 left-4 right-4 text-center">
+                        <span className="text-xs italic font-medium text-slate-500 whitespace-normal break-words leading-tight block">
+                          {box.note}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Bottom-right resize handle */}
+                    {mode === 'proposal' && onBoxResize && (
+                      <div
+                        onMouseDown={(e) => handleBoxResizeMouseDown(e, box.id, bW, bH)}
+                        className="pointer-events-auto absolute bottom-1.5 right-1.5 p-1 bg-white/80 hover:bg-white text-slate-500 hover:text-purple-700 rounded border border-slate-200 shadow-2xs cursor-se-resize opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center z-10"
+                        title="Kéo góc mũi tên để đổi kích thước khối ô"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M15 9v6h-6" />
+                          <path d="M15 15L9 9" />
+                          <path d="M7 15H1" strokeWidth="1.5" />
+                          <path d="M1 15V9" strokeWidth="1.5" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
