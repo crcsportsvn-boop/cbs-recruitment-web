@@ -415,7 +415,11 @@ export function buildDynamicDivisionTree(
         leafGroups.get(sd)!.push(lc);
       });
 
-      let leafCols = leafGroups.size;
+      let leafCols = 0;
+      leafGroups.forEach(members => {
+        if (members.length >= 6) leafCols += 3;
+        else leafCols += 1;
+      });
       return Math.max(1, branchCols + leafCols);
     }
 
@@ -473,6 +477,131 @@ export function buildDynamicDivisionTree(
     branchChildren.sort((a, b) => getSeniorityScore(b) - getSeniorityScore(a));
     leafChildren.sort((a, b) => getSeniorityScore(b) - getSeniorityScore(a));
 
+    // Helper to layout a group of members belonging to a sub-department
+    // If the group has >= 6 members, it splits subordinates into 3 columns branching under the group leader
+    const layoutSubDeptGroup = (
+      members: OrgNode[],
+      baseX: number,
+      baseY: number
+    ): LayoutSubtreeResult => {
+      members.sort((a, b) => getSeniorityScore(b) - getSeniorityScore(a));
+      const placedInGroup: OrgNode[] = [];
+      const leadMember = members[0]!;
+      const subordinates = members.slice(1);
+      const isLeadCollapsed = collapsedNodeIds.has(leadMember.id);
+
+      if (isLeadCollapsed) {
+        const placedLeader: OrgNode = {
+          ...leadMember,
+          x: baseX,
+          y: baseY,
+          width: CARD_W,
+          height: CARD_H,
+          hasChildren: subordinates.length > 0,
+          isCollapsed: true,
+          collapsedCount: subordinates.length
+        };
+        placedNodeMap.set(leadMember.id, placedLeader);
+        placedInGroup.push(placedLeader);
+        return {
+          placedNodes: placedInGroup,
+          width: CARD_W,
+          height: CARD_H
+        };
+      }
+
+      if (members.length >= 6) {
+        const groupColCount = 3;
+        const groupColWidth = groupColCount * CARD_W + (groupColCount - 1) * H_GAP;
+
+        const leaderX = baseX + Math.round((groupColWidth - CARD_W) / 2);
+        const leaderY = baseY;
+
+        const placedLeader: OrgNode = {
+          ...leadMember,
+          x: leaderX,
+          y: leaderY,
+          width: CARD_W,
+          height: CARD_H,
+          hasChildren: subordinates.length > 0,
+          isCollapsed: false,
+          collapsedCount: subordinates.length
+        };
+        placedNodeMap.set(leadMember.id, placedLeader);
+        placedInGroup.push(placedLeader);
+
+        const subStartY = baseY + CARD_H + V_GAP;
+        subordinates.forEach((sub, subIdx) => {
+          const colIdx = subIdx % groupColCount;
+          const rowIdx = Math.floor(subIdx / groupColCount);
+          const childX = baseX + colIdx * (CARD_W + H_GAP);
+          const childYPos = subStartY + rowIdx * (CARD_H + 18);
+
+          const placedSub: OrgNode = {
+            ...sub,
+            reportsToId: leadMember.id,
+            x: childX,
+            y: childYPos,
+            width: CARD_W,
+            height: CARD_H,
+            hasChildren: false,
+            isCollapsed: false,
+            collapsedCount: 0
+          };
+          placedNodeMap.set(sub.id, placedSub);
+          placedInGroup.push(placedSub);
+        });
+
+        const numRows = Math.ceil(subordinates.length / groupColCount);
+        const groupHeight = CARD_H + V_GAP + numRows * (CARD_H + 18) - 18;
+
+        return {
+          placedNodes: placedInGroup,
+          width: groupColWidth,
+          height: groupHeight
+        };
+      }
+
+      // Single column stack for < 6 members
+      const placedLeader: OrgNode = {
+        ...leadMember,
+        x: baseX,
+        y: baseY,
+        width: CARD_W,
+        height: CARD_H,
+        hasChildren: subordinates.length > 0,
+        isCollapsed: false,
+        collapsedCount: subordinates.length
+      };
+      placedNodeMap.set(leadMember.id, placedLeader);
+      placedInGroup.push(placedLeader);
+
+      subordinates.forEach((sub, subIdx) => {
+        const childX = baseX;
+        const childYPos = baseY + (subIdx + 1) * (CARD_H + 18);
+        const placedSub: OrgNode = {
+          ...sub,
+          reportsToId: leadMember.id,
+          x: childX,
+          y: childYPos,
+          width: CARD_W,
+          height: CARD_H,
+          hasChildren: false,
+          isCollapsed: false,
+          collapsedCount: 0
+        };
+        placedNodeMap.set(sub.id, placedSub);
+        placedInGroup.push(placedSub);
+      });
+
+      const groupHeight = members.length * (CARD_H + 18) - 18;
+      return {
+        placedNodes: placedInGroup,
+        width: CARD_W,
+        height: groupHeight
+      };
+    };
+
     // Case 1: Pure leaf subordinates under this manager (no sub-branches)
     if (branchChildren.length === 0) {
       // Group leaf children by subDept
@@ -496,32 +625,9 @@ export function buildDynamicDivisionTree(
         });
 
         sortedGroups.forEach(([sdName, members]) => {
-          members.sort((a, b) => getSeniorityScore(b) - getSeniorityScore(a));
-          const placedInGroup: OrgNode[] = [];
-          members.forEach((child, idx) => {
-            const childX = curX;
-            const childYPos = childY + idx * (CARD_H + 18);
-            const placedChild: OrgNode = {
-              ...child,
-              x: childX,
-              y: childYPos,
-              width: CARD_W,
-              height: CARD_H,
-              hasChildren: false,
-              isCollapsed: false,
-              collapsedCount: 0
-            };
-            placedNodeMap.set(child.id, placedChild);
-            placedInGroup.push(placedChild);
-          });
-
-          const groupHeight = members.length * (CARD_H + 18) - 18;
-          groupResults.push({
-            placedNodes: placedInGroup,
-            width: CARD_W,
-            height: groupHeight
-          });
-          curX += CARD_W + H_GAP;
+          const res = layoutSubDeptGroup(members, curX, childY);
+          groupResults.push(res);
+          curX += res.width + H_GAP;
         });
 
         const totalChildrenWidth = curX - startX - H_GAP;
@@ -557,8 +663,8 @@ export function buildDynamicDivisionTree(
 
       // In division view, stack in 1 column (CARD_W) for sub-managers to prevent horizontal sprawl
       // Division root allowed up to 3 columns banner
-      const colCount = isRoot ? Math.min(leafChildren.length, 3) : 1;
-      const rowCount = leafChildren.length;
+      const colCount = isRoot ? Math.min(leafChildren.length, 3) : (leafChildren.length >= 6 ? 3 : 1);
+      const rowCount = Math.ceil(leafChildren.length / colCount);
       const gridWidth = colCount * CARD_W + (colCount - 1) * H_GAP;
       const totalWidth = Math.max(CARD_W, gridWidth);
       const parentX = startX + Math.max(0, (totalWidth - CARD_W) / 2);
@@ -703,34 +809,9 @@ export function buildDynamicDivisionTree(
         });
 
         sortedGroups.forEach(([subDeptName, groupMembers]) => {
-          groupMembers.sort((a, b) => getSeniorityScore(b) - getSeniorityScore(a));
-          const groupColWidth = CARD_W;
-          const groupHeight = groupMembers.length * (CARD_H + 18) - 18;
-          const placedInGroup: OrgNode[] = [];
-
-          groupMembers.forEach((child, idx) => {
-            const childX = curX;
-            const childYPos = childY + idx * (CARD_H + 18);
-            const placedChild: OrgNode = {
-              ...child,
-              x: childX,
-              y: childYPos,
-              width: CARD_W,
-              height: CARD_H,
-              hasChildren: false,
-              isCollapsed: false,
-              collapsedCount: 0
-            };
-            placedNodeMap.set(child.id, placedChild);
-            placedInGroup.push(placedChild);
-          });
-
-          childResults.push({
-            placedNodes: placedInGroup,
-            width: groupColWidth,
-            height: groupHeight
-          });
-          curX += groupColWidth + H_GAP;
+          const res = layoutSubDeptGroup(groupMembers, curX, childY);
+          childResults.push(res);
+          curX += res.width + H_GAP;
         });
       } else {
         // High-density fallback: bundle all leaf subordinates into 1 column
