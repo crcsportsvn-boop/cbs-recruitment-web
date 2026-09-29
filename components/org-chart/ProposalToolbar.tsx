@@ -488,28 +488,28 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
       </div>
 
       {/* TIER 2: Context Sub-bar (Adapts to Active Mode) */}
-      <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex items-center justify-between gap-3 text-xs">
+      <div className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 flex items-center justify-between gap-2 text-xs overflow-x-auto">
         {/* Left Side of Sub-bar: Actions for current Mode */}
         {mode === 'current' && (
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1.5 text-slate-700 font-semibold">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="flex items-center gap-1.5 text-slate-700 font-semibold whitespace-nowrap">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
               <span>Chế độ Xem Hiện Tại</span>
             </span>
           </div>
         )}
 
         {mode === 'proposal' && (
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-500 font-bold mr-1 text-[11px]">Công cụ đề xuất:</span>
+          <div className="flex items-center gap-1.5 shrink-0 flex-nowrap">
+            <span className="text-slate-500 font-bold mr-0.5 text-[11px] whitespace-nowrap shrink-0">Tools:</span>
             
             <Button
               size="sm"
               variant="outline"
               onClick={() => onAddNode('new_hire')}
-              className="text-xs h-7 gap-1 border-emerald-500 text-emerald-700 hover:bg-emerald-50 font-bold bg-white cursor-pointer"
+              className="text-[11px] h-7 px-2.5 gap-1 border-emerald-500 text-emerald-700 hover:bg-emerald-50 font-bold bg-white cursor-pointer whitespace-nowrap shrink-0"
             >
-              <Plus className="w-3.5 h-3.5 text-emerald-600" />
+              <Plus className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
               <span>Tuyển mới</span>
             </Button>
 
@@ -517,9 +517,9 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               size="sm"
               variant="outline"
               onClick={() => onAddNode('replace')}
-              className="text-xs h-7 gap-1 border-rose-400 text-rose-700 hover:bg-rose-50 font-bold bg-white cursor-pointer"
+              className="text-[11px] h-7 px-2.5 gap-1 border-rose-400 text-rose-700 hover:bg-rose-50 font-bold bg-white cursor-pointer whitespace-nowrap shrink-0"
             >
-              <Plus className="w-3.5 h-3.5 text-rose-600" />
+              <Plus className="w-3.5 h-3.5 text-rose-600 shrink-0" />
               <span>Thay thế</span>
             </Button>
 
@@ -527,21 +527,21 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               size="sm"
               variant="outline"
               onClick={() => onAddNode('standard')}
-              className="text-xs h-7 gap-1 border-slate-300 text-slate-700 hover:bg-slate-100 bg-white cursor-pointer"
+              className="text-[11px] h-7 px-2.5 gap-1 border-slate-300 text-slate-700 hover:bg-slate-100 bg-white cursor-pointer whitespace-nowrap shrink-0"
             >
-              <Plus className="w-3.5 h-3.5 text-slate-600" />
+              <Plus className="w-3.5 h-3.5 text-slate-600 shrink-0" />
               <span>Ghế chuẩn</span>
             </Button>
 
-            <div className="w-[1px] h-4 bg-slate-300 mx-1" />
+            <div className="w-[1px] h-4 bg-slate-300 mx-0.5 shrink-0" />
 
             <Button
               size="sm"
               variant="outline"
               onClick={onAddDivider}
-              className="text-xs h-7 gap-1 border-slate-300 text-slate-700 hover:bg-slate-100 bg-white cursor-pointer"
+              className="text-[11px] h-7 px-2.5 gap-1 border-slate-300 text-slate-700 hover:bg-slate-100 bg-white cursor-pointer whitespace-nowrap shrink-0"
             >
-              <SplitSquareVertical className="w-3.5 h-3.5 text-slate-600" />
+              <SplitSquareVertical className="w-3.5 h-3.5 text-slate-600 shrink-0" />
               <span>Vạch ngăn</span>
             </Button>
 
@@ -549,9 +549,9 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               size="sm"
               variant="outline"
               onClick={onAddNote}
-              className="text-xs h-7 gap-1 border-slate-300 text-slate-700 hover:bg-slate-100 bg-white cursor-pointer"
+              className="text-[11px] h-7 px-2.5 gap-1 border-slate-300 text-slate-700 hover:bg-slate-100 bg-white cursor-pointer whitespace-nowrap shrink-0"
             >
-              <StickyNote className="w-3.5 h-3.5 text-slate-600" />
+              <StickyNote className="w-3.5 h-3.5 text-slate-600 shrink-0" />
               <span>Ghi chú</span>
             </Button>
 
@@ -560,25 +560,25 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
                 size="sm"
                 variant="outline"
                 onClick={onAddBoxGroup}
-                className="text-xs h-7 gap-1 border-purple-400 text-purple-700 hover:bg-purple-50 font-bold bg-white cursor-pointer shadow-2xs"
+                className="text-[11px] h-7 px-2.5 gap-1 border-purple-400 text-purple-700 hover:bg-purple-50 font-bold bg-white cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
                 title="Thêm một khối hộp nhóm (Box Group) mới lên sơ đồ N-1"
               >
-                <Plus className="w-3.5 h-3.5 text-purple-600" />
+                <Plus className="w-3.5 h-3.5 text-purple-600 shrink-0" />
                 <span>Thêm Box Group</span>
               </Button>
             )}
 
             {onCopyAsIsToProposal && (
               <>
-                <div className="w-[1px] h-4 bg-slate-300 mx-1" />
+                <div className="w-[1px] h-4 bg-slate-300 mx-0.5 shrink-0" />
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={onCopyAsIsToProposal}
-                  className="text-xs h-7 gap-1 border-amber-400 text-amber-800 hover:bg-amber-50 font-bold bg-white cursor-pointer shadow-2xs"
+                  className="text-[11px] h-7 px-2.5 gap-1 border-amber-400 text-amber-800 hover:bg-amber-50 font-bold bg-white cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
                   title="Sao chép toàn bộ cơ cấu Hiện Tại sang bản đề xuất này"
                 >
-                  <Copy className="w-3.5 h-3.5 text-amber-600" />
+                  <Copy className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                   <span>Đồng bộ từ Hiện Tại</span>
                 </Button>
               </>
@@ -586,19 +586,19 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
 
             {onSyncGoogleSheet && (
               <>
-                <div className="w-[1px] h-4 bg-slate-300 mx-1" />
+                <div className="w-[1px] h-4 bg-slate-300 mx-0.5 shrink-0" />
                 <Button
                   size="sm"
                   variant="outline"
                   disabled={isSyncingSheet}
                   onClick={onSyncGoogleSheet}
-                  className="text-xs h-7 gap-1 border-blue-500 text-blue-700 hover:bg-blue-50 font-bold bg-white cursor-pointer shadow-2xs"
+                  className="text-[11px] h-7 px-2.5 gap-1 border-blue-500 text-blue-700 hover:bg-blue-50 font-bold bg-white cursor-pointer shadow-2xs whitespace-nowrap shrink-0"
                   title="Lưu phương án đề xuất này lên hệ thống"
                 >
                   {isSyncingSheet ? (
-                    <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin shrink-0" />
                   ) : (
-                    <Save className="w-3.5 h-3.5 text-blue-600" />
+                    <Save className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                   )}
                   <span>{isSyncingSheet ? 'Đang lưu...' : 'Lưu Phương Án'}</span>
                 </Button>
@@ -608,11 +608,11 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
         )}
 
         {/* Right Side of Sub-bar: Display toggles or Copy button for Summary view */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           {template === 'division_summary' ? (
             <button
               onClick={onCopySummaryTable}
-              className={`px-3 py-1 rounded text-[11px] font-bold border flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+              className={`px-3 py-1 rounded text-[11px] font-bold border flex items-center gap-1.5 transition-all cursor-pointer shadow-xs whitespace-nowrap shrink-0 ${
                 isSummaryCopied
                   ? 'bg-emerald-600 text-white border-emerald-700'
                   : 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800'
@@ -621,23 +621,23 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
             >
               {isSummaryCopied ? (
                 <>
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Đã copy</span>
+                  <Check className="w-3.5 h-3.5 shrink-0" />
+                  <span className="whitespace-nowrap">Đã copy</span>
                 </>
               ) : (
                 <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy</span>
+                  <Copy className="w-3.5 h-3.5 shrink-0" />
+                  <span className="whitespace-nowrap">Copy</span>
                 </>
               )}
             </button>
           ) : (
             <>
               {/* Density Switcher: Only 2 options (Đầy đủ & Gọn) */}
-              <div className="flex items-center bg-slate-200/80 p-0.5 rounded-md text-[11px]">
+              <div className="flex items-center bg-slate-200/80 p-0.5 rounded-md text-[11px] shrink-0">
                 <button
                   onClick={() => onDensityModeChange('full')}
-                  className={`px-2.5 py-0.5 rounded font-bold transition-all cursor-pointer ${
+                  className={`px-2.5 py-0.5 rounded font-bold transition-all cursor-pointer whitespace-nowrap leading-none shrink-0 ${
                     densityMode === 'full' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                   title="Hiển thị đầy đủ chức danh, nhân sự và phòng ban"
@@ -646,7 +646,7 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
                 </button>
                 <button
                   onClick={() => onDensityModeChange('compact')}
-                  className={`px-2.5 py-0.5 rounded font-bold transition-all cursor-pointer ${
+                  className={`px-2.5 py-0.5 rounded font-bold transition-all cursor-pointer whitespace-nowrap leading-none shrink-0 ${
                     densityMode === 'compact' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                   title="Bố cục siêu tinh gọn, tối ưu không gian hiển thị"
@@ -658,15 +658,15 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
               {/* Headcount table toggle */}
               <button
                 onClick={onToggleSumUpTable}
-                className={`px-2 py-1 rounded text-[11px] font-bold border flex items-center gap-1 transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded text-[11px] font-bold border flex items-center gap-1 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   showSumUpTable
                     ? 'bg-red-50 text-red-700 border-red-200 shadow-xs'
                     : 'bg-slate-100 text-slate-500 border-transparent hover:bg-slate-200'
                 }`}
                 title="Bật/Tắt bảng thống kê tổng số lượng nhân sự"
               >
-                <Layers className="w-3 h-3 text-red-600" />
-                <span>Định Biên</span>
+                <Layers className="w-3 h-3 text-red-600 shrink-0" />
+                <span className="whitespace-nowrap">Định Biên</span>
               </button>
             </>
           )}
