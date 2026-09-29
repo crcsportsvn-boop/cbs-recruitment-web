@@ -52,27 +52,17 @@ export const OrgNodeCard: React.FC<OrgNodeCardProps> = ({
 }) => {
   // Determine if flags should be displayed on this node
   const shouldShowFlags = () => {
+    // 1. In N-1 view: all positioned nodes represent their functions/brands, so all show flags
     if (isN1View) return true;
 
+    // 2. External supervisor or virtual leader shown for context at top of canvas
     if (node.isVirtual || node.id.includes('PRES') || node.id.includes('THL') || node.id.includes('CRV')) {
       return true;
     }
 
-    if (node.flags?.some(f => f === 'MY' || f === 'TH')) {
-      return true;
-    }
-
-    const titleLower = (node.title || '').toLowerCase();
-    const isHeadOrLeader =
-      titleLower.includes('president') ||
-      titleLower.includes('director') ||
-      titleLower.includes('head') ||
-      titleLower.includes('gm') ||
-      titleLower.includes('general manager') ||
-      titleLower.includes('controller') ||
-      titleLower.includes('brand manager');
-
-    return isHeadOrLeader;
+    // 3. In Division view: ONLY the single highest leader (isDivisionHead) gets the flag!
+    // Subordinates in the division (e.g. Head of Sales in Dyson, Brand Manager in Crocs, etc.) MUST NOT show flags.
+    return !!node.isDivisionHead;
   };
 
   // Clean raw title from legacy flag strings
@@ -218,7 +208,7 @@ export const OrgNodeCard: React.FC<OrgNodeCardProps> = ({
         >
           {cleanTitle}
         </div>
-        {shouldShowFlags() && <FlagBadgeGroup flags={node.flags} size={12} />}
+        {shouldShowFlags() && <FlagBadgeGroup flags={node.flags && node.flags.length > 0 ? node.flags : ['VN']} size={12} />}
       </div>
 
       {/* Person Name / Nickname */}

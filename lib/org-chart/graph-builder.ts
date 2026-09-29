@@ -79,6 +79,225 @@ export function calculateHeadcountSummary(
 }
 
 /**
+ * Resolves the single primary leader representing a division in N-1 and Division views.
+ * Recognizes that Division Heads in CBS can be:
+ * - "Head of ..." (e.g. Head of Crocs, Head of Dyson, Head of Supersports, Head of Sports Brands, Head of Operations)
+ * - "Senior Manager" / "Snr Mng" (e.g. Senior Marketing Manager, Senior Planning Manager, Senior Project Division Manager, Senior Ecommerce Manager)
+ * - "Brand Manager" (e.g. Hoka Brand Manager, Matin Kim Brand Manager)
+ * - Specific functional titles: "Wholesale Manager", "Store Expansion Manager" (Leasing), "Business Controller", "GM Human Resources"
+ */
+export function getDivisionLeader(
+  divisionName: string,
+  divisionNodes: OrgNode[],
+  allNodes?: OrgNode[]
+): OrgNode | null {
+  if (!divisionNodes || divisionNodes.length === 0) return null;
+  const divLower = (divisionName || '').trim().toLowerCase();
+
+  // 1. Division-specific exact matching aligned with N-1 representation
+  if (divLower.includes('dyson')) {
+    const leader = divisionNodes.find(n => n.title.toLowerCase().includes('head of dyson'));
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('crocs') || divLower === 'footwear') {
+    const leader = divisionNodes.find(n => n.title.toLowerCase().includes('head of crocs'));
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('hoka')) {
+    const leader = divisionNodes.find(n =>
+      (n.nickname || '').toLowerCase() === 'liam' ||
+      n.title.toLowerCase().includes('brand manager') ||
+      n.id === 'SHO-HOK-146-149-010-1'
+    );
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('matin kim')) {
+    const leader = divisionNodes.find(n =>
+      (n.nickname || '').toLowerCase() === 'vincent' ||
+      n.title.toLowerCase().includes('brand manager')
+    );
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('sports brands') || divLower === 'sports') {
+    const leader = divisionNodes.find(n =>
+      n.title.toLowerCase().includes('head of sports brands') ||
+      (n.nickname || '').toLowerCase() === 'april'
+    );
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('supersports') || divLower === 'ssp') {
+    const leader = divisionNodes.find(n =>
+      n.title.toLowerCase().includes('head of supersports') ||
+      (n.nickname || '').toLowerCase() === 'thảo' ||
+      (n.nickname || '').toLowerCase() === 'thao'
+    );
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('marketing')) {
+    const leader = divisionNodes.find(n =>
+      n.title.toLowerCase().includes('senior marketing manager') ||
+      (n.nickname || '').toLowerCase() === 'tú' ||
+      (n.nickname || '').toLowerCase() === 'tu'
+    );
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('planning')) {
+    // Senior Planning Manager May takes priority as designated leader in N-1 and Division
+    const may = divisionNodes.find(n =>
+      n.title.toLowerCase().includes('senior planning manager') ||
+      (n.nickname || '').toLowerCase() === 'may' ||
+      n.id === 'SHO-PLA-159-159-088-1'
+    );
+    const headPla = divisionNodes.find(n => n.title.toLowerCase().includes('head of planning'));
+
+    if (headPla && headPla.status !== 'vacant' && (headPla.nickname || '').toLowerCase() !== 'vacant') {
+      return headPla;
+    }
+    if (may) return may;
+    if (headPla) return headPla;
+  }
+
+  if (divLower.includes('wholesale')) {
+    const leader = divisionNodes.find(n =>
+      n.title.toLowerCase().includes('wholesale manager') ||
+      (n.nickname || '').toLowerCase() === 'amy'
+    );
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('leasing')) {
+    const leader = divisionNodes.find(n =>
+      n.title.toLowerCase().includes('store expansion') ||
+      n.title.toLowerCase().includes('leasing')
+    );
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('operations')) {
+    const leader = divisionNodes.find(n =>
+      n.title.toLowerCase().includes('head of operations') ||
+      (n.nickname || '').toLowerCase() === 'thi'
+    );
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('online')) {
+    const leader = divisionNodes.find(n =>
+      (n.nickname || '').toLowerCase() === 'emma' ||
+      n.title.toLowerCase().includes('senior ecommerce manager') ||
+      n.title.toLowerCase().includes('senior ecom manager')
+    ) || divisionNodes.find(n => n.title.toLowerCase().includes('head of online'));
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('finance')) {
+    const leader = divisionNodes.find(n =>
+      n.title.toLowerCase().includes('business controller') ||
+      n.title.toLowerCase().includes('controller')
+    );
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('human resources') || divLower === 'hr') {
+    const leader = divisionNodes.find(n =>
+      n.title.toLowerCase().includes('gm human resources') ||
+      n.title.toLowerCase().includes('hr head')
+    );
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('project')) {
+    const leader = divisionNodes.find(n =>
+      n.title.toLowerCase().includes('senior project division manager') ||
+      n.title.toLowerCase().includes('senior project manager')
+    );
+    if (leader) return leader;
+  }
+
+  if (divLower.includes('executive')) {
+    const leader = divisionNodes.find(n => n.title.toLowerCase().includes('president'));
+    if (leader) return leader;
+  }
+
+  // 2. Generic Algorithmic Hierarchy Ranking for customized divisions
+  const divNodeIds = new Set(divisionNodes.map(n => n.id));
+
+  function countDescendants(id: string, visited: Set<string> = new Set()): number {
+    if (visited.has(id)) return 0;
+    visited.add(id);
+    const children = divisionNodes.filter(n => n.reportsToId === id);
+    let count = children.length;
+    children.forEach(c => { count += countDescendants(c.id, visited); });
+    return count;
+  }
+
+  let bestNode: OrgNode | null = null;
+  let bestScore = -Infinity;
+
+  divisionNodes.forEach(node => {
+    let score = 0;
+    const title = (node.title || '').toLowerCase();
+    const repId = node.reportsToId || '';
+    const repTitle = (node.reportsToTitle || '').toLowerCase();
+    const isInternalReport = divNodeIds.has(repId) && repId !== node.id;
+
+    // Subordinates reporting to someone inside division are penalized heavily
+    if (isInternalReport) {
+      score -= 1000;
+    }
+
+    // Direct report to President or Regional or top
+    if (repTitle.includes('president') || repId.includes('EXE') || repTitle.includes('regional') || repId.includes('THL')) {
+      score += 200;
+    }
+
+    // Descendants count within division
+    score += countDescendants(node.id) * 15;
+
+    // Title weight recognizing Head, Snr Mng, Brand Manager
+    if (title.includes('president') || title.includes('managing director')) {
+      score += 500;
+    } else if (title.includes('head of')) {
+      score += 350;
+    } else if (title.includes('gm') || title.includes('general manager')) {
+      score += 340;
+    } else if (title.includes('business controller') || title.includes('controller')) {
+      score += 330;
+    } else if (title.includes('senior') && title.includes('manager')) {
+      score += 320;
+    } else if (title.includes('snr mng') || title.includes('snr manager')) {
+      score += 320;
+    } else if (title.includes('brand manager')) {
+      score += 310;
+    } else if (title.includes('wholesale manager') || title.includes('store expansion') || title.includes('leasing')) {
+      score += 300;
+    } else if (title.includes('head')) {
+      score += 280;
+    } else if (title.includes('manager')) {
+      score += 150;
+    }
+
+    if (node.status === 'vacant' || (node.nickname || '').toLowerCase() === 'vacant') {
+      score -= 40;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestNode = node;
+    }
+  });
+
+  return bestNode || divisionNodes[0] || null;
+}
+
+/**
  * Dynamic Division Tree Builder:
  * - Automatically adapts card sizes: generous for small divisions, compact for large divisions.
  * - Multi-tier compact wrapping: max 3-4 cards per sub-row for large teams to prevent excessive width.
@@ -125,16 +344,39 @@ export function buildDynamicDivisionTree(
     return { ...n, reportsToId: repId };
   });
 
-  let roots = cleanedNodes.filter(n => !n.reportsToId);
+  // 1. Identify the single highest Division Head representing this division in N-1 and Division views
+  const divisionHead = getDivisionLeader(divisionName, cleanedNodes, rawNodes);
+
+  // 2. Annotate all nodes with isDivisionHead (only 1 leader has true, all subordinates have false)
+  const annotatedNodes = cleanedNodes.map(n => {
+    const isHead = !!(divisionHead && n.id === divisionHead.id);
+    let flags = n.flags;
+    // Guarantee that the division head has a valid flag badge
+    if (isHead && (!flags || flags.length === 0 || flags.includes('NONE'))) {
+      flags = ['VN'];
+    }
+    return {
+      ...n,
+      flags,
+      isDivisionHead: isHead,
+      reportsToId: isHead ? undefined : n.reportsToId
+    };
+  });
+
+  let roots = annotatedNodes.filter(n => !n.reportsToId);
+  const headNode = annotatedNodes.find(n => n.isDivisionHead);
+  if (headNode) {
+    roots = [headNode, ...roots.filter(r => r.id !== headNode.id)];
+  }
   if (roots.length === 0) {
-    roots = [cleanedNodes[0]!];
+    roots = [annotatedNodes[0]!];
   }
 
   // Count total descendants for any node (with cycle prevention)
   function countDescendants(nodeId: string, visited: Set<string> = new Set()): number {
     if (visited.has(nodeId)) return 0;
     visited.add(nodeId);
-    const direct = cleanedNodes.filter(c => c.reportsToId === nodeId);
+    const direct = annotatedNodes.filter(c => c.reportsToId === nodeId);
     let total = direct.length;
     direct.forEach(c => {
       total += countDescendants(c.id, visited);
@@ -151,11 +393,11 @@ export function buildDynamicDivisionTree(
   // Helper to estimate how many visual columns a division needs without forced collapsing
   function estimateDivisionColumns(): number {
     function getSubtreeCols(node: OrgNode, isR: boolean = false): number {
-      const children = cleanedNodes.filter(c => c.reportsToId === node.id);
+      const children = annotatedNodes.filter(c => c.reportsToId === node.id);
       if (children.length === 0) return 1;
 
-      const branchChildren = children.filter(c => cleanedNodes.some(gc => gc.reportsToId === c.id));
-      const leafChildren = children.filter(c => cleanedNodes.every(gc => gc.reportsToId !== c.id));
+      const branchChildren = children.filter(c => annotatedNodes.some(gc => gc.reportsToId === c.id));
+      const leafChildren = children.filter(c => annotatedNodes.every(gc => gc.reportsToId !== c.id));
 
       if (!isR && branchChildren.length === 0) {
         return 1;
@@ -191,7 +433,7 @@ export function buildDynamicDivisionTree(
 
   // Recursively layout a subtree for a given node
   function layoutSubtree(node: OrgNode, startX: number, startY: number, isRoot: boolean = false): LayoutSubtreeResult {
-    const children = cleanedNodes.filter(c => c.reportsToId === node.id);
+    const children = annotatedNodes.filter(c => c.reportsToId === node.id);
     const hasChildren = children.length > 0;
     const isCollapsed = collapsedNodeIds.has(node.id);
     const totalDescendants = hasChildren ? countDescendants(node.id) : 0;
@@ -224,8 +466,8 @@ export function buildDynamicDivisionTree(
       return score;
     };
 
-    const branchChildren = children.filter(c => cleanedNodes.some(gc => gc.reportsToId === c.id));
-    const leafChildren = children.filter(c => cleanedNodes.every(gc => gc.reportsToId !== c.id));
+    const branchChildren = children.filter(c => annotatedNodes.some(gc => gc.reportsToId === c.id));
+    const leafChildren = children.filter(c => annotatedNodes.every(gc => gc.reportsToId !== c.id));
 
     // Sort by seniority descending so managers/seniors are placed on top rows
     branchChildren.sort((a, b) => getSeniorityScore(b) - getSeniorityScore(a));

@@ -39,6 +39,7 @@ export interface OrgNode {
   isCollapsed?: boolean;         // Subtree is currently collapsed
   collapsedCount?: number;       // Total hidden descendant seats
   isSupervisor?: boolean;        // true if external supervisor node shown for context
+  isDivisionHead?: boolean;      // true if primary root leader representing this division
   isHidden?: boolean;            // Hidden when seat is optimized/closed
 }
 
