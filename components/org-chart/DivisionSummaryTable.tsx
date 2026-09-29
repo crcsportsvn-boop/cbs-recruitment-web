@@ -1,5 +1,6 @@
 import React, { useState, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { OrgNode, OrgChartMode } from '@/types/org-chart';
+import { extractYearFromDate } from '@/lib/org-chart/excel-parser';
 
 export interface DivisionSummaryTableHandle {
   copyTable: () => Promise<boolean>;
@@ -65,6 +66,19 @@ export const DivisionSummaryTable = forwardRef<DivisionSummaryTableHandle, Divis
   onCopiedSuccess
 }, ref) => {
   const isCurrent = mode === 'current';
+  const currentYear = new Date().getFullYear();
+
+  // Helper to determine if a node is active and not closing this year
+  const isNodeActive = (n: OrgNode) => {
+    if (n.isHidden) return false;
+    if (n.effectiveEndDate) {
+      const endYr = extractYearFromDate(n.effectiveEndDate);
+      if (endYr !== null && (endYr === currentYear || endYr <= currentYear)) {
+        return false;
+      }
+    }
+    return true;
+  };
 
   // Compute table rows & subtotals dynamically
   const tableData = useMemo(() => {
@@ -78,7 +92,7 @@ export const DivisionSummaryTable = forwardRef<DivisionSummaryTableHandle, Divis
       const rows = group.divisions.map(div => {
         // As-Is (Current) counts
         const asIsList = currentNodes.filter(
-          n => !n.isHidden && div.match((n.division || '').toLowerCase().trim())
+          n => isNodeActive(n) && div.match((n.division || '').toLowerCase().trim())
         );
         const asIsHC = asIsList.length;
         const asIsVacant = asIsList.filter(
@@ -88,7 +102,7 @@ export const DivisionSummaryTable = forwardRef<DivisionSummaryTableHandle, Divis
 
         // Propose counts
         const propList = proposalNodes.filter(
-          n => !n.isHidden && div.match((n.division || '').toLowerCase().trim())
+          n => isNodeActive(n) && div.match((n.division || '').toLowerCase().trim())
         );
         const propHC = propList.length;
         const propVacant = propList.filter(
@@ -135,7 +149,7 @@ export const DivisionSummaryTable = forwardRef<DivisionSummaryTableHandle, Divis
     // Check for any custom divisions not matching standard groups
     const allDivisionsInNodes = new Set<string>();
     [...currentNodes, ...proposalNodes].forEach(n => {
-      if (n.division && !n.isHidden) {
+      if (n.division && isNodeActive(n)) {
         allDivisionsInNodes.add(n.division.trim());
       }
     });
@@ -159,7 +173,7 @@ export const DivisionSummaryTable = forwardRef<DivisionSummaryTableHandle, Divis
 
       const otherRows = otherDivisions.map(divName => {
         const asIsList = currentNodes.filter(
-          n => !n.isHidden && (n.division || '').toLowerCase().trim() === divName.toLowerCase().trim()
+          n => isNodeActive(n) && (n.division || '').toLowerCase().trim() === divName.toLowerCase().trim()
         );
         const asIsHC = asIsList.length;
         const asIsVacant = asIsList.filter(
@@ -168,7 +182,7 @@ export const DivisionSummaryTable = forwardRef<DivisionSummaryTableHandle, Divis
         const asIsActive = asIsHC - asIsVacant;
 
         const propList = proposalNodes.filter(
-          n => !n.isHidden && (n.division || '').toLowerCase().trim() === divName.toLowerCase().trim()
+          n => isNodeActive(n) && (n.division || '').toLowerCase().trim() === divName.toLowerCase().trim()
         );
         const propHC = propList.length;
         const propVacant = propList.filter(

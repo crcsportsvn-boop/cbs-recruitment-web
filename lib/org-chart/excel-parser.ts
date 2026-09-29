@@ -45,6 +45,52 @@ export function parseFlagsFromText(text: string): NodeFlag[] {
 }
 
 /**
+ * Extracts a 4-digit calendar year from various date string formats, Date objects, or Excel serial numbers.
+ * Dynamically supports any year format (e.g. 2026-12-31, 31/12/2026, 12/31/26, 46387).
+ */
+export function extractYearFromDate(dateVal: any): number | null {
+  if (dateVal === null || dateVal === undefined) return null;
+
+  if (dateVal instanceof Date && !isNaN(dateVal.getTime())) {
+    return dateVal.getFullYear();
+  }
+
+  const str = String(dateVal).trim();
+  if (!str || str.toLowerCase() === 'none' || str.toLowerCase() === 'null') return null;
+
+  // 1. Match 4-digit year directly (e.g. 2026-12-31, 31/12/2026, 2026)
+  const match4 = str.match(/\b(19\d{2}|20\d{2})\b/);
+  if (match4 && match4[1]) {
+    return parseInt(match4[1], 10);
+  }
+
+  // 2. Match 2-digit year at end of date (e.g. "31/12/26", "12/31/26", "31-Dec-26")
+  const match2 = str.match(/[\/\-\.](\d{2})(?:\s|$)/);
+  if (match2 && match2[1]) {
+    const yr2 = parseInt(match2[1], 10);
+    return 2000 + yr2;
+  }
+
+  // 3. Fallback to Date.parse
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    const yr = parsed.getFullYear();
+    if (yr >= 1990 && yr <= 2100) return yr;
+  }
+
+  // 4. Excel numeric serial date (e.g. ~46000 for 2026)
+  const num = Number(str);
+  if (!isNaN(num) && num > 30000 && num < 70000) {
+    const excelDate = new Date(Math.round((num - 25569) * 86400 * 1000));
+    if (!isNaN(excelDate.getTime())) {
+      return excelDate.getFullYear();
+    }
+  }
+
+  return null;
+}
+
+/**
  * Derives display nickname with fallback logic:
  * 1. Explicit Nickname column value
  * 2. If 'Vacant' in full name -> 'Vacant'
@@ -161,7 +207,21 @@ export function parseOrgChartWorkbook(buffer: ArrayBuffer): ParsedOrgData {
       const fullName = getRowValue(row, 'master_data.fullname', 'fullname', 'full name');
       const nickNameCol = getRowValue(row, 'master_data.nickname', 'nickname', 'nick name');
 
-      const effectiveEndDate = getRowValue(row, 'effectiveenddate', 'effective end date', 'enddate', 'end date', 'effective date');
+      const effectiveEndDate = getRowValue(
+        row,
+        'effectiveenddate',
+        'effective end date',
+        'enddate',
+        'end date',
+        'effectivedate',
+        'effective date',
+        'planenddate',
+        'plan end date',
+        'closingdate',
+        'closedate',
+        'ngayketthuc',
+        'ngayhethan'
+      );
       const notePositionId = getRowValue(row, 'notepositionid', 'note position id', 'noteposid', 'note position', 'note pos id');
 
       const nickname = deriveNickname(fullName, nickNameCol);
@@ -194,7 +254,9 @@ export function parseOrgChartWorkbook(buffer: ArrayBuffer): ParsedOrgData {
           holderName: fullName,
           nickname: nickname,
           flags: flags,
-          status: status
+          status: status,
+          effectiveEndDate: effectiveEndDate || undefined,
+          notePositionId: notePositionId || undefined
         },
         effectiveEndDate,
         notePositionId
@@ -202,12 +264,15 @@ export function parseOrgChartWorkbook(buffer: ArrayBuffer): ParsedOrgData {
     }
   }
 
-  // Optimize seats based on Effective End Date & Note Position ID:
-  // If an old seat has both fields and matches a target seat (Note Position ID),
-  // transfer holderName + nickname to the new seat, hide the old seat, and re-link its direct reports.
+  // Dynamic current calendar year using year(today) - never hardcoded!
+  const currentYear = new Date().getFullYear();
+
   const nodeMap = new Map<string, OrgNode>();
   rawItems.forEach(item => nodeMap.set(item.node.id.toLowerCase().trim(), item.node));
 
+  // Pass 1: Optimize seats based on Effective End Date & Note Position ID (replacement / transfer)
+  // If an old seat has both fields and matches a target seat (Note Position ID),
+  // transfer holderName + nickname to the new seat, hide the old seat, and re-link its direct reports.
   rawItems.forEach(item => {
     if (item.effectiveEndDate && item.notePositionId) {
       const targetId = item.notePositionId.toLowerCase().trim();
@@ -225,6 +290,30 @@ export function parseOrgChartWorkbook(buffer: ArrayBuffer): ParsedOrgData {
           if (other.node.reportsToId && other.node.reportsToId.toLowerCase().trim() === item.node.id.toLowerCase().trim()) {
             other.node.reportsToId = targetNode.id;
             other.node.reportsToTitle = targetNode.title;
+          }
+        });
+      }
+    }
+  });
+
+  // Pass 2: Filter out seats scheduled for closure in the current year (rule-based planned closure)
+  // If a seat's Effective End Date has a year equal to the current year (year(today)), remove the seat.
+  // Direct reports of the closing seat are automatically re-routed to its manager to keep the hierarchy unbroken.
+  rawItems.forEach(item => {
+    if (item.node.isHidden) return; // already transferred/hidden
+
+    if (item.effectiveEndDate) {
+      const endYear = extractYearFromDate(item.effectiveEndDate);
+      if (endYear !== null && (endYear === currentYear || endYear <= currentYear)) {
+        item.node.isHidden = true;
+
+        // Reassign subordinate seats to the manager of this closing seat
+        const parentReportsToId = item.node.reportsToId;
+        const parentReportsToTitle = item.node.reportsToTitle;
+        rawItems.forEach(other => {
+          if (other.node.reportsToId && other.node.reportsToId.toLowerCase().trim() === item.node.id.toLowerCase().trim()) {
+            other.node.reportsToId = parentReportsToId;
+            other.node.reportsToTitle = parentReportsToTitle;
           }
         });
       }

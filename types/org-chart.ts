@@ -42,6 +42,8 @@ export interface OrgNode {
   isSupervisor?: boolean;        // true if external supervisor node shown for context
   isDivisionHead?: boolean;      // true if primary root leader representing this division
   isHidden?: boolean;            // Hidden when seat is optimized/closed
+  effectiveEndDate?: string;     // Planned closing/expiration date
+  notePositionId?: string;       // Linked replacement position ID
 }
 
 export interface IndirectLink {
