@@ -76,6 +76,8 @@ interface ProposalToolbarProps {
   onOpenBoxesConfig?: () => void;
   onOpenAddDivision?: () => void;
   onAddBoxGroup?: () => void;
+  onCopySummaryTable?: () => void;
+  isSummaryCopied?: boolean;
 }
 
 export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
@@ -118,7 +120,9 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
   onCopyAsIsToProposal,
   onOpenBoxesConfig,
   onOpenAddDivision,
-  onAddBoxGroup
+  onAddBoxGroup,
+  onCopySummaryTable,
+  isSummaryCopied = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftInputRef = useRef<HTMLInputElement>(null);
@@ -603,43 +607,69 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
           </div>
         )}
 
-        {/* Right Side of Sub-bar: Display toggles (Đầy đủ / Gọn & Định Biên) */}
+        {/* Right Side of Sub-bar: Display toggles or Copy button for Summary view */}
         <div className="flex items-center gap-2">
-          {/* Density Switcher: Only 2 options (Đầy đủ & Gọn) */}
-          <div className="flex items-center bg-slate-200/80 p-0.5 rounded-md text-[11px]">
+          {template === 'division_summary' ? (
             <button
-              onClick={() => onDensityModeChange('full')}
-              className={`px-2.5 py-0.5 rounded font-bold transition-all cursor-pointer ${
-                densityMode === 'full' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              onClick={onCopySummaryTable}
+              className={`px-3 py-1 rounded text-[11px] font-bold border flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                isSummaryCopied
+                  ? 'bg-emerald-600 text-white border-emerald-700'
+                  : 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800'
               }`}
-              title="Hiển thị đầy đủ chức danh, nhân sự và phòng ban"
+              title="Sao chép bảng tổng hợp để dán trực tiếp vào Excel hoặc Google Sheets"
             >
-              Đầy đủ
+              {isSummaryCopied ? (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Đã copy</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy</span>
+                </>
+              )}
             </button>
-            <button
-              onClick={() => onDensityModeChange('compact')}
-              className={`px-2.5 py-0.5 rounded font-bold transition-all cursor-pointer ${
-                densityMode === 'compact' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="Bố cục siêu tinh gọn, tối ưu không gian hiển thị"
-            >
-              Gọn
-            </button>
-          </div>
+          ) : (
+            <>
+              {/* Density Switcher: Only 2 options (Đầy đủ & Gọn) */}
+              <div className="flex items-center bg-slate-200/80 p-0.5 rounded-md text-[11px]">
+                <button
+                  onClick={() => onDensityModeChange('full')}
+                  className={`px-2.5 py-0.5 rounded font-bold transition-all cursor-pointer ${
+                    densityMode === 'full' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Hiển thị đầy đủ chức danh, nhân sự và phòng ban"
+                >
+                  Đầy đủ
+                </button>
+                <button
+                  onClick={() => onDensityModeChange('compact')}
+                  className={`px-2.5 py-0.5 rounded font-bold transition-all cursor-pointer ${
+                    densityMode === 'compact' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Bố cục siêu tinh gọn, tối ưu không gian hiển thị"
+                >
+                  Gọn
+                </button>
+              </div>
 
-          {/* Headcount table toggle */}
-          <button
-            onClick={onToggleSumUpTable}
-            className={`px-2 py-1 rounded text-[11px] font-bold border flex items-center gap-1 transition-all cursor-pointer ${
-              showSumUpTable
-                ? 'bg-red-50 text-red-700 border-red-200 shadow-xs'
-                : 'bg-slate-100 text-slate-500 border-transparent hover:bg-slate-200'
-            }`}
-            title="Bật/Tắt bảng thống kê tổng số lượng nhân sự"
-          >
-            <Layers className="w-3 h-3 text-red-600" />
-            <span>Định Biên</span>
-          </button>
+              {/* Headcount table toggle */}
+              <button
+                onClick={onToggleSumUpTable}
+                className={`px-2 py-1 rounded text-[11px] font-bold border flex items-center gap-1 transition-all cursor-pointer ${
+                  showSumUpTable
+                    ? 'bg-red-50 text-red-700 border-red-200 shadow-xs'
+                    : 'bg-slate-100 text-slate-500 border-transparent hover:bg-slate-200'
+                }`}
+                title="Bật/Tắt bảng thống kê tổng số lượng nhân sự"
+              >
+                <Layers className="w-3 h-3 text-red-600" />
+                <span>Định Biên</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -717,6 +747,30 @@ export const ProposalToolbar: React.FC<ProposalToolbarProps> = ({
 
           {/* Right: Nạp Excel & Xuất Dữ Liệu buttons in collapsed bar */}
           <div className="flex items-center gap-1.5 shrink-0">
+            {template === 'division_summary' && (
+              <button
+                onClick={onCopySummaryTable}
+                className={`flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-bold transition-all cursor-pointer h-6 shadow-2xs ${
+                  isSummaryCopied
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-900 text-white hover:bg-slate-800'
+                }`}
+                title="Sao chép bảng tổng hợp để dán trực tiếp vào Excel hoặc Google Sheets"
+              >
+                {isSummaryCopied ? (
+                  <>
+                    <Check className="w-3 h-3" />
+                    <span>Đã copy</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3 h-3" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+            )}
+
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-1 px-2 py-0.5 rounded border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer h-6 shadow-2xs"

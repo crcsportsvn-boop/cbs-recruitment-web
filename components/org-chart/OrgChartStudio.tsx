@@ -26,7 +26,7 @@ import { DEFAULT_VIRTUAL_LEADERS, DEFAULT_INDIRECT_LINKS } from '@/lib/org-chart
 import { DEFAULT_OFFICE_NODES, DEFAULT_OFFICE_DIVISIONS } from '@/lib/org-chart/default-office-data';
 import { ProposalToolbar } from './ProposalToolbar';
 import { OrgCanvas } from './OrgCanvas';
-import { DivisionSummaryTable } from './DivisionSummaryTable';
+import { DivisionSummaryTable, DivisionSummaryTableHandle } from './DivisionSummaryTable';
 import { PillarPill, Headcount3YRow } from '@/lib/org-chart/department-blueprints';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -121,6 +121,19 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
   // Multi-proposal state (1 to 5)
   const [activeProposalId, setActiveProposalId] = useState<number>(1);
   const [unlockedProposalCount, setUnlockedProposalCount] = useState<number>(1);
+  const summaryTableRef = useRef<DivisionSummaryTableHandle>(null);
+  const [isSummaryCopied, setIsSummaryCopied] = useState<boolean>(false);
+
+  const handleCopySummaryTable = async () => {
+    if (summaryTableRef.current) {
+      const ok = await summaryTableRef.current.copyTable();
+      if (ok) {
+        setIsSummaryCopied(true);
+        setTimeout(() => setIsSummaryCopied(false), 2000);
+        notify('success', 'Đã sao chép bảng tổng hợp vào bộ nhớ tạm!');
+      }
+    }
+  };
   const [proposalNames, setProposalNames] = useState<Record<number, string>>(() => {
     try {
       const saved = typeof window !== 'undefined' ? localStorage.getItem('cbs_org_proposal_names') : null;
@@ -1335,16 +1348,24 @@ export default function OrgChartStudio({ lang = 'en', user }: OrgChartStudioProp
         onCopyAsIsToProposal={handleCopyAsIsToProposal}
         onAddBoxGroup={handleOpenAddBoxGroup}
         onOpenAddDivision={handleOpenAddDivision}
+        onCopySummaryTable={handleCopySummaryTable}
+        isSummaryCopied={isSummaryCopied}
       />
 
       {/* Main Interactive Canvas Viewport */}
       <div className="flex-1 w-full p-2 overflow-hidden flex flex-col">
         {template === 'division_summary' ? (
           <DivisionSummaryTable
+            ref={summaryTableRef}
             mode={mode}
             currentNodes={currentNodes}
             proposalNodes={proposalNodes}
             activeProposalName={proposalNames[activeProposalId] || `Đề Xuất ${activeProposalId}`}
+            onCopiedSuccess={() => {
+              setIsSummaryCopied(true);
+              setTimeout(() => setIsSummaryCopied(false), 2000);
+              notify('success', 'Đã sao chép bảng tổng hợp vào bộ nhớ tạm!');
+            }}
           />
         ) : (
           <OrgCanvas
